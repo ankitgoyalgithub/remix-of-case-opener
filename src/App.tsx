@@ -8,6 +8,16 @@ import RequestDetail from "./pages/RequestDetail";
 import EvidencePack from "./pages/EvidencePack";
 import NotFound from "./pages/NotFound";
 
+// AI Ops Studio Pages
+import AIStudioLayout from "./pages/studio/AIStudioLayout";
+import WorkflowBuilder from "./pages/studio/WorkflowBuilder";
+import DocumentCatalog from "./pages/studio/DocumentCatalog";
+import ExtractionSchema from "./pages/studio/ExtractionSchema";
+import AIInstructions from "./pages/studio/AIInstructions";
+import ChecklistBuilder from "./pages/studio/ChecklistBuilder";
+import EmailTemplates from "./pages/studio/EmailTemplates";
+import StudioSettings from "./pages/studio/StudioSettings";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -22,6 +32,19 @@ const App = () => (
           <Route path="/requests" element={<RequestsInbox />} />
           <Route path="/request/:requestId" element={<RequestDetail />} />
           <Route path="/evidence-pack" element={<EvidencePack />} />
+          
+          {/* AI Ops Studio - Admin Only */}
+          <Route path="/studio" element={<AIStudioLayout />}>
+            <Route index element={<Navigate to="/studio/workflow" replace />} />
+            <Route path="workflow" element={<WorkflowBuilder />} />
+            <Route path="documents" element={<DocumentCatalog />} />
+            <Route path="extraction" element={<ExtractionSchema />} />
+            <Route path="ai-instructions" element={<AIInstructions />} />
+            <Route path="checklists" element={<ChecklistBuilder />} />
+            <Route path="emails" element={<EmailTemplates />} />
+            <Route path="settings" element={<StudioSettings />} />
+          </Route>
+          
           {/* Legacy route redirect */}
           <Route path="/case" element={<Navigate to="/requests" replace />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

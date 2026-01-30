@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { mockRequests, getSlaRiskCount, RequestListItem } from '@/data/mockRequestsData';
-import { Inbox, Filter, RefreshCw, AlertTriangle, Clock } from 'lucide-react';
+import { Inbox, Filter, RefreshCw, AlertTriangle, Clock, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SlaRiskNotification } from '@/components/request/SlaRiskNotification';
 
@@ -97,6 +97,12 @@ export default function RequestsInbox() {
               redCount={slaRisk.red}
               onClick={() => {/* Could filter to show only at-risk requests */}}
             />
+            <Link to="/studio">
+              <Button variant="outline" size="sm" className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                AI Ops Studio
+              </Button>
+            </Link>
             <Button variant="outline" size="sm" className="gap-2">
               <Filter className="h-4 w-4" />
               Filter

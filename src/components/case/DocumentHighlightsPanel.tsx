@@ -1,7 +1,7 @@
 import { Document, DocumentHighlight } from '@/types/case';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles, FileText, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { X, FileText, Sparkles, ArrowRight, FileSearch, Database } from 'lucide-react';
 
 interface DocumentHighlightsPanelProps {
   document: Document;
@@ -9,57 +9,83 @@ interface DocumentHighlightsPanelProps {
 }
 
 export function DocumentHighlightsPanel({ document, onClose }: DocumentHighlightsPanelProps) {
+  const hasHighlights = document.highlights && document.highlights.length > 0;
+
   return (
-    <div className="h-full flex flex-col animate-slide-in">
-      <div className="flex items-center justify-between pb-4 border-b border-border">
+    <div className="animate-fade-in">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">Highlights</h3>
+          <Sparkles className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-semibold">Extraction Highlights</h3>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
       </div>
 
-      <div className="flex-1 overflow-auto py-4">
-        <div className="flex items-center gap-2 mb-4 p-3 bg-muted/50 rounded-lg">
-          <FileText className="h-4 w-4 text-info" />
-          <span className="text-sm font-medium truncate">{document.name}</span>
+      {/* Document Info */}
+      <div className="flex items-center gap-2 mb-4 p-3 bg-muted/50 rounded-lg">
+        <FileText className="h-5 w-5 text-info" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{document.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {document.status === 'extracted' ? 'AI extracted' : document.status}
+          </p>
         </div>
-
-        {document.highlights && document.highlights.length > 0 ? (
-          <div className="space-y-3">
-            {document.highlights.map((highlight, index) => (
-              <HighlightCard key={index} highlight={highlight} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No highlights extracted</p>
-          </div>
-        )}
+        <Badge className="bg-success/20 text-success border-0 text-xs">
+          {document.highlights?.length || 0} fields
+        </Badge>
       </div>
-    </div>
-  );
-}
 
-function HighlightCard({ highlight }: { highlight: DocumentHighlight }) {
-  return (
-    <Card className="border-primary/20 bg-primary/5">
-      <CardContent className="p-3">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">{highlight.label}</p>
-            <p className="text-sm font-medium">{highlight.value}</p>
-          </div>
-          {highlight.page && (
-            <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-              p.{highlight.page}
-            </span>
-          )}
+      {/* Highlights List */}
+      {hasHighlights ? (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1.5">
+            <Database className="h-3.5 w-3.5" />
+            Key data extracted from this document:
+          </p>
+          {document.highlights!.map((highlight, index) => (
+            <div 
+              key={index}
+              className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors group"
+            >
+              <div className="w-1 h-full min-h-[40px] rounded-full bg-primary/30 group-hover:bg-primary transition-colors" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs text-muted-foreground">{highlight.label}</span>
+                  {highlight.page && (
+                    <span className="text-xs text-muted-foreground/60">• Page {highlight.page}</span>
+                  )}
+                </div>
+                <p className="text-sm font-medium text-foreground">
+                  {highlight.value}
+                </p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground/40 mt-2 group-hover:text-primary transition-colors" />
+            </div>
+          ))}
         </div>
-      </CardContent>
-    </Card>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <FileSearch className="h-10 w-10 text-muted-foreground/30 mb-3" />
+          <p className="text-sm text-muted-foreground">
+            No extraction highlights available
+          </p>
+          <p className="text-xs text-muted-foreground/60 mt-1">
+            This document may still be processing
+          </p>
+        </div>
+      )}
+
+      {/* Traceability Note */}
+      {hasHighlights && (
+        <div className="mt-4 pt-3 border-t border-border">
+          <p className="text-xs text-muted-foreground">
+            These values are extracted by AI and populate the corresponding fields in the Extracted Data tab.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

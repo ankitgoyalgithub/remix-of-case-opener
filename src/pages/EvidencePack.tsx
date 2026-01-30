@@ -12,11 +12,20 @@ import {
   Database,
   Clock,
   Check,
-  AlertCircle
+  AlertCircle,
+  Shield,
+  AlertTriangle,
+  User
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { EvidencePackSummary } from '@/components/evidence/EvidencePackSummary';
+import { EvidencePackChecklist } from '@/components/evidence/EvidencePackChecklist';
+import { EvidencePackExtractedData } from '@/components/evidence/EvidencePackExtractedData';
+import { EvidencePackOverrides } from '@/components/evidence/EvidencePackOverrides';
+import { EvidencePackTimeline } from '@/components/evidence/EvidencePackTimeline';
+import { EvidencePackDocuments } from '@/components/evidence/EvidencePackDocuments';
 
 export default function EvidencePack() {
   const handleExportPdf = () => {
@@ -38,7 +47,7 @@ export default function EvidencePack() {
             </Link>
             <div>
               <h1 className="text-xl font-semibold">Evidence Pack</h1>
-              <p className="text-sm text-muted-foreground">{mockCaseData.id}</p>
+              <p className="text-sm text-muted-foreground">{mockCaseData.id} • Audit-Ready Export</p>
             </div>
           </div>
           <Button onClick={handleExportPdf} className="gap-2">
@@ -51,180 +60,57 @@ export default function EvidencePack() {
       <ScrollArea className="h-[calc(100vh-73px)]">
         <div className="max-w-4xl mx-auto p-6 space-y-6">
           {/* Request Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-primary" />
-                Request Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Request ID</p>
-                    <p className="font-medium">{mockCaseData.id}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Company Name</p>
-                    <p className="font-medium">{mockCaseData.companyName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Request Status</p>
-                    <Badge className="bg-info/20 text-info border-0">{mockCaseData.status}</Badge>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Current Stage</p>
-                    <p className="font-medium">Stage {mockCaseData.currentStage} of {mockCaseData.stages.length}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Created Date</p>
-                    <p className="font-medium">{format(mockCaseData.timeline[0].timestamp, 'dd MMM yyyy')}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Assigned To</p>
-                    <p className="font-medium">Sarah Ahmed</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <EvidencePackSummary caseData={mockCaseData} />
 
-          {/* Checklist Snapshot */}
+          {/* Stage Completion Snapshot */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ClipboardCheck className="h-5 w-5 text-primary" />
-                Checklist Snapshot
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockCaseData.stages.map(stage => {
-                  const items = mockCaseData.checklist.filter(c => c.stageId === stage.id);
-                  if (items.length === 0) return null;
-                  
-                  const completed = items.filter(i => i.checked).length;
-                  
-                  return (
-                    <div key={stage.id} className="border-b border-border pb-3 last:border-0">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-sm">{stage.name}</h4>
-                        <Badge 
-                          variant="outline" 
-                          className={completed === items.length ? 'bg-success/10 text-success border-success/30' : ''}
-                        >
-                          {completed}/{items.length}
-                        </Badge>
-                      </div>
-                      <div className="space-y-1">
-                        {items.map(item => (
-                          <div key={item.id} className="flex items-center gap-2 text-sm">
-                            {item.checked ? (
-                              <Check className="h-4 w-4 text-success" />
-                            ) : (
-                              <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                            )}
-                            <span className={item.checked ? 'text-muted-foreground' : ''}>
-                              {item.label}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Extracted Data Snapshot */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5 text-primary" />
-                Extracted Data Snapshot
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {mockCaseData.extractedData.map(section => (
-                  <div key={section.title} className="border-b border-border pb-3 last:border-0">
-                    <h4 className="font-medium text-sm mb-2">{section.title}</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {section.fields.map(field => (
-                        <div key={field.label} className="text-sm">
-                          <span className="text-muted-foreground">{field.label}: </span>
-                          <span className="font-medium">{field.value || 'N/A'}</span>
-                          <span className="text-xs ml-2 text-muted-foreground">({field.confidence}%)</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Timeline */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" />
-                Timeline
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {mockCaseData.timeline.map(event => (
-                  <div key={event.id} className="flex items-start gap-3 text-sm">
-                    <span className="text-muted-foreground w-32 flex-shrink-0">
-                      {format(event.timestamp, 'dd MMM HH:mm')}
-                    </span>
-                    <div>
-                      <p className="font-medium">{event.action}</p>
-                      <p className="text-muted-foreground text-xs">
-                        {event.user}
-                        {event.details && ` • ${event.details}`}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Documents List */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                Documents
+                <Shield className="h-5 w-5 text-primary" />
+                Stage Completion Snapshot
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {mockCaseData.documents.map(doc => (
-                  <div key={doc.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                {mockCaseData.stages.map(stage => (
+                  <div key={stage.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                     <div className="flex items-center gap-3">
-                      <FileText className="h-4 w-4 text-info" />
-                      <div>
-                        <p className="text-sm font-medium">{doc.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          Uploaded {format(doc.uploadedAt, 'dd MMM yyyy HH:mm')}
-                        </p>
-                      </div>
+                      <span className="text-sm font-medium w-8">S{stage.id}</span>
+                      <span className="text-sm">{stage.name}</span>
                     </div>
-                    <Badge className="bg-success/20 text-success border-0 text-xs">
-                      {doc.status}
+                    <Badge 
+                      className={
+                        stage.status === 'complete' 
+                          ? 'bg-success/20 text-success border-0' 
+                          : stage.status === 'needs-review'
+                          ? 'bg-warning/20 text-warning-foreground border-0'
+                          : 'bg-muted text-muted-foreground border-0'
+                      }
+                    >
+                      {stage.status === 'complete' && <Check className="h-3 w-3 mr-1" />}
+                      {stage.status === 'needs-review' && <AlertCircle className="h-3 w-3 mr-1" />}
+                      {stage.status.replace('-', ' ')}
                     </Badge>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
+
+          {/* Checklist Snapshot */}
+          <EvidencePackChecklist stages={mockCaseData.stages} checklist={mockCaseData.checklist} />
+
+          {/* Extracted Data Snapshot with Verification Status */}
+          <EvidencePackExtractedData extractedData={mockCaseData.extractedData} />
+
+          {/* Override Reasons */}
+          <EvidencePackOverrides workforceMismatch={mockCaseData.workforceMismatch} />
+
+          {/* Timeline */}
+          <EvidencePackTimeline timeline={mockCaseData.timeline} />
+
+          {/* Documents List */}
+          <EvidencePackDocuments documents={mockCaseData.documents} />
         </div>
       </ScrollArea>
     </div>

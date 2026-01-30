@@ -7,7 +7,7 @@ import { DocumentsPanel } from '@/components/case/DocumentsPanel';
 import { DocumentHighlightsPanel } from '@/components/case/DocumentHighlightsPanel';
 import { WorkforceMismatchBanner } from '@/components/case/WorkforceMismatchBanner';
 import { ActiveStagePanel } from '@/components/case/ActiveStagePanel';
-import { TimelinePanel } from '@/components/case/TimelinePanel';
+import { TimelineDrawer } from '@/components/case/TimelineDrawer';
 import { ExportPanel } from '@/components/case/ExportPanel';
 import { MissingInfoEmailModal } from '@/components/request/MissingInfoEmailModal';
 import { AssignOwnerModal } from '@/components/request/AssignOwnerModal';
@@ -250,23 +250,38 @@ export default function RequestDetail() {
         onAssignOwner={() => setShowAssignOwnerModal(true)}
         onRequestMissingInfo={() => setShowMissingInfoModal(true)}
         onEscalate={handleEscalate}
+        timelineDrawer={<TimelineDrawer events={requestData.timeline} />}
       />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Activity Timeline */}
-        <div className="w-72 border-r border-border bg-card overflow-hidden flex flex-col">
-          <ScrollArea className="flex-1">
-            <div className="p-4">
-              <TimelinePanel events={requestData.timeline} />
-            </div>
-          </ScrollArea>
+        {/* Left Sidebar - Stage Navigation (Stepper Only) */}
+        <div className="w-56 border-r border-border bg-card overflow-hidden flex flex-col">
+          <div className="p-4">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              Issuance Stages
+            </h3>
+            <CaseStepper 
+              stages={requestData.stages}
+              currentStage={currentStage}
+              onStageClick={handleStageClick}
+            />
+          </div>
+          
+          <div className="mt-auto p-4 border-t border-border">
+            <Link to="/evidence-pack">
+              <Button variant="outline" size="sm" className="w-full gap-2">
+                <FileCheck className="h-4 w-4" />
+                Evidence Pack
+              </Button>
+            </Link>
+          </div>
         </div>
 
-        {/* Center Panel - Documents (Default) */}
+        {/* Center Panel - Active Stage (Primary Focus) */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Workforce Mismatch Banner for Stage 3 */}
           {currentStage === 3 && requestData.workforceMismatch.detected && (
-            <div className="p-4 border-b border-border">
+            <div className="p-4 border-b border-border bg-card">
               <WorkforceMismatchBanner
                 molCount={requestData.workforceMismatch.molCount}
                 censusCount={requestData.workforceMismatch.censusCount}
@@ -277,111 +292,89 @@ export default function RequestDetail() {
             </div>
           )}
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-            <div className="border-b border-border px-4">
-              <TabsList className="h-12 bg-transparent gap-4">
-                <TabsTrigger 
-                  value="documents"
-                  className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
-                >
-                  <FileText className="h-4 w-4" />
-                  Documents
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="extracted" 
-                  className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
-                >
-                  <Database className="h-4 w-4" />
-                  Extracted Data
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="export"
-                  className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
-                >
-                  <Send className="h-4 w-4" />
-                  Export
-                </TabsTrigger>
-              </TabsList>
-            </div>
+          <ScrollArea className="flex-1">
+            <div className="p-6">
+              {/* Active Stage Panel - Primary Focus */}
+              <div className="bg-card rounded-xl border border-border p-6 mb-6">
+                {requestData.stages.find(s => s.id === currentStage) && (
+                  <ActiveStagePanel
+                    stage={requestData.stages.find(s => s.id === currentStage)!}
+                    checklist={requestData.checklist}
+                    documents={requestData.documents}
+                    onToggle={handleChecklistToggle}
+                    onMarkStageComplete={handleMarkStageComplete}
+                    workforceMismatch={requestData.workforceMismatch}
+                  />
+                )}
+              </div>
 
-            <ScrollArea className="flex-1">
-              <div className="p-6">
-                <TabsContent value="documents" className="mt-0">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-4">Received Documents</h3>
-                      <DocumentsPanel 
-                        documents={requestData.documents}
-                        selectedDocument={selectedDocument}
-                        onSelectDocument={setSelectedDocument}
-                        activeStage={currentStage}
-                      />
-                    </div>
-                    {selectedDocument && (
-                      <div className="bg-card rounded-lg border border-border p-4">
-                        <DocumentHighlightsPanel 
-                          document={selectedDocument}
-                          onClose={() => setSelectedDocument(null)}
+              {/* Documents Section - Contextual Support */}
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
+                <TabsList className="h-10 bg-muted/50 gap-2">
+                  <TabsTrigger 
+                    value="documents"
+                    className="gap-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Documents
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="extracted" 
+                    className="gap-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                  >
+                    <Database className="h-4 w-4" />
+                    Extracted Data
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="export"
+                    className="gap-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                  >
+                    <Send className="h-4 w-4" />
+                    Export
+                  </TabsTrigger>
+                </TabsList>
+
+                <div className="mt-4">
+                  <TabsContent value="documents" className="mt-0">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div>
+                        <DocumentsPanel 
+                          documents={requestData.documents}
+                          selectedDocument={selectedDocument}
+                          onSelectDocument={setSelectedDocument}
+                          activeStage={currentStage}
                         />
                       </div>
-                    )}
-                  </div>
-                </TabsContent>
+                      {selectedDocument && (
+                        <div className="bg-card rounded-lg border border-border p-4">
+                          <DocumentHighlightsPanel 
+                            document={selectedDocument}
+                            onClose={() => setSelectedDocument(null)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
 
-                <TabsContent value="extracted" className="mt-0">
-                  <ExtractedDataPanel 
-                    sections={requestData.extractedData}
-                    onVerify={handleVerifyField}
-                  />
-                </TabsContent>
+                  <TabsContent value="extracted" className="mt-0">
+                    <ExtractedDataPanel 
+                      sections={requestData.extractedData}
+                      onVerify={handleVerifyField}
+                    />
+                  </TabsContent>
 
-                <TabsContent value="export" className="mt-0">
-                  <ExportPanel 
-                    payload={mockExportPayload}
-                    isExported={requestData.isExported}
-                    isIssued={requestData.isIssued}
-                    allStagesComplete={allStagesComplete}
-                    onExport={handleExport}
-                    onMarkIssued={handleMarkIssued}
-                  />
-                </TabsContent>
-              </div>
-            </ScrollArea>
-          </Tabs>
-        </div>
-
-        {/* Right Sidebar - Stepper + Active Stage Checklist */}
-        <div className="w-80 border-l border-border bg-card overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-border">
-            <CaseStepper 
-              stages={requestData.stages}
-              currentStage={currentStage}
-              onStageClick={handleStageClick}
-            />
-          </div>
-          
-          <ScrollArea className="flex-1">
-            <div className="p-4">
-              {/* Active Stage Panel - Shows only the selected stage's checklist */}
-              {requestData.stages.find(s => s.id === currentStage) && (
-                <ActiveStagePanel
-                  stage={requestData.stages.find(s => s.id === currentStage)!}
-                  checklist={requestData.checklist}
-                  documents={requestData.documents}
-                  onToggle={handleChecklistToggle}
-                  onMarkStageComplete={handleMarkStageComplete}
-                  workforceMismatch={requestData.workforceMismatch}
-                />
-              )}
-
-              <div className="mt-6 pt-6 border-t border-border">
-                <Link to="/evidence-pack">
-                  <Button variant="outline" className="w-full gap-2">
-                    <FileCheck className="h-4 w-4" />
-                    View Evidence Pack
-                  </Button>
-                </Link>
-              </div>
+                  <TabsContent value="export" className="mt-0">
+                    <ExportPanel 
+                      payload={mockExportPayload}
+                      isExported={requestData.isExported}
+                      isIssued={requestData.isIssued}
+                      allStagesComplete={allStagesComplete}
+                      onExport={handleExport}
+                      onMarkIssued={handleMarkIssued}
+                    />
+                  </TabsContent>
+                </div>
+              </Tabs>
             </div>
           </ScrollArea>
         </div>

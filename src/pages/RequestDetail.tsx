@@ -6,7 +6,7 @@ import { ExtractedDataPanel } from '@/components/case/ExtractedDataPanel';
 import { DocumentsPanel } from '@/components/case/DocumentsPanel';
 import { DocumentHighlightsPanel } from '@/components/case/DocumentHighlightsPanel';
 import { WorkforceMismatchBanner } from '@/components/case/WorkforceMismatchBanner';
-import { ChecklistPanel } from '@/components/case/ChecklistPanel';
+import { ActiveStagePanel } from '@/components/case/ActiveStagePanel';
 import { TimelinePanel } from '@/components/case/TimelinePanel';
 import { ExportPanel } from '@/components/case/ExportPanel';
 import { MissingInfoEmailModal } from '@/components/request/MissingInfoEmailModal';
@@ -314,6 +314,7 @@ export default function RequestDetail() {
                         documents={requestData.documents}
                         selectedDocument={selectedDocument}
                         onSelectDocument={setSelectedDocument}
+                        activeStage={currentStage}
                       />
                     </div>
                     {selectedDocument && (
@@ -349,27 +350,29 @@ export default function RequestDetail() {
           </Tabs>
         </div>
 
-        {/* Right Sidebar - Stepper + Checklist */}
+        {/* Right Sidebar - Stepper + Active Stage Checklist */}
         <div className="w-80 border-l border-border bg-card overflow-hidden flex flex-col">
+          <div className="p-4 border-b border-border">
+            <CaseStepper 
+              stages={requestData.stages}
+              currentStage={currentStage}
+              onStageClick={handleStageClick}
+            />
+          </div>
+          
           <ScrollArea className="flex-1">
             <div className="p-4">
-              <CaseStepper 
-                stages={requestData.stages}
-                currentStage={currentStage}
-                onStageClick={handleStageClick}
-              />
-              
-              <div className="mt-6 pt-6 border-t border-border">
-                <h3 className="font-semibold mb-4 text-sm">Stage Checklist</h3>
-                <ChecklistPanel 
+              {/* Active Stage Panel - Shows only the selected stage's checklist */}
+              {requestData.stages.find(s => s.id === currentStage) && (
+                <ActiveStagePanel
+                  stage={requestData.stages.find(s => s.id === currentStage)!}
                   checklist={requestData.checklist}
-                  stages={requestData.stages}
-                  currentStage={currentStage}
                   documents={requestData.documents}
                   onToggle={handleChecklistToggle}
                   onMarkStageComplete={handleMarkStageComplete}
+                  workforceMismatch={requestData.workforceMismatch}
                 />
-              </div>
+              )}
 
               <div className="mt-6 pt-6 border-t border-border">
                 <Link to="/evidence-pack">

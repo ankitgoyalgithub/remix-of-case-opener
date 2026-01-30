@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Building2, Hash, Clock, User, ArrowLeft, UserPlus, AlertCircle, ArrowUpRight, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { ReactNode } from 'react';
 
 interface RequestDetailHeaderProps {
   requestId: string;
@@ -20,6 +21,7 @@ interface RequestDetailHeaderProps {
   onAssignOwner?: () => void;
   onRequestMissingInfo?: () => void;
   onEscalate?: () => void;
+  timelineDrawer?: ReactNode;
 }
 
 export function RequestDetailHeader({
@@ -38,6 +40,7 @@ export function RequestDetailHeader({
   onAssignOwner,
   onRequestMissingInfo,
   onEscalate,
+  timelineDrawer,
 }: RequestDetailHeaderProps) {
   const navigate = useNavigate();
 
@@ -124,6 +127,7 @@ export function RequestDetailHeader({
           </div>
           
           <div className="flex items-center gap-2">
+            {timelineDrawer}
             <Button variant="outline" size="sm" className="gap-1.5" onClick={onAssignOwner}>
               <UserPlus className="h-3.5 w-3.5" />
               Assign Owner

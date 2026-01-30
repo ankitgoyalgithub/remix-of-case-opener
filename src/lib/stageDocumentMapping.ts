@@ -32,3 +32,14 @@ export function getStageLabel(stageId: number): string {
   };
   return labels[stageId] || 'Unknown Stage';
 }
+
+// Helper text for each stage explaining its purpose
+export const STAGE_HELPER_TEXT: Record<number, string> = {
+  1: 'Verify all mandatory documents are received',
+  2: 'Validate trade license and legal entity details',
+  3: 'Validate MOL vs Census employee counts',
+  4: 'Review medical forms and declarations',
+  5: 'Confirm pricing and commercial terms',
+  6: 'Verify authorized signatory identity',
+  7: 'Push validated data to core system',
+};

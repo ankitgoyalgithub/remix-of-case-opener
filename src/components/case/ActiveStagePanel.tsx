@@ -3,7 +3,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { Check, AlertCircle, Lock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Check, AlertCircle, Lock, AlertTriangle, CheckCircle2, FileText } from 'lucide-react';
+import { getDocumentsForStage } from '@/lib/stageDocumentMapping';
 
 interface ActiveStagePanelProps {
   stage: Stage;
@@ -110,6 +111,9 @@ export function ActiveStagePanel({
     }
   };
 
+  // Get documents used in this stage
+  const stageDocTypes = getDocumentsForStage(stage.id);
+
   return (
     <div className="space-y-4">
       {/* Stage Header */}
@@ -126,6 +130,17 @@ export function ActiveStagePanel({
           </span>
         </div>
         <p className="text-sm text-muted-foreground">{stage.description}</p>
+        
+        {/* Documents used in this stage - helper line */}
+        {stageDocTypes.length > 0 && (
+          <div className="flex items-start gap-2 mt-2 pt-2 border-t border-border/50">
+            <FileText className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium">Documents used:</span>{' '}
+              {stageDocTypes.map(dt => DOCUMENT_TYPE_LABELS[dt]).join(', ')}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Status Banner */}
@@ -221,12 +236,6 @@ export function ActiveStagePanel({
         </Button>
       )}
 
-      {stage.status === 'complete' && (
-        <div className="flex items-center justify-center gap-2 py-2 text-success">
-          <CheckCircle2 className="h-5 w-5" />
-          <span className="font-medium">Stage Completed</span>
-        </div>
-      )}
     </div>
   );
 }

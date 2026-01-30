@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Download, Send, FileJson, Check, Loader2, Lock, AlertCircle } from 'lucide-react';
+import { Download, Send, FileJson, Check, Loader2, Lock, AlertCircle, Info } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -10,6 +10,7 @@ interface ExportPanelProps {
   isExported: boolean;
   isIssued: boolean;
   allStagesComplete: boolean;
+  activeStage?: number;
   onExport: () => void;
   onMarkIssued: () => void;
 }
@@ -19,10 +20,12 @@ export function ExportPanel({
   isExported, 
   isIssued, 
   allStagesComplete,
+  activeStage = 7,
   onExport, 
   onMarkIssued 
 }: ExportPanelProps) {
   const [isPushing, setIsPushing] = useState(false);
+  const isExportStageActive = activeStage === 7;
 
   const handleDownloadJson = () => {
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -56,6 +59,37 @@ export function ExportPanel({
   };
 
   const canExport = allStagesComplete && !isExported;
+
+  // Show informational message when Export stage is not active
+  if (!isExportStageActive) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <Alert className="border-muted-foreground/20 bg-muted/50">
+          <Info className="h-4 w-4 text-muted-foreground" />
+          <AlertDescription className="text-muted-foreground">
+            <strong>Export will be enabled once all validation stages are complete.</strong>
+            <p className="mt-1 text-sm">
+              Navigate to Stage 7 (Export to Core System) to view the export payload and push to the core system.
+            </p>
+          </AlertDescription>
+        </Alert>
+        
+        <Card className="opacity-60">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg text-muted-foreground">
+              <Lock className="h-5 w-5" />
+              Export Payload Preview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Complete stages 1-6 and select the Export stage to access export functionality.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">

@@ -369,6 +369,7 @@ export default function RequestDetail() {
                       isExported={requestData.isExported}
                       isIssued={requestData.isIssued}
                       allStagesComplete={allStagesComplete}
+                      activeStage={currentStage}
                       onExport={handleExport}
                       onMarkIssued={handleMarkIssued}
                     />

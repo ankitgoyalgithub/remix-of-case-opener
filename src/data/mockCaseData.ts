@@ -1,20 +1,20 @@
-import { CaseData, Stage, Document, ExtractedDataSection, TimelineEvent, ChecklistItem } from '@/types/case';
+import { CaseData, Stage, Document, ExtractedDataSection, TimelineEvent, ChecklistItem, DocumentType } from '@/types/case';
 
 export const mockStages: Stage[] = [
-  { id: 1, name: 'Document Upload', status: 'complete', description: 'Upload required documents' },
-  { id: 2, name: 'Data Extraction', status: 'complete', description: 'AI extracts data from documents' },
-  { id: 3, name: 'Workforce Validation', status: 'needs-review', description: 'Validate employee counts' },
-  { id: 4, name: 'Underwriting Review', status: 'active', description: 'Review and approve terms' },
-  { id: 5, name: 'Premium Calculation', status: 'pending', description: 'Calculate final premium' },
-  { id: 6, name: 'Policy Generation', status: 'pending', description: 'Generate policy documents' },
-  { id: 7, name: 'Export & Issue', status: 'pending', description: 'Export to core system' },
+  { id: 1, name: 'Intake & Completeness', status: 'complete', description: 'Verify all required documents are present' },
+  { id: 2, name: 'Employer & Legal Validation', status: 'complete', description: 'Validate employer and legal documents' },
+  { id: 3, name: 'Workforce Validation', status: 'needs-review', description: 'Validate employee counts and workforce data' },
+  { id: 4, name: 'Declarations & Medical', status: 'active', description: 'Review medical and declaration forms' },
+  { id: 5, name: 'Commercial Validation', status: 'pending', description: 'Validate commercial terms and pricing' },
+  { id: 6, name: 'Authorized Signatory', status: 'pending', description: 'Verify authorized signatory details' },
+  { id: 7, name: 'Export to Core System', status: 'pending', description: 'Export to core system and issue policy' },
 ];
 
 export const mockDocuments: Document[] = [
   {
     id: 'doc-1',
     name: 'Trade_License_2024.pdf',
-    type: 'trade-license',
+    type: 'trade-license' as DocumentType,
     uploadedAt: new Date('2024-01-15T10:30:00'),
     status: 'extracted',
     highlights: [
@@ -27,7 +27,7 @@ export const mockDocuments: Document[] = [
   {
     id: 'doc-2',
     name: 'Establishment_Card.pdf',
-    type: 'establishment-card',
+    type: 'establishment-card' as DocumentType,
     uploadedAt: new Date('2024-01-15T10:32:00'),
     status: 'extracted',
     highlights: [
@@ -39,7 +39,7 @@ export const mockDocuments: Document[] = [
   {
     id: 'doc-3',
     name: 'Employee_Census.xlsx',
-    type: 'census',
+    type: 'census' as DocumentType,
     uploadedAt: new Date('2024-01-15T10:35:00'),
     status: 'extracted',
     highlights: [
@@ -50,8 +50,8 @@ export const mockDocuments: Document[] = [
   },
   {
     id: 'doc-4',
-    name: 'Quote_Proposal.pdf',
-    type: 'quote',
+    name: 'Quote_Proposal_Signed.pdf',
+    type: 'customer-signed-quote' as DocumentType,
     uploadedAt: new Date('2024-01-15T10:40:00'),
     status: 'extracted',
     highlights: [
@@ -63,13 +63,59 @@ export const mockDocuments: Document[] = [
   },
   {
     id: 'doc-5',
-    name: 'Signatory_Emirates_ID.pdf',
-    type: 'signatory-id',
+    name: 'Medical_Application_Form.pdf',
+    type: 'medical-application-form' as DocumentType,
     uploadedAt: new Date('2024-01-15T10:42:00'),
+    status: 'extracted',
+    highlights: [
+      { label: 'Applicant', value: 'Al Noor Trading LLC', page: 1 },
+      { label: 'Coverage Type', value: 'Group Health', page: 1 },
+    ],
+  },
+  {
+    id: 'doc-6',
+    name: 'MOL_Employee_List.pdf',
+    type: 'mol-list' as DocumentType,
+    uploadedAt: new Date('2024-01-15T10:45:00'),
+    status: 'extracted',
+    highlights: [
+      { label: 'Total Employees', value: '52', page: 1 },
+      { label: 'Active', value: '50', page: 1 },
+      { label: 'On Leave', value: '2', page: 1 },
+    ],
+  },
+  {
+    id: 'doc-7',
+    name: 'Group_Declaration.pdf',
+    type: 'group-declaration-form' as DocumentType,
+    uploadedAt: new Date('2024-01-15T10:48:00'),
+    status: 'extracted',
+    highlights: [
+      { label: 'Declaration Date', value: '15/01/2024', page: 1 },
+      { label: 'Authorized By', value: 'Ahmed Al Mansouri', page: 2 },
+    ],
+  },
+  {
+    id: 'doc-8',
+    name: 'Salary_Declaration.pdf',
+    type: 'salary-declaration-form' as DocumentType,
+    uploadedAt: new Date('2024-01-15T10:50:00'),
+    status: 'extracted',
+    highlights: [
+      { label: 'Total Annual Salary', value: 'AED 3,840,000', page: 1 },
+      { label: 'Average Salary', value: 'AED 73,846', page: 1 },
+    ],
+  },
+  {
+    id: 'doc-9',
+    name: 'KYC_Signatory.pdf',
+    type: 'kyc-signatory' as DocumentType,
+    uploadedAt: new Date('2024-01-15T10:52:00'),
     status: 'extracted',
     highlights: [
       { label: 'Name', value: 'Ahmed Al Mansouri', page: 1 },
       { label: 'Emirates ID', value: '784-1985-1234567-1', page: 1 },
+      { label: 'Position', value: 'Managing Director', page: 1 },
     ],
   },
 ];
@@ -111,8 +157,8 @@ export const mockExtractedData: ExtractedDataSection[] = [
 ];
 
 export const mockTimeline: TimelineEvent[] = [
-  { id: 't1', timestamp: new Date('2024-01-15T10:30:00'), action: 'Case created', user: 'Sarah Ahmed', details: 'New SME Health case initiated' },
-  { id: 't2', timestamp: new Date('2024-01-15T10:32:00'), action: 'Documents uploaded', user: 'Sarah Ahmed', details: '5 documents uploaded' },
+  { id: 't1', timestamp: new Date('2024-01-15T10:30:00'), action: 'Request created', user: 'Sarah Ahmed', details: 'New SME Health request initiated' },
+  { id: 't2', timestamp: new Date('2024-01-15T10:32:00'), action: 'Documents uploaded', user: 'Sarah Ahmed', details: '9 documents uploaded' },
   { id: 't3', timestamp: new Date('2024-01-15T10:35:00'), action: 'AI extraction started', user: 'System', details: 'Processing documents...' },
   { id: 't4', timestamp: new Date('2024-01-15T10:38:00'), action: 'AI extraction complete', user: 'System', details: '14 fields extracted' },
   { id: 't5', timestamp: new Date('2024-01-15T11:00:00'), action: 'Workforce mismatch detected', user: 'System', details: 'MOL: 52, Census: 43' },
@@ -120,40 +166,55 @@ export const mockTimeline: TimelineEvent[] = [
 ];
 
 export const mockChecklist: ChecklistItem[] = [
-  // Stage 1: Document Upload
-  { id: 'c1', label: 'Trade License uploaded', checked: true, stageId: 1, required: true },
-  { id: 'c2', label: 'Establishment Card uploaded', checked: true, stageId: 1, required: true },
-  { id: 'c3', label: 'Employee Census uploaded', checked: true, stageId: 1, required: true },
-  { id: 'c4', label: 'Quote Proposal uploaded', checked: true, stageId: 1, required: true },
-  { id: 'c5', label: 'Signatory ID uploaded', checked: true, stageId: 1, required: true },
-  // Stage 2: Data Extraction
-  { id: 'c6', label: 'All documents processed', checked: true, stageId: 2, required: true },
-  { id: 'c7', label: 'Employer data extracted', checked: true, stageId: 2, required: true },
-  { id: 'c8', label: 'Workforce data extracted', checked: true, stageId: 2, required: true },
+  // Stage 1: Intake & Completeness
+  { id: 'c1', label: 'Census uploaded', checked: true, stageId: 1, required: true, documentType: 'census' },
+  { id: 'c2', label: 'Trade License uploaded', checked: true, stageId: 1, required: true, documentType: 'trade-license' },
+  { id: 'c3', label: 'Customer Signed Quote uploaded', checked: true, stageId: 1, required: true, documentType: 'customer-signed-quote' },
+  { id: 'c4', label: 'Medical Application Form uploaded', checked: true, stageId: 1, required: true, documentType: 'medical-application-form' },
+  
+  // Stage 2: Employer & Legal Validation
+  { id: 'c5', label: 'Trade License validated', checked: true, stageId: 2, required: true, documentType: 'trade-license' },
+  { id: 'c6', label: 'Establishment Card validated', checked: true, stageId: 2, required: true, documentType: 'establishment-card' },
+  { id: 'c7', label: 'VAT Certificate verified', checked: false, stageId: 2, required: false, documentType: 'vat-certificate' },
+  { id: 'c8', label: 'MOA reviewed (if applicable)', checked: false, stageId: 2, required: false, documentType: 'moa' },
+  
   // Stage 3: Workforce Validation
-  { id: 'c9', label: 'MOL count verified', checked: true, stageId: 3, required: true },
-  { id: 'c10', label: 'Census count verified', checked: true, stageId: 3, required: true },
+  { id: 'c9', label: 'MOL List verified', checked: true, stageId: 3, required: true, documentType: 'mol-list' },
+  { id: 'c10', label: 'Census verified', checked: true, stageId: 3, required: true, documentType: 'census' },
   { id: 'c11', label: 'Mismatch resolved or accepted', checked: false, stageId: 3, required: true },
-  // Stage 4: Underwriting Review
-  { id: 'c12', label: 'Terms reviewed', checked: false, stageId: 4, required: true },
-  { id: 'c13', label: 'Risk assessment complete', checked: false, stageId: 4, required: true },
-  { id: 'c14', label: 'Approval obtained', checked: false, stageId: 4, required: true },
-  // Stage 5: Premium Calculation
-  { id: 'c15', label: 'Premium calculated', checked: false, stageId: 5, required: true },
-  { id: 'c16', label: 'Premium approved', checked: false, stageId: 5, required: false },
-  // Stage 6: Policy Generation
-  { id: 'c17', label: 'Policy document generated', checked: false, stageId: 6, required: true },
-  { id: 'c18', label: 'Schedule of benefits attached', checked: false, stageId: 6, required: true },
+  
+  // Stage 4: Declarations & Medical
+  { id: 'c12', label: 'Medical Application Form reviewed', checked: false, stageId: 4, required: true, documentType: 'medical-application-form' },
+  { id: 'c13', label: 'Group Declaration Form verified', checked: false, stageId: 4, required: true, documentType: 'group-declaration-form' },
+  { id: 'c14', label: 'Salary Declaration Form verified', checked: false, stageId: 4, required: true, documentType: 'salary-declaration-form' },
+  { id: 'c15', label: 'Sub Group Declaration reviewed (if applicable)', checked: false, stageId: 4, required: false, documentType: 'sub-group-declaration-form' },
+  
+  // Stage 5: Commercial Validation
+  { id: 'c16', label: 'Customer Signed Quote validated', checked: false, stageId: 5, required: true, documentType: 'customer-signed-quote' },
+  { id: 'c17', label: 'Premium confirmed', checked: false, stageId: 5, required: true },
+  
+  // Stage 6: Authorized Signatory
+  { id: 'c18', label: 'KYC of Authorised Signatory verified', checked: false, stageId: 6, required: true, documentType: 'kyc-signatory' },
+  { id: 'c19', label: 'Signatory authority confirmed', checked: false, stageId: 6, required: true },
+  
   // Stage 7: Export & Issue
-  { id: 'c19', label: 'Exported to core system', checked: false, stageId: 7, required: true },
-  { id: 'c20', label: 'Policy issued', checked: false, stageId: 7, required: false },
+  { id: 'c20', label: 'All stages complete', checked: false, stageId: 7, required: true },
+  { id: 'c21', label: 'Exported to core system', checked: false, stageId: 7, required: true },
+  { id: 'c22', label: 'Policy issued', checked: false, stageId: 7, required: false },
 ];
 
+// Create a date that's about 30 hours ago for realistic SLA simulation
+const requestCreatedAt = new Date();
+requestCreatedAt.setHours(requestCreatedAt.getHours() - 30);
+
 export const mockCaseData: CaseData = {
-  id: 'CASE-2024-00142',
+  id: 'REQ-2024-00142',
   companyName: 'Al Noor Trading LLC',
-  status: 'In Progress',
+  status: 'In Review',
   currentStage: 4,
+  priority: 'Normal',
+  slaTargetHours: 48,
+  createdAt: requestCreatedAt,
   stages: mockStages,
   documents: mockDocuments,
   extractedData: mockExtractedData,
@@ -167,10 +228,13 @@ export const mockCaseData: CaseData = {
   },
   isExported: false,
   isIssued: false,
+  queue: 'Standard Ops Queue',
+  owner: 'Sarah Ahmed',
+  brokerEmail: 'ops@gulfinsurancebrokers.ae',
 };
 
 export const mockExportPayload = {
-  caseId: 'CASE-2024-00142',
+  requestId: 'REQ-2024-00142',
   timestamp: new Date().toISOString(),
   employer: {
     companyName: 'Al Noor Trading LLC',
@@ -198,7 +262,11 @@ export const mockExportPayload = {
     { id: 'doc-1', name: 'Trade_License_2024.pdf', type: 'trade-license' },
     { id: 'doc-2', name: 'Establishment_Card.pdf', type: 'establishment-card' },
     { id: 'doc-3', name: 'Employee_Census.xlsx', type: 'census' },
-    { id: 'doc-4', name: 'Quote_Proposal.pdf', type: 'quote' },
-    { id: 'doc-5', name: 'Signatory_Emirates_ID.pdf', type: 'signatory-id' },
+    { id: 'doc-4', name: 'Quote_Proposal_Signed.pdf', type: 'customer-signed-quote' },
+    { id: 'doc-5', name: 'Medical_Application_Form.pdf', type: 'medical-application-form' },
+    { id: 'doc-6', name: 'MOL_Employee_List.pdf', type: 'mol-list' },
+    { id: 'doc-7', name: 'Group_Declaration.pdf', type: 'group-declaration-form' },
+    { id: 'doc-8', name: 'Salary_Declaration.pdf', type: 'salary-declaration-form' },
+    { id: 'doc-9', name: 'KYC_Signatory.pdf', type: 'kyc-signatory' },
   ],
 };

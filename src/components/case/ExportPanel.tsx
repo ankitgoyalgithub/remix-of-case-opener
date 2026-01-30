@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Send, FileJson, Check, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Download, Send, FileJson, Check, Loader2, Lock, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -8,11 +9,19 @@ interface ExportPanelProps {
   payload: object;
   isExported: boolean;
   isIssued: boolean;
+  allStagesComplete: boolean;
   onExport: () => void;
   onMarkIssued: () => void;
 }
 
-export function ExportPanel({ payload, isExported, isIssued, onExport, onMarkIssued }: ExportPanelProps) {
+export function ExportPanel({ 
+  payload, 
+  isExported, 
+  isIssued, 
+  allStagesComplete,
+  onExport, 
+  onMarkIssued 
+}: ExportPanelProps) {
   const [isPushing, setIsPushing] = useState(false);
 
   const handleDownloadJson = () => {
@@ -20,7 +29,7 @@ export function ExportPanel({ payload, isExported, isIssued, onExport, onMarkIss
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'case-export.json';
+    a.download = 'request-export.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -29,18 +38,37 @@ export function ExportPanel({ payload, isExported, isIssued, onExport, onMarkIss
   };
 
   const handlePushToCore = async () => {
+    if (!allStagesComplete) {
+      toast.error('Cannot export', {
+        description: 'All previous stages must be complete before export.',
+      });
+      return;
+    }
+    
     setIsPushing(true);
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 2000));
     setIsPushing(false);
     onExport();
     toast.success('Export successful', {
-      description: 'Case has been pushed to core system',
+      description: 'Request has been pushed to core system',
     });
   };
 
+  const canExport = allStagesComplete && !isExported;
+
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Stage 7 gating warning */}
+      {!allStagesComplete && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Export blocked:</strong> All previous stages (1-6) must be completed before you can export to the core system.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -69,7 +97,7 @@ export function ExportPanel({ payload, isExported, isIssued, onExport, onMarkIss
 
         <Button
           onClick={handlePushToCore}
-          disabled={isPushing || isExported}
+          disabled={isPushing || isExported || !allStagesComplete}
           className="flex-1 bg-primary hover:bg-primary/90"
         >
           {isPushing ? (
@@ -81,6 +109,11 @@ export function ExportPanel({ payload, isExported, isIssued, onExport, onMarkIss
             <>
               <Check className="h-4 w-4 mr-2" />
               Exported to Core
+            </>
+          ) : !allStagesComplete ? (
+            <>
+              <Lock className="h-4 w-4 mr-2" />
+              Export Locked
             </>
           ) : (
             <>
@@ -107,6 +140,9 @@ export function ExportPanel({ payload, isExported, isIssued, onExport, onMarkIss
                 Mark as Issued
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Note: "Mark as Issued" is visible only to Ops Managers.
+            </p>
           </CardContent>
         </Card>
       )}

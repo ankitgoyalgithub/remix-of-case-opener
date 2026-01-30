@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building2, Hash, Clock, User, ArrowLeft, UserPlus, AlertCircle, ArrowUpRight } from 'lucide-react';
+import { Building2, Hash, Clock, User, ArrowLeft, UserPlus, AlertCircle, ArrowUpRight, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -8,12 +8,15 @@ interface RequestDetailHeaderProps {
   requestId: string;
   companyName: string;
   brokerName: string;
-  priority: 'High' | 'Medium' | 'Low';
+  priority: 'Urgent' | 'Normal';
   slaRemaining: number;
+  slaTargetHours: number;
   slaStatus: 'green' | 'amber' | 'red';
   currentStage: string;
   status: string;
   owner: string;
+  queue: 'Senior Ops Queue' | 'Standard Ops Queue';
+  hasMissingDocuments: boolean;
   onAssignOwner?: () => void;
   onRequestMissingInfo?: () => void;
   onEscalate?: () => void;
@@ -25,10 +28,13 @@ export function RequestDetailHeader({
   brokerName,
   priority,
   slaRemaining,
+  slaTargetHours,
   slaStatus,
   currentStage,
   status,
   owner,
+  queue,
+  hasMissingDocuments,
   onAssignOwner,
   onRequestMissingInfo,
   onEscalate,
@@ -50,13 +56,22 @@ export function RequestDetailHeader({
   };
 
   const getPriorityBadge = () => {
-    switch (priority) {
-      case 'High':
-        return <Badge className="bg-destructive/20 text-destructive border-0">High Priority</Badge>;
-      case 'Medium':
-        return <Badge className="bg-warning/20 text-warning border-0">Medium Priority</Badge>;
-      case 'Low':
-        return <Badge variant="secondary">Low Priority</Badge>;
+    if (priority === 'Urgent') {
+      return <Badge className="bg-destructive/20 text-destructive border-0">Urgent</Badge>;
+    }
+    return <Badge variant="secondary">Normal</Badge>;
+  };
+
+  const getStatusBadge = () => {
+    switch (status) {
+      case 'Missing Info':
+        return <Badge className="bg-warning/20 text-warning border-0">{status}</Badge>;
+      case 'Ready for Export':
+        return <Badge className="bg-success/20 text-success border-0">{status}</Badge>;
+      case 'Issued':
+        return <Badge className="bg-primary/20 text-primary border-0">{status}</Badge>;
+      default:
+        return <Badge className="bg-info/20 text-info border-0">{status}</Badge>;
     }
   };
 
@@ -85,6 +100,10 @@ export function RequestDetailHeader({
                 </span>
                 <span>Broker: {brokerName}</span>
                 <span className="flex items-center gap-1">
+                  <Users className="h-3.5 w-3.5" />
+                  {queue}
+                </span>
+                <span className="flex items-center gap-1">
                   <User className="h-3.5 w-3.5" />
                   {owner}
                 </span>
@@ -101,7 +120,7 @@ export function RequestDetailHeader({
               {getSlaDisplay()}
             </Badge>
             <Badge variant="outline">{currentStage}</Badge>
-            <Badge className="bg-info/20 text-info border-0">{status}</Badge>
+            {getStatusBadge()}
           </div>
           
           <div className="flex items-center gap-2">
@@ -109,7 +128,15 @@ export function RequestDetailHeader({
               <UserPlus className="h-3.5 w-3.5" />
               Assign Owner
             </Button>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={onRequestMissingInfo}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className={cn(
+                "gap-1.5",
+                hasMissingDocuments && "border-warning text-warning hover:bg-warning/10"
+              )}
+              onClick={onRequestMissingInfo}
+            >
               <AlertCircle className="h-3.5 w-3.5" />
               Request Missing Info
             </Button>

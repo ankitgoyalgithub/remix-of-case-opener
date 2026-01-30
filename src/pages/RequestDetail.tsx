@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { CaseStepper } from '@/components/case/CaseStepper';
 import { RequestDetailHeader } from '@/components/request/RequestDetailHeader';
@@ -9,10 +9,19 @@ import { WorkforceMismatchBanner } from '@/components/case/WorkforceMismatchBann
 import { ChecklistPanel } from '@/components/case/ChecklistPanel';
 import { TimelinePanel } from '@/components/case/TimelinePanel';
 import { ExportPanel } from '@/components/case/ExportPanel';
+import { MissingInfoEmailModal } from '@/components/request/MissingInfoEmailModal';
+import { AssignOwnerModal } from '@/components/request/AssignOwnerModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { mockCaseData, mockExportPayload } from '@/data/mockCaseData';
-import { Document, TimelineEvent } from '@/types/case';
+import { 
+  Document, 
+  TimelineEvent, 
+  getMissingDocumentsForStage, 
+  calculateSlaRemaining, 
+  getSlaStatus,
+  DocumentType 
+} from '@/types/case';
 import { FileText, Database, Send, FileCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -26,13 +35,50 @@ export default function RequestDetail() {
   const [currentStage, setCurrentStage] = useState(requestData.currentStage);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [activeTab, setActiveTab] = useState('documents');
+  const [showMissingInfoModal, setShowMissingInfoModal] = useState(false);
+  const [showAssignOwnerModal, setShowAssignOwnerModal] = useState(false);
 
-  // Mock additional data for header
+  // Calculate SLA dynamically
+  const slaRemaining = useMemo(() => 
+    calculateSlaRemaining(requestData.createdAt, requestData.priority), 
+    [requestData.createdAt, requestData.priority]
+  );
+  const slaStatus = useMemo(() => 
+    getSlaStatus(slaRemaining, requestData.slaTargetHours),
+    [slaRemaining, requestData.slaTargetHours]
+  );
+
+  // Get missing documents for current stage
+  const missingDocsCurrentStage = useMemo(() => 
+    getMissingDocumentsForStage(currentStage, requestData.documents),
+    [currentStage, requestData.documents]
+  );
+
+  // Get all missing documents across all stages
+  const allMissingDocs = useMemo(() => {
+    const missing: DocumentType[] = [];
+    for (let i = 1; i <= 6; i++) {
+      missing.push(...getMissingDocumentsForStage(i, requestData.documents));
+    }
+    return [...new Set(missing)];
+  }, [requestData.documents]);
+
+  // Check if all stages are complete
+  const allStagesComplete = useMemo(() => 
+    requestData.stages.filter(s => s.id < 7).every(s => s.status === 'complete'),
+    [requestData.stages]
+  );
+
+  // Determine automatic request status
+  const computedStatus = useMemo(() => {
+    if (requestData.isIssued) return 'Issued';
+    if (allStagesComplete) return 'Ready for Export';
+    if (missingDocsCurrentStage.length > 0 || requestData.missingInfoRequested) return 'Missing Info';
+    return 'In Review';
+  }, [requestData.isIssued, allStagesComplete, missingDocsCurrentStage, requestData.missingInfoRequested]);
+
   const headerData = {
     brokerName: 'Gulf Insurance Brokers',
-    priority: 'High' as const,
-    slaRemaining: 18,
-    slaStatus: 'green' as const,
     currentStageName: requestData.stages.find(s => s.id === currentStage)?.name || 'Unknown',
   };
 
@@ -43,12 +89,33 @@ export default function RequestDetail() {
     }
   };
 
+  const handleMarkStageComplete = (stageId: number) => {
+    const newTimeline: TimelineEvent = {
+      id: `t${Date.now()}`,
+      timestamp: new Date(),
+      action: `Stage ${stageId} completed`,
+      user: requestData.owner,
+      details: `${requestData.stages.find(s => s.id === stageId)?.name} marked as complete`,
+    };
+    
+    setRequestData(prev => ({
+      ...prev,
+      stages: prev.stages.map(s => 
+        s.id === stageId ? { ...s, status: 'complete' as const } : s
+      ),
+      currentStage: Math.min(stageId + 1, 7),
+      timeline: [...prev.timeline, newTimeline],
+    }));
+    setCurrentStage(Math.min(stageId + 1, 7));
+    toast.success(`Stage ${stageId} marked as complete`);
+  };
+
   const handleVerifyField = (sectionTitle: string, fieldLabel: string) => {
     const newTimeline: TimelineEvent = {
       id: `t${Date.now()}`,
       timestamp: new Date(),
       action: `Verified: ${fieldLabel}`,
-      user: 'Sarah Ahmed',
+      user: requestData.owner,
       details: `Field in ${sectionTitle} marked as verified`,
     };
     setRequestData(prev => ({
@@ -62,7 +129,7 @@ export default function RequestDetail() {
       id: `t${Date.now()}`,
       timestamp: new Date(),
       action: 'Workforce discrepancy accepted',
-      user: 'Sarah Ahmed',
+      user: requestData.owner,
       details: `Reason: ${reason}`,
     };
     setRequestData(prev => ({
@@ -100,7 +167,7 @@ export default function RequestDetail() {
       isExported: true,
       timeline: [...prev.timeline, newTimeline],
       checklist: prev.checklist.map(c =>
-        c.id === 'c19' ? { ...c, checked: true } : c
+        c.id === 'c21' ? { ...c, checked: true } : c
       ),
     }));
   };
@@ -110,7 +177,7 @@ export default function RequestDetail() {
       id: `t${Date.now()}`,
       timestamp: new Date(),
       action: 'Policy Issued',
-      user: 'Sarah Ahmed',
+      user: requestData.owner,
       details: 'SME Health policy marked as issued',
     };
     setRequestData(prev => ({
@@ -122,17 +189,43 @@ export default function RequestDetail() {
         s.id === 7 ? { ...s, status: 'complete' as const } : s
       ),
       checklist: prev.checklist.map(c =>
-        c.id === 'c20' ? { ...c, checked: true } : c
+        c.id === 'c22' ? { ...c, checked: true } : c
       ),
     }));
   };
 
-  const handleAssignOwner = () => {
-    toast.info('Assign Owner dialog would open here');
+  const handleAssignOwner = (owner: string, queue: 'Senior Ops Queue' | 'Standard Ops Queue') => {
+    const newTimeline: TimelineEvent = {
+      id: `t${Date.now()}`,
+      timestamp: new Date(),
+      action: 'Owner assigned',
+      user: 'System',
+      details: `Request assigned to ${owner} (${queue})`,
+    };
+    setRequestData(prev => ({
+      ...prev,
+      owner,
+      queue,
+      timeline: [...prev.timeline, newTimeline],
+    }));
   };
 
-  const handleRequestMissingInfo = () => {
-    toast.info('Request Missing Info dialog would open here');
+  const handleMissingInfoSent = () => {
+    const newTimeline: TimelineEvent = {
+      id: `t${Date.now()}`,
+      timestamp: new Date(),
+      action: 'Missing information requested',
+      user: requestData.owner,
+      details: `Email sent to broker requesting: ${allMissingDocs.length} document(s)`,
+    };
+    setRequestData(prev => ({
+      ...prev,
+      missingInfoRequested: {
+        timestamp: new Date(),
+        documents: allMissingDocs,
+      },
+      timeline: [...prev.timeline, newTimeline],
+    }));
   };
 
   const handleEscalate = () => {
@@ -145,14 +238,17 @@ export default function RequestDetail() {
         requestId={requestData.id}
         companyName={requestData.companyName}
         brokerName={headerData.brokerName}
-        priority={headerData.priority}
-        slaRemaining={headerData.slaRemaining}
-        slaStatus={headerData.slaStatus}
+        priority={requestData.priority}
+        slaRemaining={slaRemaining}
+        slaTargetHours={requestData.slaTargetHours}
+        slaStatus={slaStatus}
         currentStage={headerData.currentStageName}
-        status={requestData.status}
-        owner="Sarah Ahmed"
-        onAssignOwner={handleAssignOwner}
-        onRequestMissingInfo={handleRequestMissingInfo}
+        status={computedStatus}
+        owner={requestData.owner}
+        queue={requestData.queue}
+        hasMissingDocuments={allMissingDocs.length > 0}
+        onAssignOwner={() => setShowAssignOwnerModal(true)}
+        onRequestMissingInfo={() => setShowMissingInfoModal(true)}
         onEscalate={handleEscalate}
       />
 
@@ -243,6 +339,7 @@ export default function RequestDetail() {
                     payload={mockExportPayload}
                     isExported={requestData.isExported}
                     isIssued={requestData.isIssued}
+                    allStagesComplete={allStagesComplete}
                     onExport={handleExport}
                     onMarkIssued={handleMarkIssued}
                   />
@@ -268,7 +365,9 @@ export default function RequestDetail() {
                   checklist={requestData.checklist}
                   stages={requestData.stages}
                   currentStage={currentStage}
+                  documents={requestData.documents}
                   onToggle={handleChecklistToggle}
+                  onMarkStageComplete={handleMarkStageComplete}
                 />
               </div>
 
@@ -284,6 +383,25 @@ export default function RequestDetail() {
           </ScrollArea>
         </div>
       </div>
+
+      {/* Modals */}
+      <MissingInfoEmailModal
+        open={showMissingInfoModal}
+        onOpenChange={setShowMissingInfoModal}
+        requestId={requestData.id}
+        companyName={requestData.companyName}
+        brokerEmail={requestData.brokerEmail}
+        missingDocuments={allMissingDocs}
+        onMarkAsSent={handleMissingInfoSent}
+      />
+
+      <AssignOwnerModal
+        open={showAssignOwnerModal}
+        onOpenChange={setShowAssignOwnerModal}
+        currentOwner={requestData.owner}
+        currentQueue={requestData.queue}
+        onAssign={handleAssignOwner}
+      />
     </div>
   );
 }

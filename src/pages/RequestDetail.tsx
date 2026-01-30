@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { CaseStepper } from '@/components/case/CaseStepper';
-import { CaseHeader } from '@/components/case/CaseHeader';
+import { RequestDetailHeader } from '@/components/request/RequestDetailHeader';
 import { ExtractedDataPanel } from '@/components/case/ExtractedDataPanel';
 import { DocumentsPanel } from '@/components/case/DocumentsPanel';
 import { DocumentHighlightsPanel } from '@/components/case/DocumentHighlightsPanel';
@@ -12,15 +13,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { mockCaseData, mockExportPayload } from '@/data/mockCaseData';
 import { Document, TimelineEvent } from '@/types/case';
-import { FileText, Database, FileCheck, Send } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { FileText, Database, Send, FileCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
-export default function CaseWorkspace() {
-  const [caseData, setCaseData] = useState(mockCaseData);
-  const [currentStage, setCurrentStage] = useState(caseData.currentStage);
+export default function RequestDetail() {
+  const { requestId } = useParams();
+  const [requestData, setRequestData] = useState({
+    ...mockCaseData,
+    id: requestId || mockCaseData.id,
+  });
+  const [currentStage, setCurrentStage] = useState(requestData.currentStage);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [activeTab, setActiveTab] = useState('extracted');
+  const [activeTab, setActiveTab] = useState('documents');
+
+  // Mock additional data for header
+  const headerData = {
+    brokerName: 'Gulf Insurance Brokers',
+    priority: 'High' as const,
+    slaRemaining: 18,
+    slaStatus: 'green' as const,
+    currentStageName: requestData.stages.find(s => s.id === currentStage)?.name || 'Unknown',
+  };
 
   const handleStageClick = (stageId: number) => {
     setCurrentStage(stageId);
@@ -37,7 +51,7 @@ export default function CaseWorkspace() {
       user: 'Sarah Ahmed',
       details: `Field in ${sectionTitle} marked as verified`,
     };
-    setCaseData(prev => ({
+    setRequestData(prev => ({
       ...prev,
       timeline: [...prev.timeline, newTimeline],
     }));
@@ -51,7 +65,7 @@ export default function CaseWorkspace() {
       user: 'Sarah Ahmed',
       details: `Reason: ${reason}`,
     };
-    setCaseData(prev => ({
+    setRequestData(prev => ({
       ...prev,
       workforceMismatch: { ...prev.workforceMismatch, accepted: true, acceptReason: reason },
       timeline: [...prev.timeline, newTimeline],
@@ -65,7 +79,7 @@ export default function CaseWorkspace() {
   };
 
   const handleChecklistToggle = (itemId: string) => {
-    setCaseData(prev => ({
+    setRequestData(prev => ({
       ...prev,
       checklist: prev.checklist.map(item =>
         item.id === itemId ? { ...item, checked: !item.checked } : item
@@ -79,9 +93,9 @@ export default function CaseWorkspace() {
       timestamp: new Date(),
       action: 'Exported to Core',
       user: 'System',
-      details: 'Case data pushed to core system successfully',
+      details: 'Request data pushed to core system successfully',
     };
-    setCaseData(prev => ({
+    setRequestData(prev => ({
       ...prev,
       isExported: true,
       timeline: [...prev.timeline, newTimeline],
@@ -99,7 +113,7 @@ export default function CaseWorkspace() {
       user: 'Sarah Ahmed',
       details: 'SME Health policy marked as issued',
     };
-    setCaseData(prev => ({
+    setRequestData(prev => ({
       ...prev,
       isIssued: true,
       status: 'Issued',
@@ -113,45 +127,55 @@ export default function CaseWorkspace() {
     }));
   };
 
+  const handleAssignOwner = () => {
+    toast.info('Assign Owner dialog would open here');
+  };
+
+  const handleRequestMissingInfo = () => {
+    toast.info('Request Missing Info dialog would open here');
+  };
+
+  const handleEscalate = () => {
+    toast.info('Escalation dialog would open here');
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
-      <CaseHeader 
-        caseId={caseData.id}
-        companyName={caseData.companyName}
-        status={caseData.status}
-        currentStage={currentStage}
-        totalStages={caseData.stages.length}
+      <RequestDetailHeader 
+        requestId={requestData.id}
+        companyName={requestData.companyName}
+        brokerName={headerData.brokerName}
+        priority={headerData.priority}
+        slaRemaining={headerData.slaRemaining}
+        slaStatus={headerData.slaStatus}
+        currentStage={headerData.currentStageName}
+        status={requestData.status}
+        owner="Sarah Ahmed"
+        onAssignOwner={handleAssignOwner}
+        onRequestMissingInfo={handleRequestMissingInfo}
+        onEscalate={handleEscalate}
       />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Stepper */}
-        <div className="w-72 border-r border-border bg-card p-4 overflow-auto">
-          <CaseStepper 
-            stages={caseData.stages}
-            currentStage={currentStage}
-            onStageClick={handleStageClick}
-          />
-          
-          <div className="mt-6 pt-6 border-t border-border">
-            <Link to="/evidence-pack">
-              <Button variant="outline" className="w-full gap-2">
-                <FileCheck className="h-4 w-4" />
-                View Evidence Pack
-              </Button>
-            </Link>
-          </div>
+        {/* Left Sidebar - Activity Timeline */}
+        <div className="w-72 border-r border-border bg-card overflow-hidden flex flex-col">
+          <ScrollArea className="flex-1">
+            <div className="p-4">
+              <TimelinePanel events={requestData.timeline} />
+            </div>
+          </ScrollArea>
         </div>
 
-        {/* Center Panel - Main Content */}
+        {/* Center Panel - Documents (Default) */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Workforce Mismatch Banner for Stage 3 */}
-          {currentStage === 3 && caseData.workforceMismatch.detected && (
+          {currentStage === 3 && requestData.workforceMismatch.detected && (
             <div className="p-4 border-b border-border">
               <WorkforceMismatchBanner
-                molCount={caseData.workforceMismatch.molCount}
-                censusCount={caseData.workforceMismatch.censusCount}
-                accepted={caseData.workforceMismatch.accepted}
-                acceptReason={caseData.workforceMismatch.acceptReason}
+                molCount={requestData.workforceMismatch.molCount}
+                censusCount={requestData.workforceMismatch.censusCount}
+                accepted={requestData.workforceMismatch.accepted}
+                acceptReason={requestData.workforceMismatch.acceptReason}
                 onAccept={handleAcceptMismatch}
               />
             </div>
@@ -161,18 +185,18 @@ export default function CaseWorkspace() {
             <div className="border-b border-border px-4">
               <TabsList className="h-12 bg-transparent gap-4">
                 <TabsTrigger 
-                  value="extracted" 
-                  className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
-                >
-                  <Database className="h-4 w-4" />
-                  Extracted Data
-                </TabsTrigger>
-                <TabsTrigger 
                   value="documents"
                   className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
                 >
                   <FileText className="h-4 w-4" />
                   Documents
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="extracted" 
+                  className="gap-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+                >
+                  <Database className="h-4 w-4" />
+                  Extracted Data
                 </TabsTrigger>
                 <TabsTrigger 
                   value="export"
@@ -186,19 +210,12 @@ export default function CaseWorkspace() {
 
             <ScrollArea className="flex-1">
               <div className="p-6">
-                <TabsContent value="extracted" className="mt-0">
-                  <ExtractedDataPanel 
-                    sections={caseData.extractedData}
-                    onVerify={handleVerifyField}
-                  />
-                </TabsContent>
-
                 <TabsContent value="documents" className="mt-0">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div>
-                      <h3 className="text-lg font-semibold mb-4">Uploaded Documents</h3>
+                      <h3 className="text-lg font-semibold mb-4">Received Documents</h3>
                       <DocumentsPanel 
-                        documents={caseData.documents}
+                        documents={requestData.documents}
                         selectedDocument={selectedDocument}
                         onSelectDocument={setSelectedDocument}
                       />
@@ -214,11 +231,18 @@ export default function CaseWorkspace() {
                   </div>
                 </TabsContent>
 
+                <TabsContent value="extracted" className="mt-0">
+                  <ExtractedDataPanel 
+                    sections={requestData.extractedData}
+                    onVerify={handleVerifyField}
+                  />
+                </TabsContent>
+
                 <TabsContent value="export" className="mt-0">
                   <ExportPanel 
                     payload={mockExportPayload}
-                    isExported={caseData.isExported}
-                    isIssued={caseData.isIssued}
+                    isExported={requestData.isExported}
+                    isIssued={requestData.isIssued}
                     onExport={handleExport}
                     onMarkIssued={handleMarkIssued}
                   />
@@ -228,31 +252,36 @@ export default function CaseWorkspace() {
           </Tabs>
         </div>
 
-        {/* Right Sidebar - Checklist & Timeline */}
+        {/* Right Sidebar - Stepper + Checklist */}
         <div className="w-80 border-l border-border bg-card overflow-hidden flex flex-col">
-          <Tabs defaultValue="checklist" className="flex-1 flex flex-col">
-            <div className="border-b border-border px-4">
-              <TabsList className="h-12 bg-transparent">
-                <TabsTrigger value="checklist" className="text-sm">Checklist</TabsTrigger>
-                <TabsTrigger value="timeline" className="text-sm">Timeline</TabsTrigger>
-              </TabsList>
-            </div>
-            <ScrollArea className="flex-1">
-              <div className="p-4">
-                <TabsContent value="checklist" className="mt-0">
-                  <ChecklistPanel 
-                    checklist={caseData.checklist}
-                    stages={caseData.stages}
-                    currentStage={currentStage}
-                    onToggle={handleChecklistToggle}
-                  />
-                </TabsContent>
-                <TabsContent value="timeline" className="mt-0">
-                  <TimelinePanel events={caseData.timeline} />
-                </TabsContent>
+          <ScrollArea className="flex-1">
+            <div className="p-4">
+              <CaseStepper 
+                stages={requestData.stages}
+                currentStage={currentStage}
+                onStageClick={handleStageClick}
+              />
+              
+              <div className="mt-6 pt-6 border-t border-border">
+                <h3 className="font-semibold mb-4 text-sm">Stage Checklist</h3>
+                <ChecklistPanel 
+                  checklist={requestData.checklist}
+                  stages={requestData.stages}
+                  currentStage={currentStage}
+                  onToggle={handleChecklistToggle}
+                />
               </div>
-            </ScrollArea>
-          </Tabs>
+
+              <div className="mt-6 pt-6 border-t border-border">
+                <Link to="/evidence-pack">
+                  <Button variant="outline" className="w-full gap-2">
+                    <FileCheck className="h-4 w-4" />
+                    View Evidence Pack
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </ScrollArea>
         </div>
       </div>
     </div>

@@ -2,13 +2,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { mockCaseData, mockExportPayload } from '@/data/mockCaseData';
+import { mockCaseData } from '@/data/mockCaseData';
 import { 
   ArrowLeft, 
   Download, 
   Building2, 
-  Hash, 
-  Calendar,
   FileText,
   ClipboardCheck,
   Database,
@@ -33,7 +31,7 @@ export default function EvidencePack() {
       <div className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/">
+            <Link to="/requests">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
@@ -52,19 +50,19 @@ export default function EvidencePack() {
 
       <ScrollArea className="h-[calc(100vh-73px)]">
         <div className="max-w-4xl mx-auto p-6 space-y-6">
-          {/* Case Summary */}
+          {/* Request Summary */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-primary" />
-                Case Summary
+                Request Summary
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <div>
-                    <p className="text-sm text-muted-foreground">Case ID</p>
+                    <p className="text-sm text-muted-foreground">Request ID</p>
                     <p className="font-medium">{mockCaseData.id}</p>
                   </div>
                   <div>
@@ -72,7 +70,7 @@ export default function EvidencePack() {
                     <p className="font-medium">{mockCaseData.companyName}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Status</p>
+                    <p className="text-sm text-muted-foreground">Request Status</p>
                     <Badge className="bg-info/20 text-info border-0">{mockCaseData.status}</Badge>
                   </div>
                 </div>

@@ -17,7 +17,8 @@ import {
   Settings2,
   BookOpen,
 } from 'lucide-react';
-import { mockDocumentDefinitions, DocumentDefinition } from '@/data/mockStudioData';
+import { DocumentDefinition } from '@/data/mockStudioData';
+import { useStudioDocuments } from '@/hooks/useStudioStore';
 import { DocumentConfigDrawer } from '@/components/studio/DocumentConfigDrawer';
 import { cn } from '@/lib/utils';
 
@@ -32,7 +33,7 @@ const categoryIcons: Record<string, React.ElementType> = {
 const categories = ['Employer', 'Workforce', 'Medical', 'Commercial', 'Signatory'] as const;
 
 export default function DocumentLibrary() {
-  const [documents] = useState<DocumentDefinition[]>(mockDocumentDefinitions);
+  const { documents } = useStudioDocuments();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [drawerDoc, setDrawerDoc] = useState<DocumentDefinition | null>(null);

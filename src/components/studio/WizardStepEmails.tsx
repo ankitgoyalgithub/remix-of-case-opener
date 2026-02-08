@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,10 +11,9 @@ import {
   AlertCircle,
   Clock,
   AlertTriangle,
-  Check,
   Variable,
 } from 'lucide-react';
-import { mockEmailTemplates, EmailTemplate } from '@/data/mockStudioData';
+import { useStudioEmails } from '@/hooks/useStudioStore';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -32,8 +30,8 @@ const templateTypeLabels: Record<string, string> = {
 };
 
 export function WizardStepEmails() {
-  const [templates, setTemplates] = useState<EmailTemplate[]>(mockEmailTemplates);
-  const [selectedTemplate, setSelectedTemplate] = useState(templates[0].id);
+  const { templates, setTemplates } = useStudioEmails();
+  const [selectedTemplate, setSelectedTemplate] = useState(templates[0]?.id ?? '');
   const [showPreview, setShowPreview] = useState(false);
 
   const currentTemplate = templates.find(t => t.id === selectedTemplate);

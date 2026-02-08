@@ -1,12 +1,21 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   GripVertical,
   Plus,
@@ -14,14 +23,24 @@ import {
   Edit2,
   Check,
   X,
+  Trash2,
 } from 'lucide-react';
-import { mockWorkflowStages, WorkflowStage } from '@/data/mockStudioData';
+import { WorkflowStage } from '@/data/mockStudioData';
+import { useStudioStages } from '@/hooks/useStudioStore';
+import { AddStageDialog } from './AddStageDialog';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export function WizardStepWorkflow() {
-  const [stages, setStages] = useState<WorkflowStage[]>(mockWorkflowStages);
+  const { stages, addStage, removeStage, reorderStages, updateStage, setStages } = useStudioStages();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<WorkflowStage>>({});
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // Drag state
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const handleEdit = (stage: WorkflowStage) => {
     setEditingId(stage.id);
@@ -30,17 +49,61 @@ export function WizardStepWorkflow() {
 
   const handleSaveEdit = () => {
     if (!editingId) return;
-    setStages(prev => prev.map(s =>
-      s.id === editingId ? { ...s, ...editForm } as WorkflowStage : s
-    ));
+    updateStage(editingId, editForm);
     setEditingId(null);
     setEditForm({});
+    toast.success('Stage updated');
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditForm({});
   };
+
+  const handleAddStage = (name: string, description: string) => {
+    addStage(name, description);
+    toast.success('Stage added');
+  };
+
+  const handleDeleteStage = (id: string) => {
+    removeStage(id);
+    setDeleteConfirm(null);
+    toast.success('Stage removed');
+  };
+
+  // Drag handlers
+  const handleDragStart = (index: number) => {
+    dragIndexRef.current = index;
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (dragIndexRef.current !== null && dragIndexRef.current !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, toIndex: number) => {
+    e.preventDefault();
+    const fromIndex = dragIndexRef.current;
+    if (fromIndex !== null && fromIndex !== toIndex) {
+      reorderStages(fromIndex, toIndex);
+      toast.success('Stage order updated');
+    }
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  };
+
+  const stageToDelete = stages.find(s => s.id === deleteConfirm);
 
   return (
     <div className="space-y-4">
@@ -52,17 +115,27 @@ export function WizardStepWorkflow() {
       </div>
 
       <div className="space-y-3">
-        {stages.map((stage) => (
+        {stages.map((stage, index) => (
           <Card
             key={stage.id}
+            draggable={editingId !== stage.id}
+            onDragStart={() => handleDragStart(index)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, index)}
+            onDragEnd={handleDragEnd}
             className={cn(
               "transition-colors",
-              editingId === stage.id ? "border-primary bg-primary/5" : "hover:border-primary/30"
+              editingId === stage.id ? "border-primary bg-primary/5" : "hover:border-primary/30",
+              dragOverIndex === index && "border-primary border-dashed bg-primary/5"
             )}
           >
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <div className="cursor-move text-muted-foreground hover:text-foreground mt-1">
+                <div
+                  className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground mt-1"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
                   <GripVertical className="h-5 w-5" />
                 </div>
 
@@ -79,6 +152,7 @@ export function WizardStepWorkflow() {
                           value={editForm.name || ''}
                           onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
                           className="mt-1"
+                          maxLength={100}
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-3">
@@ -137,13 +211,19 @@ export function WizardStepWorkflow() {
 
                 {editingId !== stage.id && (
                   <div className="flex items-center gap-2">
-                    <Switch checked={stage.mandatory} onCheckedChange={() => {
-                      setStages(prev => prev.map(s =>
-                        s.id === stage.id ? { ...s, mandatory: !s.mandatory } : s
-                      ));
+                    <Switch checked={stage.mandatory} onCheckedChange={(checked) => {
+                      updateStage(stage.id, { mandatory: checked });
                     }} />
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(stage)}>
                       <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setDeleteConfirm(stage.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 )}
@@ -154,7 +234,7 @@ export function WizardStepWorkflow() {
       </div>
 
       <div className="flex items-center justify-between">
-        <Button variant="outline" size="sm" className="gap-1.5">
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setAddDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           Add Stage
         </Button>
@@ -163,6 +243,33 @@ export function WizardStepWorkflow() {
           Drag stages to reorder
         </p>
       </div>
+
+      <AddStageDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onAdd={handleAddStage}
+      />
+
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Stage</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove "{stageToDelete?.name}"? This action cannot be undone.
+              Remaining stages will be renumbered automatically.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteConfirm && handleDeleteStage(deleteConfirm)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

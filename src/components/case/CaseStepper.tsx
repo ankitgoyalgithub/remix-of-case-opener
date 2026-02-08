@@ -64,7 +64,6 @@ export function CaseStepper({ stages, currentStage, onStageClick }: CaseStepperP
     <TooltipProvider delayDuration={300}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-sm">Issuance Stages</h3>
           <span className="text-xs text-muted-foreground">
             {stages.filter(s => s.status === 'complete').length}/{stages.length} complete
           </span>

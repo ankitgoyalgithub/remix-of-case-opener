@@ -11,9 +11,14 @@ import { TimelineDrawer } from '@/components/case/TimelineDrawer';
 import { ExportPanel } from '@/components/case/ExportPanel';
 import { MissingInfoEmailModal } from '@/components/request/MissingInfoEmailModal';
 import { AssignOwnerModal } from '@/components/request/AssignOwnerModal';
+import { VerificationSummaryPanel } from '@/components/verification/VerificationSummaryPanel';
+import { PhaseRail } from '@/components/verification/PhaseRail';
+import { OpsAdjudicationBar } from '@/components/verification/OpsAdjudicationBar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { mockCaseData, mockExportPayload } from '@/data/mockCaseData';
+import { mockVerificationChecks } from '@/data/mockVerificationData';
+import { PHASES, getPhaseStatus, getOverallDecision, VerificationPhase } from '@/types/verificationChecks';
 import { 
   Document, 
   TimelineEvent, 
@@ -22,7 +27,7 @@ import {
   getSlaStatus,
   DocumentType 
 } from '@/types/case';
-import { FileText, Database, Send, FileCheck } from 'lucide-react';
+import { FileText, Database, Send, FileCheck, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -34,9 +39,26 @@ export default function RequestDetail() {
   });
   const [currentStage, setCurrentStage] = useState(requestData.currentStage);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [activeTab, setActiveTab] = useState('documents');
+  const [activeTab, setActiveTab] = useState('summary');
   const [showMissingInfoModal, setShowMissingInfoModal] = useState(false);
   const [showAssignOwnerModal, setShowAssignOwnerModal] = useState(false);
+
+  // Phase Rail state
+  const [activePhase, setActivePhase] = useState<VerificationPhase | null>(null);
+
+  // Verification checks
+  const verificationChecks = mockVerificationChecks;
+
+  // Compute phase statuses
+  const phaseStatuses = useMemo(() => {
+    const statuses = {} as Record<VerificationPhase, ReturnType<typeof getPhaseStatus>>;
+    for (const phase of PHASES) {
+      statuses[phase.id] = getPhaseStatus(verificationChecks, phase.id);
+    }
+    return statuses;
+  }, [verificationChecks]);
+
+  const overallDecision = useMemo(() => getOverallDecision(verificationChecks), [verificationChecks]);
 
   // Calculate SLA dynamically
   const slaRemaining = useMemo(() => 
@@ -81,6 +103,9 @@ export default function RequestDetail() {
     brokerName: 'Gulf Insurance Brokers',
     currentStageName: requestData.stages.find(s => s.id === currentStage)?.name || 'Unknown',
   };
+
+  // Check if Phase 5 (Adjudication) is active
+  const isAdjudicationPhase = activePhase === 'adjudication';
 
   const handleStageClick = (stageId: number) => {
     setCurrentStage(stageId);
@@ -232,6 +257,40 @@ export default function RequestDetail() {
     toast.info('Escalation dialog would open here');
   };
 
+  const handleApprove = () => {
+    const newTimeline: TimelineEvent = {
+      id: `t${Date.now()}`,
+      timestamp: new Date(),
+      action: 'Request Approved',
+      user: requestData.owner,
+      details: 'Request approved via Ops Adjudication',
+    };
+    setRequestData(prev => ({
+      ...prev,
+      timeline: [...prev.timeline, newTimeline],
+    }));
+    toast.success('Request approved', {
+      description: 'Approval logged to timeline',
+    });
+  };
+
+  const handleReject = (reason: string) => {
+    const newTimeline: TimelineEvent = {
+      id: `t${Date.now()}`,
+      timestamp: new Date(),
+      action: 'Request Rejected',
+      user: requestData.owner,
+      details: `Reason: ${reason}`,
+    };
+    setRequestData(prev => ({
+      ...prev,
+      timeline: [...prev.timeline, newTimeline],
+    }));
+    toast.error('Request rejected', {
+      description: 'Rejection reason logged to timeline',
+    });
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <RequestDetailHeader 
@@ -254,8 +313,19 @@ export default function RequestDetail() {
       />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Stage Navigation (Stepper Only) */}
-        <div className="w-56 border-r border-border bg-card overflow-hidden flex flex-col">
+        {/* Left Sidebar - Phase Rail + Stage Navigation */}
+        <div className="w-60 border-r border-border bg-card overflow-y-auto flex flex-col">
+          {/* Phase Rail */}
+          <div className="p-4 border-b border-border">
+            <PhaseRail
+              phases={PHASES}
+              activePhase={activePhase}
+              phaseStatuses={phaseStatuses}
+              onPhaseClick={setActivePhase}
+            />
+          </div>
+
+          {/* Existing Stage Stepper */}
           <div className="p-4">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
               Issuance Stages
@@ -277,7 +347,7 @@ export default function RequestDetail() {
           </div>
         </div>
 
-        {/* Center Panel - Active Stage (Primary Focus) */}
+        {/* Center Panel */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Workforce Mismatch Banner for Stage 3 */}
           {currentStage === 3 && requestData.workforceMismatch.detected && (
@@ -294,7 +364,7 @@ export default function RequestDetail() {
 
           <ScrollArea className="flex-1">
             <div className="p-6">
-              {/* Active Stage Panel - Primary Focus */}
+              {/* Active Stage Panel */}
               <div className="bg-card rounded-xl border border-border p-6 mb-6">
                 {requestData.stages.find(s => s.id === currentStage) && (
                   <ActiveStagePanel
@@ -308,9 +378,16 @@ export default function RequestDetail() {
                 )}
               </div>
 
-              {/* Documents Section - Contextual Support */}
+              {/* Tabs: Summary (default), Documents, Extracted Data, Export */}
               <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
                 <TabsList className="h-10 bg-muted/50 gap-2">
+                  <TabsTrigger 
+                    value="summary"
+                    className="gap-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    Verification Summary
+                  </TabsTrigger>
                   <TabsTrigger 
                     value="documents"
                     className="gap-2 text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
@@ -335,6 +412,13 @@ export default function RequestDetail() {
                 </TabsList>
 
                 <div className="mt-4">
+                  <TabsContent value="summary" className="mt-0">
+                    <VerificationSummaryPanel
+                      checks={verificationChecks}
+                      activePhase={activePhase}
+                    />
+                  </TabsContent>
+
                   <TabsContent value="documents" className="mt-0">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div>
@@ -378,6 +462,15 @@ export default function RequestDetail() {
               </Tabs>
             </div>
           </ScrollArea>
+
+          {/* Ops Adjudication Bar - visible only when Phase 5 selected */}
+          <OpsAdjudicationBar
+            visible={isAdjudicationPhase}
+            decision={overallDecision}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onRequestMissingInfo={() => setShowMissingInfoModal(true)}
+          />
         </div>
       </div>
 

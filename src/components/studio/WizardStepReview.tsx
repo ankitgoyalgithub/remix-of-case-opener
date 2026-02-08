@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -14,7 +14,7 @@ import {
   Rocket,
   Save,
 } from 'lucide-react';
-import { mockWorkflowStages, mockDocumentDefinitions, mockExtractionFields, mockAIInstructions, mockChecklistDefinitions, mockEmailTemplates } from '@/data/mockStudioData';
+import { useStudioStages, useStudioDocuments, useStudioFields, useStudioInstructions, useStudioChecklist, useStudioEmails } from '@/hooks/useStudioStore';
 import { toast } from 'sonner';
 
 interface ReviewSection {
@@ -26,54 +26,60 @@ interface ReviewSection {
 }
 
 export function WizardStepReview() {
+  const { stages } = useStudioStages();
+  const { documents } = useStudioDocuments();
+  const { fields } = useStudioFields();
+  const { instructions } = useStudioInstructions();
+  const { items: checklist } = useStudioChecklist();
+  const { templates } = useStudioEmails();
+
   const sections: ReviewSection[] = [
     {
       icon: Workflow,
       title: 'Workflow Stages',
-      count: mockWorkflowStages.length,
-      status: 'complete',
-      details: `${mockWorkflowStages.length} stages defined, ${mockWorkflowStages.filter(s => s.slaHours).length} with SLA targets`,
+      count: stages.length,
+      status: stages.length > 0 ? 'complete' : 'warning',
+      details: `${stages.length} stages defined, ${stages.filter(s => s.slaHours).length} with SLA targets`,
     },
     {
       icon: FileText,
       title: 'Document Library',
-      count: mockDocumentDefinitions.length,
-      status: 'complete',
-      details: `${mockDocumentDefinitions.filter(d => d.mandatory).length} required, ${mockDocumentDefinitions.filter(d => !d.mandatory).length} optional documents`,
+      count: documents.length,
+      status: documents.length > 0 ? 'complete' : 'warning',
+      details: `${documents.filter(d => d.mandatory).length} required, ${documents.filter(d => !d.mandatory).length} optional documents`,
     },
     {
       icon: Database,
       title: 'Fields to Extract',
-      count: mockExtractionFields.length,
-      status: 'complete',
-      details: `${mockExtractionFields.filter(f => f.mandatory).length} required fields across ${new Set(mockExtractionFields.map(f => f.documentType)).size} document types`,
+      count: fields.length,
+      status: fields.length > 0 ? 'complete' : 'warning',
+      details: `${fields.filter(f => f.mandatory).length} required fields across ${new Set(fields.map(f => f.documentType)).size} document types`,
     },
     {
       icon: Brain,
       title: 'AI Notes',
-      count: mockAIInstructions.length,
-      status: mockAIInstructions.length < mockDocumentDefinitions.length ? 'warning' : 'complete',
-      details: mockAIInstructions.length < mockDocumentDefinitions.length
-        ? `${mockDocumentDefinitions.length - mockAIInstructions.length} documents missing extraction guidance`
+      count: instructions.length,
+      status: instructions.length < documents.length ? 'warning' : 'complete',
+      details: instructions.length < documents.length
+        ? `${documents.length - instructions.length} documents missing extraction guidance`
         : 'All document types have extraction guidance configured',
     },
     {
       icon: ClipboardCheck,
       title: 'Stage Checklist',
-      count: mockChecklistDefinitions.length,
-      status: 'complete',
-      details: `${mockChecklistDefinitions.filter(c => c.required).length} required items, ${mockChecklistDefinitions.filter(c => c.autoCheckRule !== 'manual').length} auto-checked`,
+      count: checklist.length,
+      status: checklist.length > 0 ? 'complete' : 'warning',
+      details: `${checklist.filter(c => c.required).length} required items, ${checklist.filter(c => c.autoCheckRule !== 'manual').length} auto-checked`,
     },
     {
       icon: Mail,
       title: 'Email Templates',
-      count: mockEmailTemplates.length,
-      status: 'complete',
-      details: `${mockEmailTemplates.length} templates configured`,
+      count: templates.length,
+      status: templates.length > 0 ? 'complete' : 'warning',
+      details: `${templates.length} templates configured`,
     },
   ];
 
-  const allComplete = sections.every(s => s.status === 'complete');
   const warnings = sections.filter(s => s.status === 'warning');
 
   return (

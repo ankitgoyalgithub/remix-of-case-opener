@@ -3,8 +3,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Plus,
   Search,
@@ -14,9 +23,13 @@ import {
   DollarSign,
   UserCheck,
   Settings2,
+  Trash2,
 } from 'lucide-react';
-import { mockDocumentDefinitions, mockWorkflowStages, DocumentDefinition } from '@/data/mockStudioData';
+import { DocumentDefinition } from '@/data/mockStudioData';
+import { useStudioDocuments, useStudioStages } from '@/hooks/useStudioStore';
+import { AddDocumentDialog } from './AddDocumentDialog';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const categoryIcons: Record<string, React.ElementType> = {
   Employer: FileText,
@@ -31,9 +44,12 @@ interface WizardStepDocumentsProps {
 }
 
 export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocumentsProps) {
-  const [documents] = useState<DocumentDefinition[]>(mockDocumentDefinitions);
-  const [selectedStage, setSelectedStage] = useState(1);
+  const { documents, addDocument, updateDocument, removeDocument } = useStudioDocuments();
+  const { stages } = useStudioStages();
+  const [selectedStage, setSelectedStage] = useState(stages[0]?.order ?? 1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [detachConfirm, setDetachConfirm] = useState<string | null>(null);
 
   const stageDocuments = documents.filter(doc =>
     doc.applicableStages.includes(selectedStage)
@@ -45,6 +61,77 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
 
   const requiredDocs = filteredDocuments.filter(d => d.mandatory);
   const optionalDocs = filteredDocuments.filter(d => !d.mandatory);
+
+  const handleAttachExisting = (doc: DocumentDefinition) => {
+    if (!doc.applicableStages.includes(selectedStage)) {
+      updateDocument(doc.id, {
+        applicableStages: [...doc.applicableStages, selectedStage],
+      });
+      toast.success(`${doc.name} attached to stage`);
+    }
+  };
+
+  const handleCreateNew = (docData: Omit<DocumentDefinition, 'id'>) => {
+    addDocument(docData);
+    toast.success(`${docData.name} created and attached`);
+  };
+
+  const handleDetach = (docId: string) => {
+    const doc = documents.find(d => d.id === docId);
+    if (!doc) return;
+    const newStages = doc.applicableStages.filter(s => s !== selectedStage);
+    if (newStages.length === 0) {
+      // If no stages left, remove entirely
+      removeDocument(docId);
+    } else {
+      updateDocument(docId, { applicableStages: newStages });
+    }
+    setDetachConfirm(null);
+    toast.success('Document removed from stage');
+  };
+
+  const docToDetach = documents.find(d => d.id === detachConfirm);
+
+  const renderDocCard = (doc: DocumentDefinition) => {
+    const Icon = categoryIcons[doc.category] || FileText;
+    return (
+      <Card key={doc.id} className="hover:border-primary/30 transition-colors">
+        <CardContent className="p-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Icon className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <span className="text-sm font-medium">{doc.name}</span>
+              <div className="flex items-center gap-2 mt-0.5">
+                <Badge variant="outline" className="text-xs">{doc.category}</Badge>
+                {doc.mandatory && (
+                  <Badge className="bg-destructive/10 text-destructive border-0 text-xs">Required</Badge>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => onConfigureDocument(doc)}
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              Configure
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={() => setDetachConfirm(doc.id)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -59,7 +146,7 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
         {/* Left: Stage selector */}
         <div className="w-56 shrink-0 space-y-1.5">
           <Label className="text-xs text-muted-foreground uppercase tracking-wider">Stages</Label>
-          {mockWorkflowStages.map(stage => {
+          {stages.map(stage => {
             const count = documents.filter(d => d.applicableStages.includes(stage.order)).length;
             const isSelected = selectedStage === stage.order;
             return (
@@ -97,7 +184,7 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
                 className="pl-9"
               />
             </div>
-            <Button variant="outline" size="sm" className="gap-1.5">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setAddDialogOpen(true)}>
               <Plus className="h-4 w-4" />
               Add Document
             </Button>
@@ -108,34 +195,7 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Required Documents</Label>
               <div className="space-y-2 mt-2">
-                {requiredDocs.map(doc => {
-                  const Icon = categoryIcons[doc.category] || FileText;
-                  return (
-                    <Card key={doc.id} className="hover:border-primary/30 transition-colors">
-                      <CardContent className="p-3 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Icon className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <span className="text-sm font-medium">{doc.name}</span>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <Badge variant="outline" className="text-xs">{doc.category}</Badge>
-                              <Badge className="bg-destructive/10 text-destructive border-0 text-xs">Required</Badge>
-                            </div>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1.5 text-xs"
-                          onClick={() => onConfigureDocument(doc)}
-                        >
-                          <Settings2 className="h-3.5 w-3.5" />
-                          Configure
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                {requiredDocs.map(renderDocCard)}
               </div>
             </div>
           )}
@@ -145,33 +205,11 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
             <div>
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">Optional Documents</Label>
               <div className="space-y-2 mt-2">
-                {optionalDocs.map(doc => {
-                  const Icon = categoryIcons[doc.category] || FileText;
-                  return (
-                    <Card key={doc.id} className="hover:border-primary/30 transition-colors opacity-80">
-                      <CardContent className="p-3 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Icon className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <span className="text-sm font-medium">{doc.name}</span>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <Badge variant="outline" className="text-xs">{doc.category}</Badge>
-                            </div>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1.5 text-xs"
-                          onClick={() => onConfigureDocument(doc)}
-                        >
-                          <Settings2 className="h-3.5 w-3.5" />
-                          Configure
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                {optionalDocs.map(doc => (
+                  <div key={doc.id} className="opacity-80">
+                    {renderDocCard(doc)}
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -180,10 +218,46 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
             <div className="text-center py-8">
               <FileText className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">No documents linked to this stage</p>
+              <Button variant="link" size="sm" onClick={() => setAddDialogOpen(true)} className="mt-1">
+                Add a document
+              </Button>
             </div>
           )}
         </div>
       </div>
+
+      <AddDocumentDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        allDocuments={documents}
+        stageDocuments={stageDocuments}
+        selectedStage={selectedStage}
+        onAttachExisting={handleAttachExisting}
+        onCreateNew={handleCreateNew}
+      />
+
+      <AlertDialog open={!!detachConfirm} onOpenChange={(open) => !open && setDetachConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Document from Stage</AlertDialogTitle>
+            <AlertDialogDescription>
+              Remove "{docToDetach?.name}" from this stage? 
+              {docToDetach && docToDetach.applicableStages.length <= 1
+                ? ' This is the only stage — the document type will also be deleted.'
+                : ' The document type will still be available in other stages.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => detachConfirm && handleDetach(detachConfirm)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

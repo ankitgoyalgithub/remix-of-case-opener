@@ -3,7 +3,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -20,7 +19,9 @@ import {
 import { DocumentDefinition } from '@/data/mockStudioData';
 import { useStudioDocuments } from '@/hooks/useStudioStore';
 import { DocumentConfigDrawer } from '@/components/studio/DocumentConfigDrawer';
+import { AddDocumentDialog } from '@/components/studio/AddDocumentDialog';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const categoryIcons: Record<string, React.ElementType> = {
   Employer: FileText,
@@ -33,17 +34,23 @@ const categoryIcons: Record<string, React.ElementType> = {
 const categories = ['Employer', 'Workforce', 'Medical', 'Commercial', 'Signatory'] as const;
 
 export default function DocumentLibrary() {
-  const { documents } = useStudioDocuments();
+  const { documents, addDocument } = useStudioDocuments();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [drawerDoc, setDrawerDoc] = useState<DocumentDefinition | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = categoryFilter === 'all' || doc.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
+
+  const handleCreateNew = (docData: Omit<DocumentDefinition, 'id'>) => {
+    addDocument(docData);
+    toast.success(`${docData.name} created`);
+  };
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -57,7 +64,7 @@ export default function DocumentLibrary() {
             Manage all document types outside of workflow context
           </p>
         </div>
-        <Button variant="outline" className="gap-2">
+        <Button variant="outline" className="gap-2" onClick={() => setAddDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           Add Document Type
         </Button>
@@ -167,6 +174,16 @@ export default function DocumentLibrary() {
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         document={drawerDoc}
+      />
+
+      <AddDocumentDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        allDocuments={documents}
+        stageDocuments={[]}
+        selectedStage={0}
+        onAttachExisting={() => {}}
+        onCreateNew={handleCreateNew}
       />
     </div>
   );

@@ -10,6 +10,9 @@ import NotFound from "./pages/NotFound";
 
 // AI Ops Studio Pages
 import AIStudioLayout from "./pages/studio/AIStudioLayout";
+import SetupWizard from "./pages/studio/SetupWizard";
+import DocumentLibrary from "./pages/studio/DocumentLibrary";
+import TemplatesMessages from "./pages/studio/TemplatesMessages";
 import WorkflowBuilder from "./pages/studio/WorkflowBuilder";
 import DocumentCatalog from "./pages/studio/DocumentCatalog";
 import ExtractionSchema from "./pages/studio/ExtractionSchema";
@@ -35,13 +38,21 @@ const App = () => (
           
           {/* AI Ops Studio - Admin Only */}
           <Route path="/studio" element={<AIStudioLayout />}>
-            <Route index element={<Navigate to="/studio/workflow" replace />} />
+            {/* Simple Mode (default) */}
+            <Route index element={<Navigate to="/studio/setup" replace />} />
+            <Route path="setup" element={<SetupWizard />} />
+            <Route path="library" element={<DocumentLibrary />} />
+            <Route path="templates" element={<TemplatesMessages />} />
+            
+            {/* Advanced Mode (legacy modules preserved) */}
             <Route path="workflow" element={<WorkflowBuilder />} />
             <Route path="documents" element={<DocumentCatalog />} />
             <Route path="extraction" element={<ExtractionSchema />} />
             <Route path="ai-instructions" element={<AIInstructions />} />
             <Route path="checklists" element={<ChecklistBuilder />} />
             <Route path="emails" element={<EmailTemplates />} />
+            
+            {/* Shared */}
             <Route path="settings" element={<StudioSettings />} />
           </Route>
           

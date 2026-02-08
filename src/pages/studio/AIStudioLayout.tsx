@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, createContext, useContext } from 'react';
 import { Outlet, useLocation, Link } from 'react-router-dom';
-import { 
-  Sidebar, 
-  SidebarContent, 
-  SidebarGroup, 
-  SidebarGroupContent, 
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
@@ -16,33 +16,57 @@ import {
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  ArrowLeft, 
-  Workflow, 
-  FileStack, 
-  Database, 
-  Brain, 
-  ClipboardCheck, 
-  Mail, 
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import {
+  ArrowLeft,
+  Wand2,
+  BookOpen,
+  MessageSquare,
   Settings,
   Sparkles,
-  Shield
+  Shield,
+  Workflow,
+  FileStack,
+  Database,
+  Brain,
+  ClipboardCheck,
+  Mail,
 } from 'lucide-react';
 
-const studioMenuItems = [
+// Context for Simple/Advanced mode
+const StudioModeContext = createContext<{ isAdvanced: boolean; setIsAdvanced: (v: boolean) => void }>({
+  isAdvanced: false,
+  setIsAdvanced: () => {},
+});
+
+export function useStudioMode() {
+  return useContext(StudioModeContext);
+}
+
+const simpleMenuItems = [
+  { title: 'Setup Wizard', url: '/studio/setup', icon: Wand2, description: 'Guided configuration' },
+  { title: 'Document Library', url: '/studio/library', icon: BookOpen, description: 'Manage documents' },
+  { title: 'Templates & Messages', url: '/studio/templates', icon: MessageSquare, description: 'Notifications' },
+  { title: 'Settings', url: '/studio/settings', icon: Settings, description: 'Global settings' },
+];
+
+const advancedMenuItems = [
   { title: 'Workflow Builder', url: '/studio/workflow', icon: Workflow, description: 'Configure stages' },
   { title: 'Document Catalog', url: '/studio/documents', icon: FileStack, description: 'Define document types' },
-  { title: 'Extraction Schema', url: '/studio/extraction', icon: Database, description: 'Configure AI fields' },
-  { title: 'AI Instructions', url: '/studio/ai-instructions', icon: Brain, description: 'Agent context' },
-  { title: 'Checklist Builder', url: '/studio/checklists', icon: ClipboardCheck, description: 'Stage checklists' },
+  { title: 'Fields to Extract', url: '/studio/extraction', icon: Database, description: 'Configure AI fields' },
+  { title: 'AI Notes', url: '/studio/ai-instructions', icon: Brain, description: 'Extraction guidance' },
+  { title: 'Stage Checklist', url: '/studio/checklists', icon: ClipboardCheck, description: 'Stage checklists' },
   { title: 'Email Templates', url: '/studio/emails', icon: Mail, description: 'Notification templates' },
   { title: 'Settings', url: '/studio/settings', icon: Settings, description: 'Global settings' },
 ];
 
-function StudioSidebar() {
+function StudioSidebar({ isAdvanced }: { isAdvanced: boolean }) {
   const location = useLocation();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
+
+  const menuItems = isAdvanced ? advancedMenuItems : simpleMenuItems;
 
   return (
     <Sidebar className={collapsed ? 'w-16' : 'w-64'} collapsible="icon">
@@ -73,14 +97,18 @@ function StudioSidebar() {
         )}
 
         <SidebarGroup>
-          {!collapsed && <SidebarGroupLabel>Configuration</SidebarGroupLabel>}
+          {!collapsed && (
+            <SidebarGroupLabel>
+              {isAdvanced ? 'Advanced Modules' : 'Configuration'}
+            </SidebarGroupLabel>
+          )}
           <SidebarGroupContent>
             <SidebarMenu>
-              {studioMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
+              {menuItems.map((item) => (
+                <SidebarMenuItem key={item.title + item.url}>
                   <SidebarMenuButton asChild tooltip={collapsed ? item.title : undefined}>
-                    <NavLink 
-                      to={item.url} 
+                    <NavLink
+                      to={item.url}
                       className="hover:bg-muted/50 flex items-center gap-3 px-3 py-2 rounded-lg transition-colors"
                       activeClassName="bg-primary/10 text-primary font-medium"
                     >
@@ -114,27 +142,42 @@ function StudioSidebar() {
 }
 
 export default function AIStudioLayout() {
+  const [isAdvanced, setIsAdvanced] = useState(false);
+
   return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen flex w-full bg-background">
-        <StudioSidebar />
-        <main className="flex-1 flex flex-col overflow-hidden">
-          {/* Top Bar */}
-          <div className="h-14 border-b border-border bg-card flex items-center px-4 gap-4">
-            <SidebarTrigger />
-            <div className="flex-1" />
-            <Badge variant="secondary" className="gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              Draft Mode
-            </Badge>
-          </div>
-          
-          {/* Content */}
-          <div className="flex-1 overflow-auto">
-            <Outlet />
-          </div>
-        </main>
-      </div>
-    </SidebarProvider>
+    <StudioModeContext.Provider value={{ isAdvanced, setIsAdvanced }}>
+      <SidebarProvider defaultOpen={true}>
+        <div className="min-h-screen flex w-full bg-background">
+          <StudioSidebar isAdvanced={isAdvanced} />
+          <main className="flex-1 flex flex-col overflow-hidden">
+            {/* Top Bar */}
+            <div className="h-14 border-b border-border bg-card flex items-center px-4 gap-4">
+              <SidebarTrigger />
+              <div className="flex-1" />
+
+              {/* Simple / Advanced Toggle */}
+              <div className="flex items-center gap-2">
+                <Label className="text-xs text-muted-foreground">Simple</Label>
+                <Switch
+                  checked={isAdvanced}
+                  onCheckedChange={setIsAdvanced}
+                />
+                <Label className="text-xs text-muted-foreground">Advanced</Label>
+              </div>
+
+              <Badge variant="secondary" className="gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                Draft Mode
+              </Badge>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-auto">
+              <Outlet />
+            </div>
+          </main>
+        </div>
+      </SidebarProvider>
+    </StudioModeContext.Provider>
   );
 }

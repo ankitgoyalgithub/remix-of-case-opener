@@ -37,6 +37,7 @@ import {
     DialogDescription
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
@@ -256,55 +257,99 @@ export function OperationsWorkbench({
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="h-7 text-[10px] font-bold gap-1.5 hover:bg-primary/5 text-primary"
+                                                    className="h-7 text-[10px] font-bold gap-1.5 hover:bg-primary/5 text-primary border border-primary/20 hover:border-primary/40"
                                                     disabled={!selectedDocument}
                                                 >
                                                     <BrainCircuit className="h-3.5 w-3.5" />
                                                     RE-EXTRACT
                                                 </Button>
                                             </DialogTrigger>
-                                            <DialogContent className="sm:max-w-[425px]">
-                                                <DialogHeader>
-                                                    <DialogTitle className="flex items-center gap-2 text-primary">
-                                                        <BrainCircuit className="h-5 w-5" />
-                                                        Refine AI Extraction
-                                                    </DialogTitle>
-                                                    <DialogDescription className="text-[11px] text-muted-foreground">
-                                                        Provide additional instructions to the AI agent to improve extraction accuracy for this document.
-                                                    </DialogDescription>
-                                                </DialogHeader>
-                                                <div className="grid gap-4 py-4">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="prompt" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                                                            Additional AI Instruction
-                                                        </Label>
-                                                        <Input
-                                                            id="prompt"
-                                                            placeholder="e.g. Look for the Registration No on page 2..."
-                                                            value={reextractPrompt}
-                                                            onChange={(e) => setReextractPrompt(e.target.value)}
-                                                            className="h-10 text-sm"
-                                                        />
-                                                        <p className="text-[10px] text-muted-foreground italic leading-relaxed">
-                                                            This will re-run the AI agent for "{selectedDocument?.name}". You can provide specific hints to help the AI find missing values.
-                                                        </p>
+                                            <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden border-none shadow-2xl">
+                                                <div className="bg-gradient-to-br from-primary/10 via-background to-background p-6">
+                                                    <DialogHeader className="mb-6">
+                                                        <div className="flex items-center gap-3 mb-1">
+                                                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                                                                <BrainCircuit className="h-6 w-6 text-primary" />
+                                                            </div>
+                                                            <div>
+                                                                <DialogTitle className="text-xl font-bold tracking-tight">
+                                                                    Refine AI Extraction
+                                                                </DialogTitle>
+                                                                <DialogDescription className="text-xs text-muted-foreground">
+                                                                    Provide specific pointers to help the AI find missing values.
+                                                                </DialogDescription>
+                                                            </div>
+                                                        </div>
+                                                    </DialogHeader>
+
+                                                    <div className="space-y-6">
+                                                        <div className="space-y-3">
+                                                            <Label htmlFor="prompt" className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] ml-0.5">
+                                                                Additional AI Instruction
+                                                            </Label>
+                                                            <div className="relative group">
+                                                                <Textarea
+                                                                    id="prompt"
+                                                                    rows={4}
+                                                                    placeholder="e.g. Look for the Registration No on page 2, bottom left corner..."
+                                                                    value={reextractPrompt}
+                                                                    onChange={(e) => setReextractPrompt(e.target.value)}
+                                                                    className="w-full rounded-xl border border-border bg-background/50 backdrop-blur-sm p-4 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none placeholder:text-muted-foreground/50 shadow-sm"
+                                                                />
+                                                                <Sparkles className="absolute right-4 bottom-4 h-4 w-4 text-primary/30 group-focus-within:text-primary transition-colors" />
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-3">
+                                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] ml-0.5">
+                                                                Quick Hints
+                                                            </p>
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {[
+                                                                    "Look for Partner names",
+                                                                    "Find Manager/Director",
+                                                                    "Check for stamps/signatures",
+                                                                    "Find Employee Count",
+                                                                    "Look on last page"
+                                                                ].map((hint) => (
+                                                                    <button
+                                                                        key={hint}
+                                                                        onClick={() => setReextractPrompt(prev => prev ? `${prev}, ${hint}` : hint)}
+                                                                        className="text-[10px] font-medium bg-muted/50 hover:bg-primary/10 hover:text-primary border border-border hover:border-primary/30 py-1.5 px-3 rounded-full transition-all"
+                                                                    >
+                                                                        + {hint}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="pt-2">
+                                                            <Button
+                                                                disabled={!selectedDocument}
+                                                                onClick={async (e) => {
+                                                                    const btn = e.currentTarget;
+                                                                    btn.disabled = true;
+                                                                    try {
+                                                                        if (selectedDocument && onReextract) {
+                                                                            await onReextract(selectedDocument.id, reextractPrompt);
+                                                                            setIsReextractDialogOpen(false);
+                                                                            setReextractPrompt('');
+                                                                        }
+                                                                    } finally {
+                                                                        btn.disabled = false;
+                                                                    }
+                                                                }}
+                                                                className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                                                            >
+                                                                <RefreshCw className="h-4 w-4 animate-spin-slow" />
+                                                                Run Intelligent Agent
+                                                            </Button>
+                                                            <p className="text-[10px] text-center text-muted-foreground mt-4 italic">
+                                                                Re-processing "{selectedDocument?.name}"
+                                                            </p>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <DialogFooter>
-                                                    <Button
-                                                        disabled={!selectedDocument}
-                                                        onClick={async () => {
-                                                            if (selectedDocument && onReextract) {
-                                                                await onReextract(selectedDocument.id, reextractPrompt);
-                                                                setIsReextractDialogOpen(false);
-                                                                setReextractPrompt('');
-                                                            }
-                                                        }}
-                                                        className="w-full bg-primary hover:bg-primary/90 text-white font-bold"
-                                                    >
-                                                        Run AI Agent
-                                                    </Button>
-                                                </DialogFooter>
                                             </DialogContent>
                                         </Dialog>
                                     )}

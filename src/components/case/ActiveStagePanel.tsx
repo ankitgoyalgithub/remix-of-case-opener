@@ -3,7 +3,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { Check, AlertCircle, Lock, AlertTriangle, CheckCircle2, FileText, Sparkles } from 'lucide-react';
+import { Check, AlertCircle, Lock, AlertTriangle, CheckCircle2, FileText, Sparkles, ShieldCheck, ListTodo } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { getDocumentsForStage } from '@/lib/stageDocumentMapping';
 
 // Must stay in sync with ExtractionAgent.DOCUMENT_KEY_MAP on the backend
@@ -81,25 +82,19 @@ export function ActiveStagePanel({
   const stageChecklist = checklist.filter(item => item.stageId === stage.id);
 
   const stageChecklistWithComputed = stageChecklist.map(item => {
-    const isAutoChecked = item.documentType
-      ? documents.some(d => d.checklistId === item.id)
-      : false;
-
-    const isMissingDoc = item.documentType ? !isAutoChecked : false;
-    const computedChecked = item.documentType ? isAutoChecked : item.checked;
-    return { ...item, computedChecked, isMissingDoc, isAutoChecked };
+    return { ...item };
   });
 
-  const completedCount = stageChecklistWithComputed.filter(i => i.computedChecked).length;
+  const completedCount = stageChecklistWithComputed.filter(i => i.checked).length;
   const totalCount = stageChecklistWithComputed.length;
-  const requiredIncomplete = stageChecklistWithComputed.filter(item => item.required && !item.computedChecked);
+  const requiredIncomplete = stageChecklistWithComputed.filter(item => item.required && !item.checked);
 
   const getStageValidation = (): { status: 'complete' | 'warning' | 'blocked'; message: string } => {
     if (stage.status === 'complete') {
       return { status: 'complete', message: 'Stage complete – all required validations passed' };
     }
-    if (stage.id === 7) {
-      return { status: 'blocked', message: 'All previous stages must be complete before export.' };
+    if (stage.id === 5 && requiredIncomplete.length > 0) {
+      return { status: 'blocked', message: 'Final adjudication requires all tasks to be cleared.' };
     }
     if (stage.id === 3 && workforceMismatch?.detected && !workforceMismatch?.accepted) {
       return {
@@ -154,7 +149,14 @@ export function ActiveStagePanel({
     }
   };
 
-  const stageDocTypes = docDefs.filter(d => d.applicableStages.includes(stage.id)).map(d => d.type);
+  const getItemTypeIcon = (type: string) => {
+    switch (type) {
+      case 'extraction': return <Sparkles className="h-3 w-3 text-blue-500" />;
+      case 'verification': return <ShieldCheck className="h-3 w-3 text-indigo-500" />;
+      case 'cross-validation': return <CheckCircle2 className="h-3 w-3 text-purple-500" />;
+      default: return <ListTodo className="h-3 w-3 text-muted-foreground" />;
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -171,17 +173,7 @@ export function ActiveStagePanel({
             {completedCount}/{totalCount}
           </span>
         </div>
-        <p className="text-sm text-muted-foreground">{stage.description}</p>
-
-        {stageDocTypes.length > 0 && (
-          <div className="flex items-start gap-2 mt-2 pt-2 border-t border-border/50">
-            <FileText className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium">Documents used:</span>{' '}
-              {stageDocTypes.map(dt => DOCUMENT_TYPE_LABELS[dt]).join(', ')}
-            </p>
-          </div>
-        )}
+        <p className="text-sm text-muted-foreground font-medium leading-relaxed">{stage.description}</p>
       </div>
 
       {/* Status Banner */}
@@ -189,108 +181,62 @@ export function ActiveStagePanel({
 
       {/* Checklist Items */}
       <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          Checklist Items
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 opacity-70">
+          Operational Tasks
         </p>
         {stageChecklistWithComputed.map((item) => {
-          const { isMissingDoc, isAutoChecked, computedChecked: isChecked } = item;
           const isSelected = selectedItemId === item.id;
-          const extractionFields = item.documentType ? (DOCUMENT_EXTRACTION_FIELDS[item.documentType] ?? []) : [];
+          const isChecked = item.checked;
 
           return (
             <div
               key={item.id}
               onClick={() => onSelectItem?.(item.id)}
               className={cn(
-                "flex flex-col py-2 px-3 rounded-lg transition-all border cursor-pointer",
-                isSelected ? "border-primary bg-primary/5 shadow-sm" : "border-transparent bg-muted/30 hover:bg-muted/50",
-                isMissingDoc && !isSelected && "bg-destructive/15 border-destructive/30",
-                isChecked && !isMissingDoc && !isSelected && "bg-success/10 border-success/20"
+                "flex flex-col py-3 px-4 rounded-xl transition-all border cursor-pointer",
+                isSelected ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/10" : "border-transparent bg-muted/20 hover:bg-muted/40",
+                isChecked && !isSelected && "bg-success/5 border-success/10"
               )}
             >
-              {/* Top row: checkbox + label + upload button */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 flex-1">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <Checkbox
                     id={item.id}
                     checked={isChecked}
                     onCheckedChange={() => onToggle(item.id)}
                     onClick={(e) => e.stopPropagation()}
-                    disabled={!!item.documentType || (isAutoChecked && item.checked)}
                     className={cn(
-                      "data-[state=checked]:bg-success data-[state=checked]:border-success",
-                      isMissingDoc && "border-destructive"
+                      "data-[state=checked]:bg-success data-[state=checked]:border-success h-5 w-5 rounded-md"
                     )}
                   />
-                  <label
-                    htmlFor={item.id}
-                    className={cn(
-                      "text-sm cursor-pointer flex-1",
-                      isChecked && "text-muted-foreground",
-                      isMissingDoc && "text-destructive font-medium"
-                    )}
-                  >
-                    {item.label}
-                    {item.required && (
-                      <span className="text-destructive ml-1">*</span>
-                    )}
-                  </label>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  {item.documentType && onUploadDocument && (
-                    <label className="cursor-pointer inline-flex items-center justify-center rounded-md text-[10px] font-bold ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-6 px-2 uppercase tracking-tight">
-                      {isMissingDoc ? 'Upload' : 'Update'}
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,.png,.jpg,.jpeg,.xlsx,.csv"
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            onUploadDocument(file, item.documentType!, item.id);
-                          }
-                          e.target.value = '';
-                        }}
-                      />
+                  <div className="flex flex-col min-w-0">
+                    <label
+                      htmlFor={item.id}
+                      className={cn(
+                        "text-[13px] font-bold cursor-pointer truncate",
+                        isChecked ? "text-muted-foreground/60" : "text-foreground"
+                      )}
+                    >
+                      {item.label}
+                      {item.required && <span className="text-destructive ml-1">*</span>}
                     </label>
-                  )}
-                  {isMissingDoc && !item.documentType && (
-                    <span className="text-[10px] uppercase font-bold text-destructive">Required</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Bottom row: expected document type + extraction fields */}
-              {item.documentType && (
-                <div className="mt-1.5 ml-6 flex flex-col gap-1 pb-0.5">
-                  {/* Document type label */}
-                  <div className="flex items-center gap-1.5">
-                    <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                      {DOC_TYPE_LABELS[item.documentType] ?? item.documentType}
-                    </span>
-                  </div>
-
-                  {/* Extraction fields pills */}
-                  {extractionFields.length > 0 && (
-                    <div className="flex items-start gap-1.5 flex-wrap">
-                      <Sparkles className="h-3 w-3 text-primary/60 mt-0.5 shrink-0" />
-                      <div className="flex flex-wrap gap-1">
-                        {extractionFields.map(field => (
-                          <span
-                            key={field}
-                            className="inline-flex items-center text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-primary/8 text-primary/70 border border-primary/15"
-                          >
-                            {field}
-                          </span>
-                        ))}
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-1">
+                        {getItemTypeIcon(item.itemType)}
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">
+                          {item.itemType}
+                        </span>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
-              )}
+
+                {!isChecked && item.required && (
+                  <Badge variant="outline" className="text-[9px] font-bold py-0 bg-destructive/5 text-destructive border-destructive/20 uppercase shrink-0">
+                    Action Required
+                  </Badge>
+                )}
+              </div>
             </div>
           );
         })}

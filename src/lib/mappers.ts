@@ -66,6 +66,7 @@ export function mapBackendRequestChecklistToChecklistItem(rc: any): ChecklistIte
         checked: rc.checked,
         stageId: rc.stage_id,
         required: rc.required,
+        itemType: rc.item_type || 'manual',
         documentType: rc.document_type && rc.document_type.length > 0 ? rc.document_type[0] as DocumentType : undefined
     };
 }

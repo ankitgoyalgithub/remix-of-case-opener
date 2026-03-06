@@ -4,32 +4,42 @@ import { ActiveStagePanel } from '@/components/case/ActiveStagePanel';
 import { DocumentsPanel } from '@/components/case/DocumentsPanel';
 import { ExtractedDataPanel } from '@/components/case/ExtractedDataPanel';
 import { DocumentHighlightsPanel } from '@/components/case/DocumentHighlightsPanel';
-import { PhaseRail } from '@/components/verification/PhaseRail';
-import { VerificationSummaryPanel } from '@/components/verification/VerificationSummaryPanel';
-import { ExportPanel } from '@/components/case/ExportPanel';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { PHASES, VerificationPhase } from '@/types/verificationChecks';
 import {
-    Stage,
-    ChecklistItem,
     Document,
     DocumentType,
-    ExtractedDataSection,
     CaseData
 } from '@/types/case';
 import {
     FileText,
-    Search,
-    Eye,
     CheckSquare,
-    Info,
     Activity,
-    ArrowRightLeft
+    ArrowRightLeft,
+    Sparkles,
+    ShieldCheck,
+    ListTodo,
+    Database
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { RequiredDocumentsPanel } from '@/components/case/RequiredDocumentsPanel';
+
+const REQUIRED_DOC_TYPES: DocumentType[] = [
+    'customer-signed-quote',
+    'finalized-census',
+    'trade-license',
+    'vat-certificate',
+    'establishment-card',
+    'group-declaration',
+    'medical-application-form',
+    'mol-list',
+    'salary-declaration',
+    'coc',
+    'moa',
+    'initial-census'
+];
 
 interface OperationsWorkbenchProps {
     requestData: CaseData;
@@ -69,30 +79,12 @@ export function OperationsWorkbench({
     onMarkIssued
 }: OperationsWorkbenchProps) {
     const currentStageData = requestData.stages.find(s => s.id === activeViewStage);
-
-    // Filter intelligence data based on selection
     const selectedItem = requestData.checklist.find(i => i.id === selectedChecklistItemId);
-
-    // Map of document types to their relevant section categories
-    const sectionRelevance: Record<string, string[]> = {
-        'census': ['Workforce'],
-        'mol-list': ['Workforce'],
-        'trade-license': ['Employer & Legal', 'Commercial'],
-        'establishment-card': ['Employer & Legal'],
-        'vat-certificate': ['Employer & Legal', 'Commercial'],
-        'moa': ['Employer & Legal', 'Signatory'],
-        'kyc-signatory': ['Signatory'],
-        'signatory-id': ['Signatory'],
-        'customer-signed-quote': ['Commercial', 'Signatory'],
-        'medical-application-form': ['Workforce', 'Signatory']
-    };
 
     // Filter extracted sections based on selection
     const filteredExtractedData = React.useMemo(() => {
-        // If no document is selected, show nothing to avoid clutter
         if (!selectedDocument) return [];
 
-        // Keys must exactly match what ExtractionAgent stores (see services/extraction_agent.py DOCUMENT_KEY_MAP)
         const standardKeyMap: Record<string, string[]> = {
             'trade-license': ['Company Name', 'Trade License Number', 'Trade License Expiry Date', 'VAT TRN'],
             'establishment-card': ['Establishment Card Number', 'MOL Employee Count'],
@@ -100,13 +92,9 @@ export function OperationsWorkbench({
             'initial-census': ['Census Member Count', 'Mismatch Flag'],
             'finalized-census': ['Census Member Count', 'Mismatch Flag'],
             'emirates-id': ['Signatory Name', 'Emirates ID / Passport No'],
-            'emirates-id-passport': ['Signatory Name', 'Emirates ID / Passport No'],
-            'passport': ['Signatory Name', 'Emirates ID / Passport No'],
             'vat-certificate': ['VAT TRN'],
             'mol-list': ['MOL Employee Count'],
-            'mol-sheet': ['MOL Employee Count'],
             'customer-signed-quote': ['Quote Reference', 'Final Premium (AED)', 'Plan Code'],
-            'signed-quotation': ['Quote Reference', 'Final Premium (AED)', 'Plan Code'],
             'kyc-signatory': ['Signatory Name', 'Emirates ID / Passport No'],
             'other': ['Document Reference', 'Note']
         };
@@ -114,7 +102,6 @@ export function OperationsWorkbench({
         const standardKeys = standardKeyMap[selectedDocument.type] || standardKeyMap['other'];
         const extraction = selectedDocument.extraction?.data || {};
 
-        // Transform standardized keys into ExtractedDataSection format
         return [{
             title: `Extracted: ${selectedDocument.name}`,
             fields: standardKeys.map(key => ({
@@ -128,8 +115,6 @@ export function OperationsWorkbench({
     }, [selectedDocument]);
 
     const handleReupload = async (docId: string, file: File) => {
-        // This would call the PATCH endpoint in production
-        console.log(`Re-uploading for document ${docId}`);
         await onUploadDocument(file, (selectedDocument?.type || 'other') as DocumentType);
     };
 
@@ -137,13 +122,10 @@ export function OperationsWorkbench({
         if (doc.url) window.open(doc.url, '_blank');
     };
 
-    // If we are at the final stage, show export view
-    const isFinalStage = activeViewStage === 7;
-
     return (
         <div className="flex-1 flex flex-col overflow-hidden bg-background/50 p-4 gap-4">
             {/* Top Bar: Context & Adjudication Summary */}
-            <div className="flex items-center justify-between glass-card rounded-2xl p-3 px-6 shrink-0">
+            <div className="flex items-center justify-between glass-card rounded-2xl p-3 px-6 shrink-0 border-primary/5">
                 <div className="flex items-center gap-4">
                     <div className="flex flex-col">
                         <h2 className="text-base font-bold text-foreground leading-tight flex items-center gap-2">
@@ -154,17 +136,17 @@ export function OperationsWorkbench({
                     </div>
                     <Separator orientation="vertical" className="h-8 bg-border/50" />
                     <div className="flex items-center gap-6">
-                        {Object.entries(PHASES).map(([key, phase]) => (
-                            <div key={key} className="flex flex-col">
+                        {PHASES.map((phase) => (
+                            <div key={phase.id} className="flex flex-col">
                                 <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.1em]">{phase.label}</span>
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                     <div className={cn(
                                         "w-3 h-3 rounded-full border-[2.5px]",
-                                        phaseStatuses[key] === 'passed' ? "bg-success/20 border-success" :
-                                            phaseStatuses[key] === 'failed' ? "bg-destructive/20 border-destructive" :
+                                        phaseStatuses[phase.id] === 'passed' ? "bg-success/20 border-success" :
+                                            phaseStatuses[phase.id] === 'failed' ? "bg-destructive/20 border-destructive" :
                                                 "bg-muted border-muted-foreground/30"
                                     )}></div>
-                                    <span className="text-[11px] font-bold text-foreground/80 lowercase">{phaseStatuses[key] || 'pending'}</span>
+                                    <span className="text-[11px] font-bold text-foreground/80 lowercase">{phaseStatuses[phase.id] || 'pending'}</span>
                                 </div>
                             </div>
                         ))}
@@ -187,35 +169,44 @@ export function OperationsWorkbench({
             </div>
 
             <div className="flex-1 flex gap-4 min-h-0">
-                {/* Left Column: Command & Validation */}
-                <div className="w-[380px] lg:w-[440px] flex flex-col gap-4">
-                    <div className="flex-1 glass-card rounded-3xl flex flex-col overflow-hidden">
-                        <div className="p-5 border-b border-border/50 bg-muted/20">
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                                        <CheckSquare className="h-4 w-4 text-primary" />
-                                    </div>
-                                    <h3 className="text-sm font-bold uppercase tracking-tight">Stage Commands</h3>
+                {/* Left Column: Input & Tasks */}
+                <div className="w-[380px] lg:w-[420px] flex flex-col gap-4 min-h-0">
+                    {/* Required Documents Section */}
+                    <div className="h-[320px] glass-card rounded-3xl flex flex-col overflow-hidden bg-card/40 border-primary/10">
+                        <RequiredDocumentsPanel
+                            documents={requestData.documents}
+                            requiredDocTypes={REQUIRED_DOC_TYPES}
+                            onUpload={onUploadDocument}
+                            onSelectDocument={onSelectDocument}
+                            selectedDocumentId={selectedDocument?.id}
+                        />
+                    </div>
+
+                    {/* Operational Checklist Section */}
+                    <div className="flex-1 glass-card rounded-3xl flex flex-col overflow-hidden border-indigo-500/10">
+                        <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                                    <CheckSquare className="h-4 w-4 text-indigo-500" />
                                 </div>
-                                <Badge variant="outline" className="text-[10px] font-bold py-0.5 bg-primary/5 border-primary/20">{currentStageData?.status === 'complete' ? 'COMPLETED' : 'IN PROGRESS'}</Badge>
+                                <h3 className="text-xs font-bold uppercase tracking-wider">Operational Workflow</h3>
                             </div>
-                            <p className="text-xs text-muted-foreground leading-relaxed">{currentStageData?.description || "Execute required validations for this stage."}</p>
+                            <Badge variant="outline" className="text-[10px] font-bold py-0 bg-primary/5 border-primary/20">
+                                {currentStageData?.status === 'complete' ? 'COMPLETED' : 'IN PROGRESS'}
+                            </Badge>
                         </div>
 
                         <ScrollArea className="flex-1">
-                            <div className="p-5">
+                            <div className="p-4">
                                 {currentStageData && (
                                     <ActiveStagePanel
                                         stage={currentStageData}
                                         checklist={requestData.checklist}
                                         documents={requestData.documents}
-                                        missingDocs={(requestData.docDefs?.filter(d => d.applicableStages.includes(activeViewStage) && d.mandatory && !requestData.documents.some(doc => doc.type === d.type)).map(d => d.type) as DocumentType[]) || []}
+                                        missingDocs={[]}
                                         docDefs={requestData.docDefs || []}
                                         onToggle={onChecklistToggle}
                                         onMarkStageComplete={onStageComplete}
-                                        onUploadDocument={onUploadDocument}
-                                        workforceMismatch={requestData.workforceMismatch}
                                         selectedItemId={selectedChecklistItemId}
                                         onSelectItem={onSelectChecklistItem}
                                     />
@@ -227,24 +218,59 @@ export function OperationsWorkbench({
 
                 {/* Right Column: Intelligence & Evidence */}
                 <div className="flex-1 flex flex-col gap-4 min-w-0">
-                    {/* Intelligence Bento Grid */}
                     <div className="flex-1 grid grid-cols-1 xl:grid-cols-[480px_1fr] gap-4 min-h-0">
-                        {/* Data Bento Card */}
-                        <div className="glass-card rounded-3xl flex flex-col overflow-hidden bg-card/30">
+                        {/* Data Bento Card / Traffic Light Report */}
+                        <div className="glass-card rounded-3xl flex flex-col overflow-hidden bg-card/30 border-blue-500/10">
                             <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center justify-between shrink-0">
                                 <div className="flex items-center gap-2">
                                     <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
                                         <Database className="h-4 w-4 text-blue-500" />
                                     </div>
-                                    <h4 className="text-xs font-bold uppercase tracking-wider">Field Extractions</h4>
+                                    <h4 className="text-xs font-bold uppercase tracking-wider">
+                                        {activeViewStage === 5 ? 'Adjudication Report' : 'Field Extractions'}
+                                    </h4>
                                 </div>
-                                {selectedItem?.documentType && (
+                                {selectedItem?.documentType && activeViewStage !== 5 && (
                                     <Badge className="text-[10px] bg-blue-500/10 text-blue-500 border-none px-2">{selectedItem.documentType}</Badge>
                                 )}
                             </div>
                             <ScrollArea className="flex-1">
                                 <div className="p-5">
-                                    {filteredExtractedData.length > 0 ? (
+                                    {activeViewStage === 5 ? (
+                                        <div className="space-y-6">
+                                            <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10">
+                                                <h5 className="text-[11px] font-black uppercase tracking-widest text-primary mb-3">Traffic Light Summary</h5>
+                                                <div className="space-y-3">
+                                                    {[
+                                                        { label: 'Entity Status', status: 'verified', source: 'NER', color: 'text-success' },
+                                                        { label: 'Tax Status', status: 'valid', source: 'FTA', color: 'text-success' },
+                                                        { label: 'UBO Check', status: '1 PEP detected', source: 'Manual Review Required', color: 'text-amber-500' },
+                                                        { label: 'Expiry Alert', status: 'License expires in 12 days', source: 'Hard Stop Imminent', color: 'text-destructive' },
+                                                    ].map((item, idx) => (
+                                                        <div key={idx} className="flex items-center justify-between p-3 bg-background/50 rounded-xl border border-border/50">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={cn(
+                                                                    "w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)]",
+                                                                    item.color.replace('text-', 'bg-')
+                                                                )}></div>
+                                                                <span className="text-xs font-bold text-foreground/80">{item.label}</span>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <div className={cn("text-[11px] font-black uppercase", item.color)}>{item.status}</div>
+                                                                <div className="text-[9px] text-muted-foreground font-medium group-hover:text-primary transition-colors">Source: {item.source}</div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="p-4 bg-muted/20 rounded-2xl border border-border/50">
+                                                <p className="text-[10px] font-medium text-muted-foreground leading-relaxed">
+                                                    The data is ready to be pushed to the core policy system. Review the yellow and red flags before final approval.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ) : filteredExtractedData.length > 0 ? (
                                         <ExtractedDataPanel
                                             sections={filteredExtractedData}
                                             onVerify={onVerifyField}
@@ -256,7 +282,7 @@ export function OperationsWorkbench({
                                                 <Database className="h-6 w-6 text-muted-foreground/40" />
                                             </div>
                                             <p className="text-sm font-bold text-foreground">Operational Signal Missing</p>
-                                            <p className="text-[11px] text-muted-foreground mt-1 px-12 leading-relaxed">Select a verification task from the command center to stream AI-extracted data points.</p>
+                                            <p className="text-[11px] text-muted-foreground mt-1 px-12 leading-relaxed text-balance">Select a verification task or document to stream AI-extracted data points.</p>
                                         </div>
                                     )}
                                 </div>
@@ -264,7 +290,7 @@ export function OperationsWorkbench({
                         </div>
 
                         {/* Evidence Bento Card */}
-                        <div className="glass-card rounded-3xl flex flex-col overflow-hidden bg-card/20">
+                        <div className="glass-card rounded-3xl flex flex-col overflow-hidden bg-card/20 border-indigo-500/10">
                             <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center justify-between shrink-0">
                                 <div className="flex items-center gap-2">
                                     <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
@@ -297,54 +323,16 @@ export function OperationsWorkbench({
                                     <div className="flex-1 flex flex-col min-h-0 bg-muted/30 rounded-2xl border border-dashed border-border/60 overflow-hidden">
                                         <ScrollArea className="flex-1">
                                             <div className="p-4">
-                                                {(() => {
-                                                    // Only show document explicitly linked to the selected checklist item
-                                                    const linkedDoc = selectedItem
-                                                        ? requestData.documents.find(d => d.checklistId === selectedItem.id)
-                                                        : null;
-                                                    const docsToShow = linkedDoc ? [linkedDoc] : [];
-
-                                                    if (!selectedItem) {
-                                                        return (
-                                                            <div className="h-full flex flex-col items-center justify-center py-20 text-center">
-                                                                <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mb-4 border border-border border-dashed">
-                                                                    <FileText className="h-6 w-6 text-muted-foreground/30" />
-                                                                </div>
-                                                                <p className="text-sm font-bold text-foreground">Select a Task</p>
-                                                                <p className="text-[11px] text-muted-foreground mt-1 max-w-[220px] leading-relaxed mx-auto">
-                                                                    Click a checklist item on the left to view its linked document.
-                                                                </p>
-                                                            </div>
-                                                        );
-                                                    } else if (docsToShow.length > 0) {
-                                                        return (
-                                                            <DocumentsPanel
-                                                                documents={docsToShow}
-                                                                selectedDocument={selectedDocument}
-                                                                onSelectDocument={onSelectDocument}
-                                                                activeStage={activeViewStage}
-                                                                docDefs={requestData.docDefs}
-                                                                onUpload={undefined}
-                                                                onReupload={handleReupload}
-                                                                onPreview={handlePreview}
-                                                            />
-                                                        );
-                                                    } else {
-                                                        return (
-                                                            <div className="h-full flex flex-col items-center justify-center py-20 text-center">
-                                                                <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mb-4 border border-border border-dashed">
-                                                                    <FileText className="h-6 w-6 text-muted-foreground/30" />
-                                                                </div>
-                                                                <p className="text-sm font-bold text-foreground">Evidence Required</p>
-                                                                <p className="text-[11px] text-muted-foreground mt-1 max-w-[220px] leading-relaxed mx-auto">
-                                                                    {selectedItem?.documentType
-                                                                        ? `Upload the required document for "${selectedItem.label}" using the Upload button.`
-                                                                        : "Upload supporting documentation to begin validation."}
-                                                                </p>
-                                                            </div>
-                                                        );
-                                                    }
-                                                })()}
+                                                <DocumentsPanel
+                                                    documents={requestData.documents}
+                                                    selectedDocument={selectedDocument}
+                                                    onSelectDocument={onSelectDocument}
+                                                    activeStage={activeViewStage}
+                                                    docDefs={requestData.docDefs}
+                                                    onUpload={undefined}
+                                                    onReupload={handleReupload}
+                                                    onPreview={handlePreview}
+                                                />
                                             </div>
                                         </ScrollArea>
                                     </div>
@@ -355,34 +343,5 @@ export function OperationsWorkbench({
                 </div>
             </div>
         </div>
-    );
-}
-
-// Add Database icon locally if not already available in parent
-function Database({ className }: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5V19A9 3 0 0 0 21 19V5" /><path d="M3 12A9 3 0 0 0 21 12" />
-        </svg>
-    );
-}
-
-// Internal Helper Icons
-function ShieldSquare({ className }: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={className}
-        >
-            <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z" />
-        </svg>
     );
 }

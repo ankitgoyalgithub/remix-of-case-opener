@@ -46,6 +46,8 @@ export interface Document {
 
 export type DocumentType =
   | 'census'
+  | 'finalized-census'
+  | 'initial-census'
   | 'trade-license'
   | 'customer-signed-quote'
   | 'medical-application-form'
@@ -53,9 +55,9 @@ export type DocumentType =
   | 'vat-certificate'
   | 'moa'
   | 'mol-list'
-  | 'group-declaration-form'
-  | 'salary-declaration-form'
-  | 'sub-group-declaration-form'
+  | 'group-declaration'
+  | 'salary-declaration'
+  | 'coc'
   | 'kyc-signatory'
   | 'quote'
   | 'emirates-id'
@@ -63,7 +65,6 @@ export type DocumentType =
   | 'payment-receipt'
   | 'claims-history'
   | 'quote-acceptance'
-  | 'signatory-id'
   | 'other';
 
 export interface DocumentHighlight {
@@ -96,6 +97,7 @@ export interface ChecklistItem {
   checked: boolean;
   stageId: number;
   required: boolean;
+  itemType: 'extraction' | 'verification' | 'cross-validation' | 'manual';
   documentType?: DocumentType; // Links checklist item to a document type
 }
 
@@ -162,39 +164,47 @@ export function getSlaStatus(remaining: number, targetHours: number): 'green' | 
 // Stage requirements configuration
 export const STAGE_REQUIREMENTS: StageRequirements[] = [
   {
-    stageId: 1,
-    requiredDocuments: ['census', 'trade-license', 'customer-signed-quote', 'medical-application-form'],
+    stageId: 1, // Intelligent Intake & Digitization
+    requiredDocuments: [
+      'trade-license',
+      'vat-certificate',
+      'moa',
+      'establishment-card',
+      'customer-signed-quote',
+      'finalized-census',
+      'group-declaration',
+      'medical-application-form',
+      'mol-list',
+      'initial-census'
+    ],
+    optionalDocuments: [
+      'salary-declaration',
+      'coc',
+      'kyc-signatory'
+    ]
   },
   {
-    stageId: 2,
-    requiredDocuments: ['trade-license', 'establishment-card'],
-    optionalDocuments: ['vat-certificate', 'moa'],
+    stageId: 2, // Source of Truth Verification
+    requiredDocuments: [],
   },
   {
-    stageId: 3,
-    requiredDocuments: ['mol-list', 'census'],
+    stageId: 3, // Ownership & UBO Mapping
+    requiredDocuments: [],
   },
   {
-    stageId: 4,
-    requiredDocuments: ['medical-application-form', 'group-declaration-form', 'salary-declaration-form'],
-    optionalDocuments: ['sub-group-declaration-form'],
+    stageId: 4, // Compliance & Screening
+    requiredDocuments: [],
   },
   {
-    stageId: 5,
-    requiredDocuments: ['customer-signed-quote'],
-  },
-  {
-    stageId: 6,
-    requiredDocuments: ['kyc-signatory'],
-  },
-  {
-    stageId: 7,
-    requiredDocuments: [], // Enabled only when all previous stages complete
+    stageId: 5, // Final Adjudication
+    requiredDocuments: [],
   },
 ];
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   'census': 'Census',
+  'finalized-census': 'Final Census',
+  'initial-census': 'Initial Census',
   'trade-license': 'Trade License',
   'customer-signed-quote': 'Customer Signed Quote',
   'medical-application-form': 'Medical Application Form',
@@ -202,9 +212,9 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   'vat-certificate': 'VAT Certificate',
   'moa': 'MOA (Memorandum of Association)',
   'mol-list': 'MOL List',
-  'group-declaration-form': 'Group Declaration Form',
-  'salary-declaration-form': 'Salary Declaration Form',
-  'sub-group-declaration-form': 'Sub Group Declaration Form',
+  'group-declaration': 'Group Declaration Form',
+  'salary-declaration': 'Salary Declaration Form',
+  'coc': 'Certificate of Continuation',
   'kyc-signatory': 'KYC of Authorised Signatory',
   'quote': 'Quote',
   'emirates-id': 'Emirates ID',
@@ -212,7 +222,6 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   'payment-receipt': 'Payment Receipt',
   'claims-history': 'Claims History',
   'quote-acceptance': 'Quote Acceptance',
-  'signatory-id': 'Signatory ID',
   'other': 'Other Document',
 };
 

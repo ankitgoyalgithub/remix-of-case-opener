@@ -347,9 +347,6 @@ export default function RequestDetail() {
       stages: prev.stages.map(s =>
         s.id === 3 ? { ...s, status: 'complete' as const } : s
       ),
-      checklist: prev.checklist.map(c =>
-        c.id === 'c11' ? { ...c, checked: true } : c
-      ),
     }));
   };
 
@@ -375,13 +372,11 @@ export default function RequestDetail() {
   const handleChecklistSelect = (itemId: string) => {
     setSelectedChecklistItemId(itemId);
 
-    // Strictly select document only if it is explicitly linked to this checklist item
+    // If the item is an extraction task and has a document type, try to find that document
     const item = requestData?.checklist.find(i => i.id === itemId);
     if (item?.documentType) {
-      const doc = requestData?.documents.find(d => d.checklistId === item.id);
-      setSelectedDocument(doc || null);
-    } else {
-      setSelectedDocument(null);
+      const doc = requestData?.documents.find(d => d.type === item.documentType);
+      if (doc) setSelectedDocument(doc);
     }
   };
 

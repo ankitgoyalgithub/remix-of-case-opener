@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import {
   FileStack,
   Plus,
@@ -218,6 +218,9 @@ export default function DocumentCatalog() {
                             <DialogContent className="sm:max-w-md">
                               <DialogHeader>
                                 <DialogTitle>Add Extraction Field</DialogTitle>
+                                <DialogDescription className="text-xs text-muted-foreground">
+                                  Enter the name of the field you want the AI to extract from this document type.
+                                </DialogDescription>
                               </DialogHeader>
                               <div className="flex items-center space-x-2 py-4">
                                 <div className="grid flex-1 gap-2">

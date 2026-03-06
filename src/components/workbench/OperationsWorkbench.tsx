@@ -33,7 +33,8 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-    DialogFooter
+    DialogFooter,
+    DialogDescription
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -268,6 +269,9 @@ export function OperationsWorkbench({
                                                         <BrainCircuit className="h-5 w-5" />
                                                         Refine AI Extraction
                                                     </DialogTitle>
+                                                    <DialogDescription className="text-[11px] text-muted-foreground">
+                                                        Provide additional instructions to the AI agent to improve extraction accuracy for this document.
+                                                    </DialogDescription>
                                                 </DialogHeader>
                                                 <div className="grid gap-4 py-4">
                                                     <div className="space-y-2">

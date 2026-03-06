@@ -70,7 +70,10 @@ export const api = {
         }),
         extract: (id: string, additionalPrompt?: string) => fetchApi(`/documents/files/${id}/extract/`, {
             method: 'POST',
-            body: JSON.stringify({ additional_prompt: additionalPrompt }),
+            body: JSON.stringify({
+                document_id: id,
+                additional_prompt: additionalPrompt
+            }),
         }),
     },
     auth: {

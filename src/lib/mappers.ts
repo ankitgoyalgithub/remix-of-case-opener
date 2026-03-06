@@ -78,9 +78,9 @@ export function mapBackendDocumentToDocument(backendDoc: any): Document {
         uploadedAt: new Date(backendDoc.uploaded_at),
         status: backendDoc.status === 'processed' ? 'extracted' : (backendDoc.status as any),
         url: backendDoc.file
-            ? (backendDoc.file.includes('amazonaws.com')
+            ? (backendDoc.file.startsWith('http')
                 ? backendDoc.file
-                : new URL(backendDoc.file, 'http://dummy.com').pathname)
+                : `${(import.meta.env.VITE_API_BASE_URL || '').replace('/api', '')}${backendDoc.file.startsWith('/') ? '' : '/'}${backendDoc.file}`)
             : '',
         extraction: backendDoc.extraction,
         requestStageId: backendDoc.request_stage,

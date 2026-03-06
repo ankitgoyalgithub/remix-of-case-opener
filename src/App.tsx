@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import RequestsInbox from "./pages/RequestsInbox";
 import RequestDetail from "./pages/RequestDetail";
 import EvidencePack from "./pages/EvidencePack";
+import Profile from "./pages/Profile";
+import Settings from "./pages/Settings";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
@@ -43,6 +45,8 @@ const App = () => (
             <Route path="/requests" element={<RequestsInbox />} />
             <Route path="/request/:requestId" element={<RequestDetail />} />
             <Route path="/evidence-pack" element={<EvidencePack />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<Settings />} />
 
             {/* AI Ops Studio - Admin Only */}
             <Route path="/studio" element={<AIStudioLayout />}>

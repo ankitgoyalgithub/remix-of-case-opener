@@ -52,13 +52,6 @@ export function GlobalHeader() {
             </div>
 
             <div className="flex items-center gap-5">
-                <div className="hidden md:flex items-center bg-secondary/50 rounded-full px-4 py-1.5 border border-border/50">
-                    <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
-                        <span className="text-[11px] font-bold text-muted-foreground tracking-wide uppercase">System Operational</span>
-                    </div>
-                </div>
-
                 <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-all">
                     <Bell className="h-5 w-5" />
                     {unreadCount > 0 && (
@@ -95,11 +88,11 @@ export function GlobalHeader() {
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator className="bg-border/50" />
                         <div className="p-1">
-                            <DropdownMenuItem className="cursor-pointer rounded-lg py-2.5 px-3 focus:bg-primary/10 group">
+                            <DropdownMenuItem className="cursor-pointer rounded-lg py-2.5 px-3 focus:bg-primary/10 group" onClick={() => navigate('/profile')}>
                                 <User className="mr-2 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                 <span className="font-semibold text-xs">Account Profile</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="cursor-pointer rounded-lg py-2.5 px-3 focus:bg-primary/10 group text-muted-foreground">
+                            <DropdownMenuItem className="cursor-pointer rounded-lg py-2.5 px-3 focus:bg-primary/10 group text-muted-foreground" onClick={() => navigate('/settings')}>
                                 <Settings className="mr-2 h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                 <span className="font-semibold text-xs">Workspace Settings</span>
                             </DropdownMenuItem>

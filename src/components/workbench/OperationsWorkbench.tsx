@@ -19,12 +19,25 @@ import {
     Sparkles,
     ShieldCheck,
     ListTodo,
-    Database
+    Database,
+    RefreshCw,
+    BrainCircuit
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { RequiredDocumentsPanel } from '@/components/case/RequiredDocumentsPanel';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogFooter
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 const REQUIRED_DOC_TYPES: DocumentType[] = [
     'customer-signed-quote',
@@ -55,6 +68,7 @@ interface OperationsWorkbenchProps {
     onUploadDocument: (file: File, type: DocumentType, checklistId?: string) => Promise<void>;
     onVerifyField: (section: string, field: string) => void;
     onSelectDocument: (doc: Document | null) => void;
+    onReextract?: (docId: string, additionalPrompt?: string) => Promise<void>;
     setActivePhase: (phase: VerificationPhase) => void;
     onExport: () => void;
     onMarkIssued: () => void;
@@ -72,12 +86,16 @@ export function OperationsWorkbench({
     onStageComplete,
     onChecklistToggle,
     onUploadDocument,
+    onReextract,
     onVerifyField,
     onSelectDocument,
     setActivePhase,
     onExport,
     onMarkIssued
 }: OperationsWorkbenchProps) {
+    const [reextractPrompt, setReextractPrompt] = React.useState('');
+    const [isReextractDialogOpen, setIsReextractDialogOpen] = React.useState(false);
+
     const currentStageData = requestData.stages.find(s => s.id === activeViewStage);
     const selectedItem = requestData.checklist.find(i => i.id === selectedChecklistItemId);
 
@@ -230,9 +248,66 @@ export function OperationsWorkbench({
                                         {activeViewStage === 5 ? 'Adjudication Report' : 'Field Extractions'}
                                     </h4>
                                 </div>
-                                {selectedItem?.documentType && activeViewStage !== 5 && (
-                                    <Badge className="text-[10px] bg-blue-500/10 text-blue-500 border-none px-2">{selectedItem.documentType}</Badge>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {(selectedDocument || selectedItem?.documentType) && activeViewStage !== 5 && (
+                                        <Dialog open={isReextractDialogOpen} onOpenChange={setIsReextractDialogOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 text-[10px] font-bold gap-1.5 hover:bg-primary/5 text-primary"
+                                                    disabled={!selectedDocument}
+                                                >
+                                                    <BrainCircuit className="h-3.5 w-3.5" />
+                                                    RE-EXTRACT
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="sm:max-w-[425px]">
+                                                <DialogHeader>
+                                                    <DialogTitle className="flex items-center gap-2 text-primary">
+                                                        <BrainCircuit className="h-5 w-5" />
+                                                        Refine AI Extraction
+                                                    </DialogTitle>
+                                                </DialogHeader>
+                                                <div className="grid gap-4 py-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="prompt" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                                            Additional AI Instruction
+                                                        </Label>
+                                                        <Input
+                                                            id="prompt"
+                                                            placeholder="e.g. Look for the Registration No on page 2..."
+                                                            value={reextractPrompt}
+                                                            onChange={(e) => setReextractPrompt(e.target.value)}
+                                                            className="h-10 text-sm"
+                                                        />
+                                                        <p className="text-[10px] text-muted-foreground italic leading-relaxed">
+                                                            This will re-run the AI agent for "{selectedDocument?.name}". You can provide specific hints to help the AI find missing values.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <DialogFooter>
+                                                    <Button
+                                                        disabled={!selectedDocument}
+                                                        onClick={async () => {
+                                                            if (selectedDocument && onReextract) {
+                                                                await onReextract(selectedDocument.id, reextractPrompt);
+                                                                setIsReextractDialogOpen(false);
+                                                                setReextractPrompt('');
+                                                            }
+                                                        }}
+                                                        className="w-full bg-primary hover:bg-primary/90 text-white font-bold"
+                                                    >
+                                                        Run AI Agent
+                                                    </Button>
+                                                </DialogFooter>
+                                            </DialogContent>
+                                        </Dialog>
+                                    )}
+                                    {selectedItem?.documentType && activeViewStage !== 5 && (
+                                        <Badge className="text-[10px] bg-blue-500/10 text-blue-500 border-none px-2">{selectedItem.documentType}</Badge>
+                                    )}
+                                </div>
                             </div>
                             <ScrollArea className="flex-1">
                                 <div className="p-5">

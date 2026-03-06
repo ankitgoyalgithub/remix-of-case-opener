@@ -454,6 +454,18 @@ export default function RequestDetail() {
     }));
   };
 
+  const handleReextract = async (docId: string, additionalPrompt?: string) => {
+    try {
+      toast.loading('AI is re-processing document...', { id: 'reextract' });
+      await api.documents.extract(docId, additionalPrompt);
+      toast.success('Re-extraction complete', { id: 'reextract' });
+      fetchRequestDetails();
+    } catch (err) {
+      console.error('Failed to re-extract', err);
+      toast.error('Failed to re-extract document', { id: 'reextract' });
+    }
+  };
+
   const handleEscalate = () => {
     toast.info('Escalation dialog would open here');
   };
@@ -576,6 +588,7 @@ export default function RequestDetail() {
           onStageComplete={handleMarkStageComplete}
           onChecklistToggle={handleChecklistToggle}
           onUploadDocument={handleUploadDocument}
+          onReextract={handleReextract}
           onVerifyField={handleVerifyField}
           onSelectDocument={setSelectedDocument}
           setActivePhase={setActivePhase}

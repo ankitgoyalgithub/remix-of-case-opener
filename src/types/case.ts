@@ -27,6 +27,7 @@ export interface DocDef {
   applicableStages: number[];
   description?: string;
   validation_rules?: string;
+  extraction_keys?: string[];
   cross_validation_rules?: CrossValidationRule[];
 }
 

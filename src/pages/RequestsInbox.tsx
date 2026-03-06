@@ -1,4 +1,5 @@
 import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -9,14 +10,42 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { mockRequests, getSlaRiskCount, RequestListItem } from '@/data/mockRequestsData';
-import { Inbox, Filter, RefreshCw, AlertTriangle, Clock, Sparkles } from 'lucide-react';
+import { RequestListItem } from '@/data/mockRequestsData';
+import { api } from '@/lib/api';
+import { mapBackendRequestToListItem } from '@/lib/mappers';
+import { Inbox, Filter, RefreshCw, AlertTriangle, Clock, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SlaRiskNotification } from '@/components/request/SlaRiskNotification';
+import { toast } from 'sonner';
 
 export default function RequestsInbox() {
   const navigate = useNavigate();
-  const slaRisk = getSlaRiskCount();
+  const [requests, setRequests] = useState<RequestListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRequests = async () => {
+    try {
+      setLoading(true);
+      const data = await api.requests.list();
+      const mappedData = data.map(mapBackendRequestToListItem);
+      setRequests(mappedData);
+    } catch (error) {
+      console.error('Failed to fetch requests:', error);
+      toast.error('Failed to load requests from server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const slaRisk = useMemo(() => {
+    const amber = requests.filter(r => r.slaStatus === 'amber').length;
+    const red = requests.filter(r => r.slaStatus === 'red').length;
+    return { amber, red, total: amber + red };
+  }, [requests]);
 
   const handleRowClick = (requestId: string) => {
     navigate(`/request/${requestId}`);
@@ -24,7 +53,7 @@ export default function RequestsInbox() {
 
   const getSlaStatusBadge = (status: RequestListItem['slaStatus'], remaining: number, targetHours: number) => {
     const displayText = remaining > 0 ? `${remaining}h` : remaining === 0 ? 'Due now' : `${Math.abs(remaining)}h overdue`;
-    
+
     switch (status) {
       case 'green':
         return <Badge className="bg-success/20 text-success border-0">{displayText}</Badge>;
@@ -78,7 +107,7 @@ export default function RequestsInbox() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-background">
       {/* Header */}
       <div className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
@@ -92,10 +121,10 @@ export default function RequestsInbox() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <SlaRiskNotification 
-              amberCount={slaRisk.amber} 
+            <SlaRiskNotification
+              amberCount={slaRisk.amber}
               redCount={slaRisk.red}
-              onClick={() => {/* Could filter to show only at-risk requests */}}
+              onClick={() => {/* Could filter to show only at-risk requests */ }}
             />
             <Link to="/studio">
               <Button variant="outline" size="sm" className="gap-2">
@@ -107,8 +136,14 @@ export default function RequestsInbox() {
               <Filter className="h-4 w-4" />
               Filter
             </Button>
-            <Button variant="outline" size="sm" className="gap-2">
-              <RefreshCw className="h-4 w-4" />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={fetchRequests}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               Refresh
             </Button>
           </div>
@@ -133,32 +168,47 @@ export default function RequestsInbox() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockRequests.map((request) => (
-                <TableRow 
-                  key={request.id}
-                  className={getRowClassName(request)}
-                  onClick={() => handleRowClick(request.id)}
-                >
-                  <TableCell className="font-medium text-primary hover:underline">
-                    <div className="flex items-center gap-2">
-                      {request.id}
-                      {getPriorityBadge(request.priority)}
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{request.companyName}</TableCell>
-                  <TableCell className="text-muted-foreground">{request.brokerName}</TableCell>
-                  <TableCell className="text-center text-muted-foreground">{request.age}d</TableCell>
-                  <TableCell>{getSlaStatusBadge(request.slaStatus, request.slaRemaining, request.slaTargetHours)}</TableCell>
-                  <TableCell className="text-muted-foreground">{request.currentStage}</TableCell>
-                  <TableCell>{getStatusBadge(request.status)}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{request.queue}</TableCell>
-                  <TableCell className={cn(
-                    request.owner === 'Unassigned' ? 'text-muted-foreground italic' : ''
-                  )}>
-                    {request.owner}
+              {loading && requests.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 opacity-50" />
+                    Loading requests...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : requests.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
+                    No requests found in the system.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                requests.map((request) => (
+                  <TableRow
+                    key={request.id}
+                    className={getRowClassName(request)}
+                    onClick={() => handleRowClick(request.id)}
+                  >
+                    <TableCell className="font-medium text-primary hover:underline">
+                      <div className="flex items-center gap-2">
+                        {request.id}
+                        {getPriorityBadge(request.priority)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{request.companyName}</TableCell>
+                    <TableCell className="text-muted-foreground">{request.brokerName}</TableCell>
+                    <TableCell className="text-center text-muted-foreground">{request.age}d</TableCell>
+                    <TableCell>{getSlaStatusBadge(request.slaStatus, request.slaRemaining, request.slaTargetHours)}</TableCell>
+                    <TableCell className="text-muted-foreground">{request.currentStage}</TableCell>
+                    <TableCell>{getStatusBadge(request.status)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{request.queue}</TableCell>
+                    <TableCell className={cn(
+                      request.owner === 'Unassigned' ? 'text-muted-foreground italic' : ''
+                    )}>
+                      {request.owner}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>

@@ -106,17 +106,23 @@ export function WizardStepWorkflow() {
   const stageToDelete = stages.find(s => s.id === deleteConfirm);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Workflow Stages</h2>
-        <p className="text-sm text-muted-foreground">
-          Define the processing stages for SME Health Policy Issuance. Each stage represents a validation step.
-        </p>
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex items-end justify-between">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-black tracking-tight text-foreground">Workflow Stages</h2>
+          <p className="text-sm font-medium text-muted-foreground/70">
+            Define the architectural backbone of your insurance processing pipeline.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" className="gap-2 rounded-xl border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary font-bold text-[11px] tracking-wider" onClick={() => setAddDialogOpen(true)}>
+          <Plus className="h-4 w-4" />
+          ADD STAGE
+        </Button>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {stages.map((stage, index) => (
-          <Card
+          <div
             key={stage.id}
             draggable={editingId !== stage.id}
             onDragStart={() => handleDragStart(index)}
@@ -125,123 +131,151 @@ export function WizardStepWorkflow() {
             onDrop={(e) => handleDrop(e, index)}
             onDragEnd={handleDragEnd}
             className={cn(
-              "transition-colors",
-              editingId === stage.id ? "border-primary bg-primary/5" : "hover:border-primary/30",
-              dragOverIndex === index && "border-primary border-dashed bg-primary/5"
+              "group relative transition-all duration-300",
+              dragOverIndex === index && "pt-12" // Spacer for drop target
             )}
           >
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
+            {dragOverIndex === index && (
+              <div className="absolute top-0 left-0 right-0 h-1 bg-primary/40 rounded-full animate-pulse blur-sm" />
+            )}
+
+            <div className={cn(
+              "glass-card rounded-3xl border-border/40 overflow-hidden transition-all duration-300",
+              editingId === stage.id ? "bg-primary/5 ring-1 ring-primary/20 shadow-2xl shadow-primary/5" : "hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5",
+              "p-5"
+            )}>
+              <div className="flex items-start gap-4">
                 <div
-                  className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground mt-1"
+                  className="cursor-move text-muted-foreground/30 hover:text-primary transition-colors mt-2"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   <GripVertical className="h-5 w-5" />
                 </div>
 
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10 flex items-center justify-center text-sm font-black text-primary shrink-0 shadow-sm">
                   {stage.order}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   {editingId === stage.id ? (
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-xs">Stage Name</Label>
-                        <Input
-                          value={editForm.name || ''}
-                          onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                          className="mt-1"
-                          maxLength={100}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs">SLA (hours)</Label>
+                    <div className="space-y-5 py-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label className="text-[10px] font-bold uppercase tracking-widest text-primary/60 px-1">Stage Name</Label>
                           <Input
-                            type="number"
-                            value={editForm.slaHours || ''}
-                            onChange={(e) => setEditForm(prev => ({ ...prev, slaHours: parseInt(e.target.value) || undefined }))}
-                            className="mt-1"
-                            placeholder="Optional"
+                            value={editForm.name || ''}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                            className="h-11 rounded-xl bg-background/50 border-border/50 focus:ring-primary/20"
+                            maxLength={100}
                           />
                         </div>
-                        <div>
-                          <Label className="text-xs">Assigned Queue</Label>
-                          <Select defaultValue="standard">
-                            <SelectTrigger className="mt-1">
-                              <SelectValue placeholder="Select queue" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="standard">Standard Ops Queue</SelectItem>
-                              <SelectItem value="senior">Senior Ops Queue</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-primary/60 px-1">SLA (HOURS)</Label>
+                            <Input
+                              type="number"
+                              value={editForm.slaHours || ''}
+                              onChange={(e) => setEditForm(prev => ({ ...prev, slaHours: parseInt(e.target.value) || undefined }))}
+                              className="h-11 rounded-xl bg-background/50 border-border/50"
+                              placeholder="Optional"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-[10px] font-bold uppercase tracking-widest text-primary/60 px-1">ASSIGNED QUEUE</Label>
+                            <Select defaultValue="standard">
+                              <SelectTrigger className="h-11 rounded-xl bg-background/50 border-border/50">
+                                <SelectValue placeholder="Select queue" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl border-border/50 shadow-2xl">
+                                <SelectItem value="standard" className="rounded-lg">Standard Ops</SelectItem>
+                                <SelectItem value="senior" className="rounded-lg">Senior Ops</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={handleSaveEdit} className="gap-1.5">
-                          <Check className="h-3 w-3" />
-                          Save
+
+                      <div className="flex items-center gap-3 pt-2">
+                        <Button size="sm" onClick={handleSaveEdit} className="gap-2 h-10 px-6 rounded-xl bg-primary hover:bg-primary/90 font-bold text-[11px] tracking-wider">
+                          <Check className="h-4 w-4" />
+                          SAVE CHANGES
                         </Button>
-                        <Button size="sm" variant="outline" onClick={handleCancelEdit} className="gap-1.5">
-                          <X className="h-3 w-3" />
-                          Cancel
+                        <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="gap-2 h-10 px-6 rounded-xl text-muted-foreground hover:bg-muted/50 font-bold text-[11px] tracking-wider">
+                          <X className="h-4 w-4" />
+                          CANCEL
                         </Button>
                       </div>
                     </div>
                   ) : (
-                    <>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium">{stage.name}</h4>
-                        {stage.mandatory && (
-                          <Badge variant="outline" className="text-xs">Required</Badge>
-                        )}
-                        {stage.slaHours && (
-                          <Badge variant="secondary" className="text-xs gap-1">
-                            <Clock className="h-3 w-3" />
-                            {stage.slaHours}h SLA
-                          </Badge>
-                        )}
+                    <div className="flex flex-col gap-1 py-1">
+                      <div className="flex items-center gap-3">
+                        <h4 className="text-base font-bold tracking-tight text-foreground">{stage.name}</h4>
+                        <div className="flex items-center gap-2">
+                          {stage.mandatory && (
+                            <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest border-primary/20 bg-primary/5 text-primary rounded-md px-1.5 py-0">MANDATORY</Badge>
+                          )}
+                          {stage.slaHours && (
+                            <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest bg-muted border-border/50 text-muted-foreground rounded-md px-1.5 py-0 gap-1">
+                              <Clock className="h-3 w-3" />
+                              {stage.slaHours}H SLA
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-sm text-muted-foreground">{stage.description}</p>
-                    </>
+                      <p className="text-xs font-medium text-muted-foreground/80 leading-relaxed max-w-2xl">{stage.description}</p>
+                    </div>
                   )}
                 </div>
 
                 {editingId !== stage.id && (
-                  <div className="flex items-center gap-2">
-                    <Switch checked={stage.mandatory} onCheckedChange={(checked) => {
-                      updateStage(stage.id, { mandatory: checked });
-                    }} />
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(stage)}>
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeleteConfirm(stage.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <div className="flex items-center gap-3 ml-4">
+                    <div className="flex flex-col items-center gap-1.5 px-3 border-x border-border/30">
+                      <Label className="text-[9px] font-black tracking-tighter text-muted-foreground/40 uppercase">Lock</Label>
+                      <Switch
+                        checked={stage.mandatory}
+                        onCheckedChange={(checked) => updateStage(stage.id, { mandatory: checked })}
+                        className="scale-90 data-[state=checked]:bg-primary"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(stage)} className="h-9 w-9 rounded-lg hover:bg-primary/5 hover:text-primary transition-all">
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg text-destructive hover:bg-destructive/5 hover:text-destructive transition-all"
+                        onClick={() => setDeleteConfirm(stage.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
 
-      <div className="flex items-center justify-between">
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setAddDialogOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Add Stage
-        </Button>
-        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+      <div className="flex items-center justify-center py-6 border-2 border-dashed border-border/40 rounded-[2rem] bg-muted/5 transition-colors hover:bg-muted/10 group cursor-pointer" onClick={() => setAddDialogOpen(true)}>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-background border border-border/50 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+            <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground transition-colors uppercase tracking-widest">Add Operations Phase</span>
+            <span className="text-[10px] text-muted-foreground/60">Configure validation logic for a new process stage.</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center pt-2 gap-4">
+        <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest">
           <GripVertical className="h-3 w-3" />
-          Drag stages to reorder
-        </p>
+          Drag handle to reorder architecture
+        </div>
       </div>
 
       <AddStageDialog
@@ -251,21 +285,21 @@ export function WizardStepWorkflow() {
       />
 
       <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-3xl border-border/50 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Stage</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove "{stageToDelete?.name}"? This action cannot be undone.
-              Remaining stages will be renumbered automatically.
+            <AlertDialogTitle className="text-xl font-black tracking-tight">Decommission Stage</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm font-medium text-muted-foreground/80">
+              Are you sure you want to remove <span className="text-foreground font-bold italic">"{stageToDelete?.name}"</span>?
+              <br />This will permanently alter the workflow sequence.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="gap-2 pt-4">
+            <AlertDialogCancel className="rounded-xl font-bold text-xs tracking-wider">CANCEL</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteConfirm && handleDeleteStage(deleteConfirm)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl font-bold text-xs tracking-wider"
             >
-              Remove
+              REMOVE PHASE
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

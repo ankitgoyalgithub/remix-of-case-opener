@@ -11,9 +11,10 @@ import { cn } from '@/lib/utils';
 interface VerificationSummaryPanelProps {
   checks: VerificationCheck[];
   activePhase: VerificationPhase | null;
+  isCompact?: boolean;
 }
 
-export function VerificationSummaryPanel({ checks, activePhase }: VerificationSummaryPanelProps) {
+export function VerificationSummaryPanel({ checks, activePhase, isCompact }: VerificationSummaryPanelProps) {
   const [evidenceCheck, setEvidenceCheck] = useState<VerificationCheck | null>(null);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
 
@@ -33,22 +34,22 @@ export function VerificationSummaryPanel({ checks, activePhase }: VerificationSu
     : null;
 
   return (
-    <div className="space-y-5">
+    <div className={cn("space-y-5", isCompact && "space-y-3")}>
       {/* Decision Banner - always visible */}
-      <DecisionBanner decision={decision} />
+      {!isCompact && <DecisionBanner decision={decision} />}
 
       {/* Phase scope indicator */}
       {activePhaseLabel && (
         <div className="flex items-center gap-2">
           <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-            Showing checks for:
+            Scope:
           </Label>
-          <Badge variant="secondary" className="text-xs">{activePhaseLabel}</Badge>
+          <Badge variant="secondary" className="text-xs px-1.5 py-0 h-5">{activePhaseLabel}</Badge>
         </div>
       )}
 
       {/* Check Tiles */}
-      <div className="space-y-3">
+      <div className={cn("space-y-3", isCompact && "space-y-2")}>
         {displayedChecks.map(check => (
           <VerificationCheckTile
             key={check.id}
@@ -58,17 +59,19 @@ export function VerificationSummaryPanel({ checks, activePhase }: VerificationSu
         ))}
 
         {displayedChecks.length === 0 && (
-          <div className="text-center py-10 text-sm text-muted-foreground">
+          <div className="text-center py-6 text-sm text-muted-foreground bg-muted/20 rounded-lg">
             No verification checks for this phase
           </div>
         )}
       </div>
 
       {/* Human Action Panel */}
-      <HumanActionPanel
-        checks={displayedChecks}
-        onViewEvidence={handleViewEvidence}
-      />
+      {!isCompact && (
+        <HumanActionPanel
+          checks={displayedChecks}
+          onViewEvidence={handleViewEvidence}
+        />
+      )}
 
       {/* Evidence Drawer */}
       <EvidenceDrawer

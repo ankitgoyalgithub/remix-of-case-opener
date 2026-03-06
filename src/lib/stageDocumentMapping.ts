@@ -2,13 +2,15 @@ import { DocumentType } from '@/types/case';
 
 // Maps each stage to its relevant document types
 export const STAGE_DOCUMENT_MAPPING: Record<number, DocumentType[]> = {
-  1: ['census', 'trade-license', 'customer-signed-quote', 'medical-application-form'],
-  2: ['trade-license', 'establishment-card', 'vat-certificate', 'moa'],
-  3: ['mol-list', 'census'],
-  4: ['medical-application-form', 'group-declaration-form', 'salary-declaration-form', 'sub-group-declaration-form'],
-  5: ['customer-signed-quote'],
-  6: ['kyc-signatory', 'signatory-id'],
-  7: [], // Export stage - no specific documents
+  17: ['census', 'trade-license', 'moa'],
+  18: ['trade-license', 'emirates-id', 'passport'],
+  19: ['census', 'vat-certificate', 'claims-history'],
+  20: ['medical-application-form'],
+  21: ['quote'],
+  22: ['quote-acceptance'],
+  23: [],
+  24: ['payment-receipt'],
+  25: [],
 };
 
 export function getDocumentsForStage(stageId: number): DocumentType[] {
@@ -22,24 +24,28 @@ export function isDocumentRelevantToStage(documentType: DocumentType, stageId: n
 
 export function getStageLabel(stageId: number): string {
   const labels: Record<number, string> = {
-    1: 'Intake & Completeness',
-    2: 'Employer & Legal Validation',
-    3: 'Workforce Validation',
-    4: 'Declarations & Medical',
-    5: 'Commercial Validation',
-    6: 'Authorized Signatory',
-    7: 'Export to Core System',
+    17: 'Prospecting',
+    18: 'KYC & AML',
+    19: 'Data Collection',
+    20: 'Risk Assessment',
+    21: 'Quoting',
+    22: 'Selection',
+    23: 'Underwriting',
+    24: 'Payment',
+    25: 'Issuance',
   };
   return labels[stageId] || 'Unknown Stage';
 }
 
 // Helper text for each stage explaining its purpose
 export const STAGE_HELPER_TEXT: Record<number, string> = {
-  1: 'Verify all mandatory documents are received',
-  2: 'Validate trade license and legal entity details',
-  3: 'Validate MOL vs Census employee counts',
-  4: 'Review medical forms and declarations',
-  5: 'Confirm pricing and commercial terms',
-  6: 'Verify authorized signatory identity',
-  7: 'Push validated data to core system',
+  17: 'Verify basic company info and lead source',
+  18: 'Complete identity verification and legal checks',
+  19: 'Gather census data and legal documents',
+  20: 'Perform medical and workforce risk analysis',
+  21: 'Generate and review premium quotes',
+  22: 'Receive plan selection and acceptance',
+  23: 'Final underwriting approval and review',
+  24: 'Verify premium payment and invoicing',
+  25: 'Deliver final policy schedule and kits',
 };

@@ -22,9 +22,10 @@ import {
   FileText,
   Trash2,
   X,
+  Network,
 } from 'lucide-react';
 import { DocumentDefinition, ExtractionField } from '@/data/mockStudioData';
-import { useStudioFields, useStudioInstructions } from '@/hooks/useStudioStore';
+import { useStudioFields, useStudioInstructions, useStudioDocuments } from '@/hooks/useStudioStore';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -48,6 +49,14 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
   const [newFieldName, setNewFieldName] = useState('');
   const [newFieldType, setNewFieldType] = useState<'Text' | 'Number' | 'Date'>('Text');
   const [newFieldMandatory, setNewFieldMandatory] = useState(false);
+
+  const { documents, updateDocument } = useStudioDocuments();
+
+  const [addingRule, setAddingRule] = useState(false);
+  const [newRuleSourceField, setNewRuleSourceField] = useState('');
+  const [newRuleTargetDoc, setNewRuleTargetDoc] = useState('');
+  const [newRuleTargetField, setNewRuleTargetField] = useState('');
+  const [newRuleComparisonType, setNewRuleComparisonType] = useState('exact_match');
 
   if (!document) return null;
 
@@ -80,6 +89,26 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
     updateInstruction(document.type, text);
   };
 
+  const handleAddRule = () => {
+    const newRules = [...(document?.cross_validation_rules || [])];
+    newRules.push({
+      target_document_type: newRuleTargetDoc,
+      source_field: newRuleSourceField,
+      target_field: newRuleTargetField,
+      comparison_type: newRuleComparisonType
+    });
+
+    if (document) {
+      updateDocument(document.id, { cross_validation_rules: newRules });
+    }
+    setAddingRule(false);
+    setNewRuleSourceField('');
+    setNewRuleTargetDoc('');
+    setNewRuleTargetField('');
+    setNewRuleComparisonType('exact_match');
+    toast.success('Cross-validation rule added');
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-[540px] sm:max-w-[540px] overflow-y-auto">
@@ -98,16 +127,20 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
         </SheetHeader>
 
         <Tabs defaultValue="fields" className="mt-2">
-          <TabsList className="w-full grid grid-cols-3">
-            <TabsTrigger value="fields" className="text-xs gap-1.5">
+          <TabsList className="w-full grid grid-cols-4">
+            <TabsTrigger value="fields" className="text-[11px] gap-1.5 px-1 focus:outline-none">
               <Database className="h-3.5 w-3.5" />
-              Fields to Extract
+              Fields
             </TabsTrigger>
-            <TabsTrigger value="ai-notes" className="text-xs gap-1.5">
+            <TabsTrigger value="cross-val" className="text-[11px] gap-1.5 px-1 focus:outline-none text-orange-600 data-[state=active]:text-orange-600">
+              <Network className="h-3 w-3" />
+              Cross Val
+            </TabsTrigger>
+            <TabsTrigger value="ai-notes" className="text-[11px] gap-1.5 px-1 focus:outline-none">
               <Brain className="h-3.5 w-3.5" />
               AI Notes
             </TabsTrigger>
-            <TabsTrigger value="settings" className="text-xs gap-1.5">
+            <TabsTrigger value="settings" className="text-[11px] gap-1.5 px-1 focus:outline-none">
               <Settings className="h-3.5 w-3.5" />
               Settings
             </TabsTrigger>
@@ -252,6 +285,133 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
               >
                 {showAdvancedFields ? 'Hide' : 'Show'} Advanced Options
               </button>
+            </div>
+          </TabsContent>
+
+          {/* Tab: Cross Validation */}
+          <TabsContent value="cross-val" className="mt-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm">Cross-Document Validation</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Automatically validate extracted data against fields in other documents.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {document.cross_validation_rules?.map((rule, idx) => (
+                <div key={idx} className="p-3 rounded-lg border border-orange-500/20 bg-background space-y-3 shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge variant="outline" className="text-[10px] uppercase border-orange-500/20 text-orange-600">{rule.comparison_type.replace(/_/g, ' ')}</Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        const newRules = [...(document.cross_validation_rules || [])];
+                        newRules.splice(idx, 1);
+                        updateDocument(document.id, { cross_validation_rules: newRules });
+                        toast.success('Cross-validation rule removed');
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-3 bg-muted/30 p-2.5 rounded border border-border/50">
+                    <div className="flex-1 min-w-0">
+                      <Label className="text-[9px] uppercase text-muted-foreground font-bold tracking-wider">Source Field</Label>
+                      <p className="text-xs font-semibold mt-0.5 truncate">{rule.source_field}</p>
+                    </div>
+                    <div className="w-4 h-4 rounded-full bg-orange-500/10 flex items-center justify-center shrink-0">
+                      <Network className="h-2.5 w-2.5 text-orange-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <Label className="text-[9px] uppercase text-orange-600/70 font-bold tracking-wider">{documents.find(d => d.type === rule.target_document_type)?.name || rule.target_document_type}</Label>
+                      <p className="text-xs font-semibold mt-0.5 truncate text-orange-600">{rule.target_field}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {(!document.cross_validation_rules || document.cross_validation_rules.length === 0) && !addingRule && (
+                <div className="text-center py-8 opacity-70">
+                  <Network className="h-8 w-8 text-orange-500/30 mx-auto mb-2" />
+                  <p className="text-sm text-foreground font-medium">No rules configured</p>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-[200px] mx-auto">Click "Add Rule" below to set up a relational check.</p>
+                </div>
+              )}
+            </div>
+
+            {addingRule && (
+              <div className="p-3 rounded-lg border border-orange-500/30 bg-orange-500/5 space-y-3">
+                <div>
+                  <Label className="text-xs">Source Field (This Document)</Label>
+                  <Select value={newRuleSourceField} onValueChange={setNewRuleSourceField}>
+                    <SelectTrigger className="mt-1 h-8 text-xs">
+                      <SelectValue placeholder="Select field..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {docFields.map(f => <SelectItem key={f.id} value={f.fieldName}>{f.fieldName}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Target Document</Label>
+                    <Select value={newRuleTargetDoc} onValueChange={setNewRuleTargetDoc}>
+                      <SelectTrigger className="mt-1 h-8 text-xs">
+                        <SelectValue placeholder="Select doc..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[200px]">
+                        {documents.filter(d => d.id !== document.id).map(d => (
+                          <SelectItem key={d.id} value={d.type}>{d.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Target Field Name</Label>
+                    <Input
+                      value={newRuleTargetField}
+                      onChange={(e) => setNewRuleTargetField(e.target.value)}
+                      placeholder="e.g. Total Salary"
+                      className="mt-1 h-8 text-xs bg-background"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">Comparison Rule</Label>
+                  <Select value={newRuleComparisonType} onValueChange={setNewRuleComparisonType}>
+                    <SelectTrigger className="mt-1 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="exact_match">Exact Match</SelectItem>
+                      <SelectItem value="tolerance_10_percent">10% Tolerance</SelectItem>
+                      <SelectItem value="contains">Contains</SelectItem>
+                      <SelectItem value="fuzzy_match">Fuzzy Match</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" onClick={handleAddRule} disabled={!newRuleSourceField || !newRuleTargetDoc || !newRuleTargetField} className="gap-1.5 h-7 text-[10px] bg-orange-500 hover:bg-orange-600 text-white shadow-sm">
+                    <Check className="h-3 w-3" />
+                    Add Rule
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setAddingRule(false); }} className="gap-1.5 h-7 text-[10px] hover:bg-orange-500/10 hover:text-orange-600">
+                    <X className="h-3 w-3" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2 border-t border-border/50">
+              <Button variant="outline" size="sm" className="gap-1.5 text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700" onClick={() => setAddingRule(true)} disabled={addingRule}>
+                <Plus className="h-4 w-4" />
+                Add Rule
+              </Button>
             </div>
           </TabsContent>
 

@@ -8,7 +8,8 @@ import { WizardStepEmails } from '@/components/studio/WizardStepEmails';
 import { WizardStepReview } from '@/components/studio/WizardStepReview';
 import { DocumentConfigDrawer } from '@/components/studio/DocumentConfigDrawer';
 import { DocumentDefinition } from '@/data/mockStudioData';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const wizardSteps: WizardStep[] = [
   { id: 1, label: 'Workflow Stages' },
@@ -60,9 +61,10 @@ export default function SetupWizard() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      {/* Stepper */}
-      <div className="mb-8">
+    <div className="p-8 max-w-6xl mx-auto space-y-10">
+      {/* Premium Header/Stepper Area */}
+      <div className="relative">
+        <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-full -z-10" />
         <WizardStepper
           steps={wizardSteps}
           currentStep={currentStep}
@@ -71,34 +73,56 @@ export default function SetupWizard() {
         />
       </div>
 
-      {/* Step Content */}
-      <div className="min-h-[500px]">
-        {renderStepContent()}
+      {/* Step Content: High-Fidelity Glass Container */}
+      <div className="min-h-[600px] flex flex-col">
+        <div className="flex-1 glass-card rounded-[2.5rem] p-8 border-primary/10 shadow-2xl shadow-primary/5 bg-card/40 backdrop-blur-3xl overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+            <Sparkles className="h-32 w-32 text-primary" />
+          </div>
+
+          <div className="relative z-10 h-full flex flex-col">
+            {renderStepContent()}
+          </div>
+        </div>
       </div>
 
-      {/* Navigation */}
-      <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
+      {/* Navigation: Corporate Command Bar */}
+      <div className="flex items-center justify-between glass px-8 py-5 rounded-3xl border-primary/10 bg-card/40 shadow-xl">
         <Button
           variant="outline"
           onClick={handlePrev}
           disabled={currentStep === 1}
-          className="gap-2"
+          className="gap-3 h-12 px-6 rounded-2xl border-border/50 hover:bg-primary/5 hover:text-primary transition-all font-bold text-xs tracking-wider"
         >
           <ArrowLeft className="h-4 w-4" />
-          Previous
+          PREVIOUS STEP
         </Button>
 
-        <span className="text-sm text-muted-foreground">
-          Step {currentStep} of {wizardSteps.length}
-        </span>
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-[10px] font-black tracking-[0.2em] text-primary/40 uppercase">Progress</span>
+          <div className="flex gap-1.5">
+            {wizardSteps.map((s) => (
+              <div
+                key={s.id}
+                className={cn(
+                  "h-1 rounded-full transition-all duration-500",
+                  s.id === currentStep ? "w-8 bg-primary" : "w-2 bg-muted/50"
+                )}
+              />
+            ))}
+          </div>
+        </div>
 
         {currentStep < wizardSteps.length ? (
-          <Button onClick={handleNext} className="gap-2">
-            Next
+          <Button
+            onClick={handleNext}
+            className="gap-3 h-12 px-8 rounded-2xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 font-bold text-xs tracking-wider"
+          >
+            NEXT PHASE
             <ArrowRight className="h-4 w-4" />
           </Button>
         ) : (
-          <div /> // Publish is in the Review step itself
+          <div className="w-[140px]" /> // Spacing for balance
         )}
       </div>
 

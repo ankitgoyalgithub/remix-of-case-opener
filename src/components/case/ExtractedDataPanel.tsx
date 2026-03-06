@@ -17,34 +17,19 @@ interface ExtractedDataPanelProps {
   sections: ExtractedDataSection[];
   onVerify: (sectionTitle: string, fieldLabel: string) => void;
   currentUser?: string;
+  isCompact?: boolean;
 }
 
-export function ExtractedDataPanel({ sections, onVerify, currentUser = 'Sarah Ahmed' }: ExtractedDataPanelProps) {
-  // Track verification state with user and timestamp
-  const [verifications, setVerifications] = useState<Record<string, FieldVerification>>(() => {
-    const initial: Record<string, FieldVerification> = {};
-    sections.forEach(section => {
-      section.fields.forEach(field => {
-        if (field.status === 'verified') {
-          initial[`${section.title}:${field.label}`] = {
-            verifiedBy: 'System',
-            verifiedAt: new Date(Date.now() - 3600000), // 1 hour ago for pre-verified
-          };
-        }
-      });
-    });
-    return initial;
-  });
+export function ExtractedDataPanel({ sections, onVerify, currentUser = 'Sarah Ahmed', isCompact }: ExtractedDataPanelProps) {
+  // Track verification state
+  const [verifications, setVerifications] = useState<Record<string, FieldVerification>>({});
 
   const handleVerify = useCallback((sectionTitle: string, fieldLabel: string, isVerified: boolean) => {
     const key = `${sectionTitle}:${fieldLabel}`;
     if (isVerified) {
       setVerifications(prev => ({
         ...prev,
-        [key]: {
-          verifiedBy: currentUser,
-          verifiedAt: new Date(),
-        },
+        [key]: { verifiedBy: currentUser, verifiedAt: new Date() },
       }));
       onVerify(sectionTitle, fieldLabel);
     } else {
@@ -56,86 +41,34 @@ export function ExtractedDataPanel({ sections, onVerify, currentUser = 'Sarah Ah
     }
   }, [currentUser, onVerify]);
 
-  const getSectionStatus = (section: ExtractedDataSection) => {
-    const verifiedCount = section.fields.filter(
-      f => verifications[`${section.title}:${f.label}`]
-    ).length;
-    if (verifiedCount === section.fields.length) return 'verified';
-    if (verifiedCount > 0) return 'partial';
-    return 'needs-review';
-  };
-
-  const getSectionStatusBadge = (status: string) => {
-    switch (status) {
-      case 'verified':
-        return (
-          <Badge className="bg-success/20 text-success border-0 text-xs gap-1">
-            <Check className="h-3 w-3" />
-            All Verified
-          </Badge>
-        );
-      case 'partial':
-        return (
-          <Badge className="bg-warning/20 text-warning-foreground border-0 text-xs gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Partially Verified
-          </Badge>
-        );
-      default:
-        return (
-          <Badge className="bg-muted text-muted-foreground border-0 text-xs gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Needs Review
-          </Badge>
-        );
-    }
-  };
-
   return (
     <TooltipProvider>
-      <div className="space-y-6 animate-fade-in">
-        {/* Legend */}
-        <div className="flex items-center gap-4 px-3 py-2 bg-muted/30 rounded-lg text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
-            <Lock className="h-3.5 w-3.5" />
-            <span>Values are read-only</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Switch className="scale-75" disabled checked={false} />
-            <span>Toggle to verify</span>
-          </div>
-        </div>
+      <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
+        {sections.map((section) => (
+          <div key={section.title} className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] font-black tracking-widest text-muted-foreground/60 uppercase">
+                {section.title}
+              </span>
+              <Badge variant="outline" className="text-[9px] font-bold py-0 bg-primary/5 text-primary border-primary/20">
+                {section.fields.filter(f => f.value).length}/{section.fields.length} FIELDS
+              </Badge>
+            </div>
 
-        {sections.map((section) => {
-          const sectionStatus = getSectionStatus(section);
-          
-          return (
-            <Card key={section.title} className="border-border/60">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-primary" />
-                    {section.title}
-                  </CardTitle>
-                  {getSectionStatusBadge(sectionStatus)}
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-3">
-                  {section.fields.map((field) => (
-                    <ExtractedFieldRow 
-                      key={field.label} 
-                      field={field}
-                      sectionTitle={section.title}
-                      verification={verifications[`${section.title}:${field.label}`]}
-                      onVerify={(checked) => handleVerify(section.title, field.label, checked)}
-                    />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+            <div className="grid gap-1.5">
+              {section.fields.map((field) => (
+                <ExtractedFieldRow
+                  key={`${field.documentId}-${field.label}`}
+                  field={field}
+                  sectionTitle={section.title}
+                  verification={verifications[`${section.title}:${field.label}`]}
+                  onVerify={(checked) => handleVerify(section.title, field.label, checked)}
+                  isCompact={isCompact}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </TooltipProvider>
   );
@@ -146,119 +79,55 @@ interface ExtractedFieldRowProps {
   sectionTitle: string;
   verification?: FieldVerification;
   onVerify: (checked: boolean) => void;
+  isCompact?: boolean;
 }
 
-function ExtractedFieldRow({ field, sectionTitle, verification, onVerify }: ExtractedFieldRowProps) {
+function ExtractedFieldRow({ field, sectionTitle, verification, onVerify, isCompact }: ExtractedFieldRowProps) {
   const isVerified = !!verification;
-
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 95) return 'text-success';
-    if (confidence >= 85) return 'text-warning';
-    return 'text-destructive';
-  };
-
-  const getConfidenceBg = (confidence: number) => {
-    if (confidence >= 95) return 'bg-success/10';
-    if (confidence >= 85) return 'bg-warning/10';
-    return 'bg-destructive/10';
-  };
-
-  const handleVerifyToggle = (checked: boolean) => {
-    onVerify(checked);
-  };
+  const hasValue = field.value !== null && field.value !== undefined;
 
   return (
-    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-      <div className="flex-1 min-w-0 mr-4">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-sm text-muted-foreground">{field.label}</span>
-          {field.source && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="text-xs text-muted-foreground/60 truncate max-w-[150px] cursor-help" title={field.source}>
-                  • {field.source}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Extracted from: {field.source}</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
+    <div className={cn(
+      "group flex items-center justify-between p-3 rounded-2xl border transition-all duration-300",
+      isVerified ? "bg-success/5 border-success/30" : "bg-card/50 border-border/50 hover:border-primary/30"
+    )}>
+      <div className="flex-1 min-w-0 pr-4">
+        <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight block mb-0.5">
+          {field.label}
+        </span>
         <div className="flex items-center gap-2">
-          <Lock className="h-3 w-3 text-muted-foreground/50" />
-          <p className="text-sm font-medium truncate">
-            {field.value || <span className="text-muted-foreground italic">Unknown</span>}
-          </p>
+          {hasValue ? (
+            <p className="text-xs font-bold text-foreground tabular-nums">
+              {field.value}
+            </p>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <AlertCircle className="h-3 w-3 text-destructive/50" />
+              <span className="text-xs font-bold text-destructive/40 italic">Not detected in source</span>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* Confidence */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium cursor-help", getConfidenceBg(field.confidence))}>
-              <span className={getConfidenceColor(field.confidence)}>{field.confidence}%</span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>AI Extraction Confidence: {field.confidence}%</p>
-            {field.confidence < 95 && <p className="text-xs text-muted-foreground">Manual verification recommended</p>}
-          </TooltipContent>
-        </Tooltip>
+      <div className="flex items-center gap-3 shrink-0">
+        {hasValue && (
+          <div className={cn(
+            "px-1.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-tighter",
+            field.confidence > 90 ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+          )}>
+            {Math.round(field.confidence)}% AI
+          </div>
+        )}
 
-        {/* Status Badge with verification info */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Badge 
-              variant={isVerified ? "default" : "secondary"}
-              className={cn(
-                "text-xs gap-1 cursor-help",
-                isVerified 
-                  ? "bg-success/20 text-success hover:bg-success/30 border-0" 
-                  : "bg-warning/20 text-warning-foreground hover:bg-warning/30 border-0"
-              )}
-            >
-              {isVerified ? (
-                <>
-                  <Check className="h-3 w-3" />
-                  Verified
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-3 w-3" />
-                  Needs Review
-                </>
-              )}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent>
-            {isVerified && verification ? (
-              <div className="space-y-1">
-                <div className="flex items-center gap-1.5">
-                  <User className="h-3 w-3" />
-                  <span>{verification.verifiedBy}</span>
-                </div>
-                <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-                  <Clock className="h-3 w-3" />
-                  <span>{format(verification.verifiedAt, 'dd MMM yyyy HH:mm')}</span>
-                </div>
-              </div>
-            ) : (
-              <p>Awaiting manual verification</p>
-            )}
-          </TooltipContent>
-        </Tooltip>
-
-        {/* Verify Toggle */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Verify</span>
-          <Switch 
-            checked={isVerified}
-            onCheckedChange={handleVerifyToggle}
-            className="data-[state=checked]:bg-success"
-          />
-        </div>
+        <Switch
+          checked={isVerified}
+          onCheckedChange={onVerify}
+          disabled={!hasValue}
+          className={cn(
+            "data-[state=checked]:bg-success scale-75",
+            !hasValue && "opacity-20"
+          )}
+        />
       </div>
     </div>
   );

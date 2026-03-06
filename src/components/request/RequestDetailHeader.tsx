@@ -52,100 +52,105 @@ export function RequestDetailHeader({
 
   const getSlaColorClass = () => {
     switch (slaStatus) {
-      case 'green': return 'bg-success/20 text-success';
-      case 'amber': return 'bg-warning/20 text-warning';
-      case 'red': return 'bg-destructive/20 text-destructive';
+      case 'green': return 'bg-success/15 text-success border-success/30';
+      case 'amber': return 'bg-warning/15 text-warning border-warning/30';
+      case 'red': return 'bg-destructive/15 text-destructive border-destructive/30';
     }
   };
 
   const getPriorityBadge = () => {
     if (priority === 'Urgent') {
-      return <Badge className="bg-destructive/20 text-destructive border-0">Urgent</Badge>;
+      return <Badge className="bg-destructive/15 text-destructive border-destructive/30 hover:bg-destructive/20 transition-colors">Urgent</Badge>;
     }
-    return <Badge variant="secondary">Normal</Badge>;
+    return <Badge variant="secondary" className="bg-secondary/50 border-border/50 text-secondary-foreground hover:bg-secondary/80 transition-colors">Normal</Badge>;
   };
 
   const getStatusBadge = () => {
     switch (status) {
       case 'Missing Info':
-        return <Badge className="bg-warning/20 text-warning border-0">{status}</Badge>;
+        return <Badge className="bg-warning/15 text-warning border-warning/30">{status}</Badge>;
       case 'Ready for Export':
-        return <Badge className="bg-success/20 text-success border-0">{status}</Badge>;
+        return <Badge className="bg-success/15 text-success border-success/30">{status}</Badge>;
       case 'Issued':
-        return <Badge className="bg-primary/20 text-primary border-0">{status}</Badge>;
+        return <Badge className="bg-primary/15 text-primary border-primary/30">{status}</Badge>;
       default:
-        return <Badge className="bg-info/20 text-info border-0">{status}</Badge>;
+        return <Badge className="bg-info/15 text-info border-info/30">{status}</Badge>;
     }
   };
 
   return (
-    <div className="bg-card border-b border-border px-6 py-4">
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8"
-              onClick={() => navigate('/requests')}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Building2 className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold">{companyName}</h1>
-              <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Hash className="h-3.5 w-3.5" />
-                  {requestId}
-                </span>
-                <span>Broker: {brokerName}</span>
-                <span className="flex items-center gap-1">
-                  <Users className="h-3.5 w-3.5" />
-                  {queue}
-                </span>
-                <span className="flex items-center gap-1">
-                  <User className="h-3.5 w-3.5" />
-                  {owner}
-                </span>
+    <div className="bg-card border-b border-border px-6 py-5 shadow-sm relative z-10">
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 shrink-0 hover:bg-secondary rounded-full"
+            onClick={() => navigate('/requests')}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-3 mb-1.5">
+              <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 shadow-sm">
+                <Building2 className="h-5 w-5 text-primary" />
               </div>
+              <h1 className="text-2xl font-semibold tracking-tight">{companyName}</h1>
+              {getPriorityBadge()}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground ml-14">
+              <span className="flex items-center gap-1.5 text-foreground/80 font-medium">
+                <Hash className="h-3.5 w-3.5 opacity-70" />
+                {requestId.split('-')[0]}...
+              </span>
+              <span className="flex items-center gap-1.5">
+                Broker: <span className="text-foreground/80 font-medium">{brokerName}</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 opacity-70" />
+                {queue}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5 opacity-70" />
+                {owner || 'Unassigned'}
+              </span>
             </div>
           </div>
         </div>
-        
-        <div className="flex flex-col items-end gap-3">
+
+        <div className="flex flex-col items-end gap-4">
           <div className="flex items-center gap-2">
-            {getPriorityBadge()}
-            <Badge className={cn("border-0", getSlaColorClass())}>
-              <Clock className="h-3 w-3 mr-1" />
+            <Badge className={cn("px-2.5 py-0.5", getSlaColorClass())}>
+              <Clock className="h-3.5 w-3.5 mr-1.5" />
               {getSlaDisplay()}
             </Badge>
-            <Badge variant="outline">{currentStage}</Badge>
+            <Badge variant="outline" className="px-2.5 py-0.5 bg-background border-border/60 text-foreground/80 shadow-sm">{currentStage}</Badge>
             {getStatusBadge()}
           </div>
-          
+
           <div className="flex items-center gap-2">
             {timelineDrawer}
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={onAssignOwner}>
-              <UserPlus className="h-3.5 w-3.5" />
-              Assign Owner
+            <Button variant="outline" size="sm" className="gap-2 h-9 border-border/60 hover:bg-secondary" onClick={onAssignOwner}>
+              <UserPlus className="h-4 w-4" />
+              Assign
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className={cn(
-                "gap-1.5",
-                hasMissingDocuments && "border-warning text-warning hover:bg-warning/10"
+                "gap-2 h-9 transition-colors",
+                hasMissingDocuments
+                  ? "border-warning/50 text-warning hover:bg-warning/10 hover:border-warning"
+                  : "border-border/60 hover:bg-secondary"
               )}
               onClick={onRequestMissingInfo}
             >
-              <AlertCircle className="h-3.5 w-3.5" />
-              Request Missing Info
+              <AlertCircle className="h-4 w-4" />
+              Missing Info
             </Button>
-            <Button variant="outline" size="sm" className="gap-1.5 text-destructive hover:text-destructive" onClick={onEscalate}>
-              <ArrowUpRight className="h-3.5 w-3.5" />
+            <Button variant="outline" size="sm" className="gap-2 h-9 border-destructive/20 text-destructive hover:bg-destructive/10 hover:border-destructive/40" onClick={onEscalate}>
+              <ArrowUpRight className="h-4 w-4" />
               Escalate
             </Button>
           </div>

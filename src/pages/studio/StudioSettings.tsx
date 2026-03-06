@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,69 +7,116 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Settings, 
-  Save, 
+import {
+  Settings,
+  Save,
   Clock,
   Users,
   Shield,
   AlertCircle,
   Plus,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
-import { mockGlobalSettings, GlobalSettings } from '@/data/mockStudioData';
+import { api } from '@/lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
+interface GlobalSettings {
+  id?: number;
+  default_sla_normal: number;
+  default_sla_urgent: number;
+  default_queues: string[];
+  override_roles: string[];
+  override_reason_mandatory: boolean;
+}
+
 export default function StudioSettings() {
-  const [settings, setSettings] = useState<GlobalSettings>(mockGlobalSettings);
+  const queryClient = useQueryClient();
+
+  const { data: globalSettings, isLoading } = useQuery<GlobalSettings>({
+    queryKey: ['globalSettings'],
+    queryFn: () => api.settings.get(),
+  });
+
+  const [settings, setSettings] = useState<GlobalSettings | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [newQueue, setNewQueue] = useState('');
   const [newRole, setNewRole] = useState('');
 
+  // Sync state when data loads
+  useEffect(() => {
+    if (globalSettings) {
+      setSettings(globalSettings);
+      setHasChanges(false);
+    }
+  }, [globalSettings]);
+
+  const updateMutation = useMutation({
+    mutationFn: (newSettings: GlobalSettings) => api.settings.update(newSettings),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['globalSettings'], data);
+      toast.success('Settings saved', {
+        description: 'Global configuration updated successfully',
+      });
+      setHasChanges(false);
+    },
+    onError: () => {
+      toast.error('Failed to save settings');
+    }
+  });
+
   const handleSave = () => {
-    toast.success('Settings saved', {
-      description: 'Global configuration updated successfully',
-    });
-    setHasChanges(false);
+    if (settings) {
+      updateMutation.mutate(settings);
+    }
   };
 
   const handleAddQueue = () => {
-    if (newQueue.trim() && !settings.defaultQueues.includes(newQueue.trim())) {
-      setSettings(prev => ({
+    if (settings && newQueue.trim() && !settings.default_queues.includes(newQueue.trim())) {
+      setSettings(prev => prev ? ({
         ...prev,
-        defaultQueues: [...prev.defaultQueues, newQueue.trim()],
-      }));
+        default_queues: [...prev.default_queues, newQueue.trim()],
+      }) : null);
       setNewQueue('');
       setHasChanges(true);
     }
   };
 
   const handleRemoveQueue = (queue: string) => {
-    setSettings(prev => ({
+    setSettings(prev => prev ? ({
       ...prev,
-      defaultQueues: prev.defaultQueues.filter(q => q !== queue),
-    }));
+      default_queues: prev.default_queues.filter(q => q !== queue),
+    }) : null);
     setHasChanges(true);
   };
 
   const handleAddRole = () => {
-    if (newRole.trim() && !settings.overrideRoles.includes(newRole.trim())) {
-      setSettings(prev => ({
+    if (settings && newRole.trim() && !settings.override_roles.includes(newRole.trim())) {
+      setSettings(prev => prev ? ({
         ...prev,
-        overrideRoles: [...prev.overrideRoles, newRole.trim()],
-      }));
+        override_roles: [...prev.override_roles, newRole.trim()],
+      }) : null);
       setNewRole('');
       setHasChanges(true);
     }
   };
 
   const handleRemoveRole = (role: string) => {
-    setSettings(prev => ({
+    setSettings(prev => prev ? ({
       ...prev,
-      overrideRoles: prev.overrideRoles.filter(r => r !== role),
-    }));
+      override_roles: prev.override_roles.filter(r => r !== role),
+    }) : null);
     setHasChanges(true);
   };
+
+  if (isLoading || !settings) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -84,8 +131,8 @@ export default function StudioSettings() {
             Configure global defaults and permissions
           </p>
         </div>
-        <Button onClick={handleSave} disabled={!hasChanges} className="gap-2">
-          <Save className="h-4 w-4" />
+        <Button onClick={handleSave} disabled={!hasChanges || updateMutation.isPending} className="gap-2">
+          {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           Save Settings
         </Button>
       </div>
@@ -106,9 +153,9 @@ export default function StudioSettings() {
                 <Label>Normal Priority (hours)</Label>
                 <Input
                   type="number"
-                  value={settings.defaultSlaNormal}
+                  value={settings.default_sla_normal}
                   onChange={(e) => {
-                    setSettings(prev => ({ ...prev, defaultSlaNormal: parseInt(e.target.value) }));
+                    setSettings(prev => prev ? ({ ...prev, default_sla_normal: parseInt(e.target.value) }) : null);
                     setHasChanges(true);
                   }}
                   className="mt-1"
@@ -118,9 +165,9 @@ export default function StudioSettings() {
                 <Label>Urgent Priority (hours)</Label>
                 <Input
                   type="number"
-                  value={settings.defaultSlaUrgent}
+                  value={settings.default_sla_urgent}
                   onChange={(e) => {
-                    setSettings(prev => ({ ...prev, defaultSlaUrgent: parseInt(e.target.value) }));
+                    setSettings(prev => prev ? ({ ...prev, default_sla_urgent: parseInt(e.target.value) }) : null);
                     setHasChanges(true);
                   }}
                   className="mt-1"
@@ -141,7 +188,7 @@ export default function StudioSettings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">
-              {settings.defaultQueues.map(queue => (
+              {settings.default_queues.map(queue => (
                 <Badge key={queue} variant="secondary" className="gap-1.5 py-1.5 px-3">
                   {queue}
                   <button onClick={() => handleRemoveQueue(queue)} className="ml-1 hover:text-destructive">
@@ -177,7 +224,7 @@ export default function StudioSettings() {
             <div>
               <Label className="text-sm">Roles allowed to override</Label>
               <div className="flex flex-wrap gap-2 mt-2">
-                {settings.overrideRoles.map(role => (
+                {settings.override_roles.map(role => (
                   <Badge key={role} variant="outline" className="gap-1.5 py-1.5 px-3">
                     {role}
                     <button onClick={() => handleRemoveRole(role)} className="ml-1 hover:text-destructive">
@@ -209,9 +256,9 @@ export default function StudioSettings() {
                 </p>
               </div>
               <Switch
-                checked={settings.overrideReasonMandatory}
+                checked={settings.override_reason_mandatory}
                 onCheckedChange={(checked) => {
-                  setSettings(prev => ({ ...prev, overrideReasonMandatory: checked }));
+                  setSettings(prev => prev ? ({ ...prev, override_reason_mandatory: checked }) : null);
                   setHasChanges(true);
                 }}
               />

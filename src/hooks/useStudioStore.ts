@@ -42,79 +42,150 @@ function saveToStorage<T>(key: string, data: T): void {
 }
 
 export function useStudioStages() {
-  const [stages, setStagesState] = useState<WorkflowStage[]>(() =>
-    loadFromStorage(STORAGE_KEYS.stages, mockWorkflowStages)
-  );
+  const [stages, setStagesState] = useState<WorkflowStage[]>([]);
 
-  const setStages = useCallback((updater: WorkflowStage[] | ((prev: WorkflowStage[]) => WorkflowStage[])) => {
-    setStagesState(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      saveToStorage(STORAGE_KEYS.stages, next);
-      return next;
+  useEffect(() => {
+    import('@/lib/api').then(({ api }) => {
+      api.studio.stages.list().then((data: any[]) => {
+        setStagesState(data.map(d => ({
+          ...d,
+          slaHours: d.sla_hours,
+        })).sort((a: any, b: any) => a.order - b.order));
+      });
     });
   }, []);
 
+  const setStages = useCallback((updater: WorkflowStage[] | ((prev: WorkflowStage[]) => WorkflowStage[])) => {
+    setStagesState(updater);
+  }, []);
+
   const addStage = useCallback((name: string, description: string) => {
-    setStages(prev => {
+    setStagesState(prev => {
       const maxOrder = prev.reduce((max, s) => Math.max(max, s.order), 0);
-      const newStage: WorkflowStage = {
-        id: `ws-${Date.now()}`,
-        name,
-        description,
-        order: maxOrder + 1,
-        mandatory: false,
-      };
+      const tempId = `temp-${Date.now()}`;
+      const newStage: WorkflowStage = { id: tempId, name, description, order: maxOrder + 1, mandatory: false };
+
+      import('@/lib/api').then(({ api }) => {
+        api.studio.stages.create({ name, description, order: maxOrder + 1, mandatory: false })
+          .then(saved => {
+            setStagesState(current => current.map(s => s.id === tempId ? { ...saved, slaHours: saved.sla_hours } : s))
+          });
+      });
       return [...prev, newStage];
     });
-  }, [setStages]);
+  }, []);
 
   const removeStage = useCallback((id: string) => {
-    setStages(prev => {
+    setStagesState(prev => {
       const filtered = prev.filter(s => s.id !== id);
       return filtered.map((s, i) => ({ ...s, order: i + 1 }));
     });
-  }, [setStages]);
+    if (!id.toString().startsWith('temp-')) {
+      import('@/lib/api').then(({ api }) => api.studio.stages.delete(id));
+    }
+  }, []);
 
   const reorderStages = useCallback((fromIndex: number, toIndex: number) => {
-    setStages(prev => {
+    setStagesState(prev => {
       const items = [...prev];
       const [moved] = items.splice(fromIndex, 1);
       items.splice(toIndex, 0, moved);
-      return items.map((s, i) => ({ ...s, order: i + 1 }));
+      const updated = items.map((s, i) => ({ ...s, order: i + 1 }));
+      import('@/lib/api').then(({ api }) => {
+        updated.forEach(s => {
+          if (!s.id.toString().startsWith('temp-')) {
+            api.studio.stages.update(s.id, { order: s.order });
+          }
+        });
+      });
+      return updated;
     });
-  }, [setStages]);
+  }, []);
 
   const updateStage = useCallback((id: string, updates: Partial<WorkflowStage>) => {
-    setStages(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-  }, [setStages]);
+    setStagesState(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    if (!id.toString().startsWith('temp-')) {
+      import('@/lib/api').then(({ api }) => {
+        const payload: any = { ...updates };
+        if ('slaHours' in payload) {
+          payload.sla_hours = payload.slaHours;
+          delete payload.slaHours;
+        }
+        api.studio.stages.update(id, payload);
+      });
+    }
+  }, []);
 
   return { stages, setStages, addStage, removeStage, reorderStages, updateStage };
 }
 
 export function useStudioDocuments() {
-  const [documents, setDocumentsState] = useState<DocumentDefinition[]>(() =>
-    loadFromStorage(STORAGE_KEYS.documents, mockDocumentDefinitions)
-  );
+  const [documents, setDocumentsState] = useState<DocumentDefinition[]>([]);
 
-  const setDocuments = useCallback((updater: DocumentDefinition[] | ((prev: DocumentDefinition[]) => DocumentDefinition[])) => {
-    setDocumentsState(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      saveToStorage(STORAGE_KEYS.documents, next);
-      return next;
+  useEffect(() => {
+    import('@/lib/api').then(({ api }) => {
+      api.studio.documents.list().then((data: any[]) => {
+        setDocumentsState(data.map(d => ({
+          ...d,
+          type: d.doc_type,
+          applicableStages: d.applicable_stages,
+          renewalOnly: d.renewal_only,
+          cross_validation_rules: d.cross_validation_rules || []
+        })));
+      });
     });
   }, []);
 
+  const setDocuments = useCallback((updater: DocumentDefinition[] | ((prev: DocumentDefinition[]) => DocumentDefinition[])) => {
+    setDocumentsState(updater);
+  }, []);
+
   const addDocument = useCallback((doc: Omit<DocumentDefinition, 'id'>) => {
-    setDocuments(prev => [...prev, { ...doc, id: `dd-${Date.now()}` }]);
-  }, [setDocuments]);
+    const tempId = `temp-${Date.now()}`;
+    const newDoc = { ...doc, id: tempId };
+    setDocumentsState(prev => [...prev, newDoc as DocumentDefinition]);
+
+    import('@/lib/api').then(({ api }) => {
+      api.studio.documents.create({
+        name: doc.name,
+        doc_type: doc.type,
+        category: doc.category,
+        mandatory: doc.mandatory,
+        applicable_stages: doc.applicableStages,
+        renewal_only: doc.renewalOnly,
+        description: doc.description,
+        cross_validation_rules: doc.cross_validation_rules || []
+      }).then(saved => {
+        setDocumentsState(current => current.map(d => d.id === tempId ? {
+          ...saved,
+          type: saved.doc_type,
+          applicableStages: saved.applicable_stages,
+          renewalOnly: saved.renewal_only,
+          cross_validation_rules: saved.cross_validation_rules || []
+        } : d));
+      });
+    });
+  }, []);
 
   const removeDocument = useCallback((id: string) => {
-    setDocuments(prev => prev.filter(d => d.id !== id));
-  }, [setDocuments]);
+    setDocumentsState(prev => prev.filter(d => d.id !== id));
+    if (!id.toString().startsWith('temp-')) {
+      import('@/lib/api').then(({ api }) => api.studio.documents.delete(id));
+    }
+  }, []);
 
   const updateDocument = useCallback((id: string, updates: Partial<DocumentDefinition>) => {
-    setDocuments(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
-  }, [setDocuments]);
+    setDocumentsState(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+    if (!id.toString().startsWith('temp-')) {
+      const payload: any = { ...updates };
+      if (updates.type !== undefined) payload.doc_type = updates.type;
+      if (updates.applicableStages !== undefined) payload.applicable_stages = updates.applicableStages;
+      if (updates.renewalOnly !== undefined) payload.renewal_only = updates.renewalOnly;
+      if (updates.cross_validation_rules !== undefined) payload.cross_validation_rules = updates.cross_validation_rules;
+
+      import('@/lib/api').then(({ api }) => api.studio.documents.update(id, payload));
+    }
+  }, []);
 
   return { documents, setDocuments, addDocument, removeDocument, updateDocument };
 }
@@ -174,29 +245,70 @@ export function useStudioInstructions() {
 }
 
 export function useStudioChecklist() {
-  const [items, setItemsState] = useState<ChecklistDefinition[]>(() =>
-    loadFromStorage(STORAGE_KEYS.checklist, mockChecklistDefinitions)
-  );
+  const [items, setItemsState] = useState<ChecklistDefinition[]>([]);
 
-  const setItems = useCallback((updater: ChecklistDefinition[] | ((prev: ChecklistDefinition[]) => ChecklistDefinition[])) => {
-    setItemsState(prev => {
-      const next = typeof updater === 'function' ? updater(prev) : updater;
-      saveToStorage(STORAGE_KEYS.checklist, next);
-      return next;
+  useEffect(() => {
+    import('@/lib/api').then(({ api }) => {
+      api.studio.checklists.list().then((data: any[]) => {
+        setItemsState(data.map(d => ({
+          ...d,
+          stageId: d.stage,
+          linkedDocuments: d.linked_documents,
+          autoCheckRule: d.auto_check_rule,
+          manualOverrideAllowed: d.manual_override_allowed
+        })));
+      });
     });
   }, []);
 
+  const setItems = useCallback((updater: ChecklistDefinition[] | ((prev: ChecklistDefinition[]) => ChecklistDefinition[])) => {
+    setItemsState(updater);
+  }, []);
+
   const addItem = useCallback((item: Omit<ChecklistDefinition, 'id'>) => {
-    setItems(prev => [...prev, { ...item, id: `cd-${Date.now()}` }]);
-  }, [setItems]);
+    const tempId = `temp-${Date.now()}`;
+    const newItem = { ...item, id: tempId };
+    setItemsState(prev => [...prev, newItem as ChecklistDefinition]);
+
+    import('@/lib/api').then(({ api }) => {
+      api.studio.checklists.create({
+        stage: item.stageId,
+        name: item.name,
+        required: item.required,
+        linked_documents: item.linkedDocuments,
+        auto_check_rule: item.autoCheckRule,
+        manual_override_allowed: item.manualOverrideAllowed
+      }).then(saved => {
+        setItemsState(current => current.map(i => i.id === tempId ? {
+          ...saved,
+          stageId: saved.stage,
+          linkedDocuments: saved.linked_documents,
+          autoCheckRule: saved.auto_check_rule,
+          manualOverrideAllowed: saved.manual_override_allowed
+        } : i));
+      });
+    });
+  }, []);
 
   const removeItem = useCallback((id: string) => {
-    setItems(prev => prev.filter(i => i.id !== id));
-  }, [setItems]);
+    setItemsState(prev => prev.filter(i => i.id !== id));
+    if (!id.toString().startsWith('temp-')) {
+      import('@/lib/api').then(({ api }) => api.studio.checklists.delete(id));
+    }
+  }, []);
 
   const updateItem = useCallback((id: string, updates: Partial<ChecklistDefinition>) => {
-    setItems(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
-  }, [setItems]);
+    setItemsState(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
+    if (!id.toString().startsWith('temp-')) {
+      const payload: any = { ...updates };
+      if (updates.stageId !== undefined) payload.stage = updates.stageId;
+      if (updates.linkedDocuments !== undefined) payload.linked_documents = updates.linkedDocuments;
+      if (updates.autoCheckRule !== undefined) payload.auto_check_rule = updates.autoCheckRule;
+      if (updates.manualOverrideAllowed !== undefined) payload.manual_override_allowed = updates.manualOverrideAllowed;
+
+      import('@/lib/api').then(({ api }) => api.studio.checklists.update(id, payload));
+    }
+  }, []);
 
   return { items, setItems, addItem, removeItem, updateItem };
 }

@@ -4,12 +4,32 @@ export interface ExtractedField {
   confidence: number;
   status: 'verified' | 'needs-review' | 'pending';
   source?: string;
+  documentId?: string;
 }
 
 export interface ExtractedDataSection {
   title: string;
   fields: ExtractedField[];
 }
+
+export interface CrossValidationRule {
+  target_document_type: string;
+  source_field: string;
+  target_field: string;
+  comparison_type: string;
+}
+
+export interface DocDef {
+  type: string;
+  name: string;
+  category: string;
+  mandatory: boolean;
+  applicableStages: number[];
+  description?: string;
+  validation_rules?: string;
+  cross_validation_rules?: CrossValidationRule[];
+}
+
 
 export interface Document {
   id: string;
@@ -18,9 +38,13 @@ export interface Document {
   uploadedAt: Date;
   status: 'uploaded' | 'processing' | 'extracted' | 'verified';
   highlights?: DocumentHighlight[];
+  url?: string;
+  extraction?: any;
+  requestStageId?: string | number;
+  checklistId?: string;
 }
 
-export type DocumentType = 
+export type DocumentType =
   | 'census'
   | 'trade-license'
   | 'customer-signed-quote'
@@ -34,6 +58,11 @@ export type DocumentType =
   | 'sub-group-declaration-form'
   | 'kyc-signatory'
   | 'quote'
+  | 'emirates-id'
+  | 'passport'
+  | 'payment-receipt'
+  | 'claims-history'
+  | 'quote-acceptance'
   | 'signatory-id'
   | 'other';
 
@@ -53,9 +82,12 @@ export interface TimelineEvent {
 
 export interface Stage {
   id: number;
+  instanceId?: number | string;
   name: string;
   status: 'complete' | 'active' | 'pending' | 'needs-review';
   description: string;
+  nextStageId?: number;
+  prevStageId?: number;
 }
 
 export interface ChecklistItem {
@@ -103,6 +135,7 @@ export interface CaseData {
     timestamp: Date;
     documents: string[];
   };
+  docDefs?: DocDef[];
 }
 
 // SLA calculation utilities
@@ -174,6 +207,11 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   'sub-group-declaration-form': 'Sub Group Declaration Form',
   'kyc-signatory': 'KYC of Authorised Signatory',
   'quote': 'Quote',
+  'emirates-id': 'Emirates ID',
+  'passport': 'Passport',
+  'payment-receipt': 'Payment Receipt',
+  'claims-history': 'Claims History',
+  'quote-acceptance': 'Quote Acceptance',
   'signatory-id': 'Signatory ID',
   'other': 'Other Document',
 };
@@ -181,7 +219,7 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
 export function getMissingDocumentsForStage(stageId: number, documents: Document[]): DocumentType[] {
   const requirements = STAGE_REQUIREMENTS.find(r => r.stageId === stageId);
   if (!requirements) return [];
-  
+
   const uploadedTypes = new Set(documents.map(d => d.type));
   return requirements.requiredDocuments.filter(docType => !uploadedTypes.has(docType));
 }
@@ -190,11 +228,11 @@ export function canCompleteStage(stageId: number, documents: Document[], stages:
   // Stage 7 requires all previous stages to be complete
   if (stageId === 7) {
     const allPreviousComplete = stages
-      .filter(s => s.id < 7)
+      .filter((s, index, arr) => index < arr.length - 1) // exclude last stage (usually Export/Issued)
       .every(s => s.status === 'complete');
     return { canComplete: allPreviousComplete, missingDocs: [] };
   }
-  
+
   const missingDocs = getMissingDocumentsForStage(stageId, documents);
   return { canComplete: missingDocs.length === 0, missingDocs };
 }

@@ -15,13 +15,13 @@ interface ChecklistPanelProps {
   onMarkStageComplete?: (stageId: number) => void;
 }
 
-export function ChecklistPanel({ 
-  checklist, 
-  stages, 
-  currentStage, 
+export function ChecklistPanel({
+  checklist,
+  stages,
+  currentStage,
   documents,
-  onToggle, 
-  onMarkStageComplete 
+  onToggle,
+  onMarkStageComplete
 }: ChecklistPanelProps) {
   const getStageChecklist = (stageId: number) => {
     return checklist.filter(item => item.stageId === stageId);
@@ -41,13 +41,13 @@ export function ChecklistPanel({
     // Stage 7 requires all previous stages complete
     if (stageId === 7) {
       const allPreviousComplete = stages
-        .filter(s => s.id < 7)
+        .filter((s, idx, arr) => idx < arr.length - 1)
         .every(s => s.status === 'complete');
       if (!allPreviousComplete) {
-        return { 
-          canComplete: false, 
-          missingDocs: [], 
-          reason: 'All previous stages must be complete before export.' 
+        return {
+          canComplete: false,
+          missingDocs: [],
+          reason: 'All previous stages must be complete before export.'
         };
       }
       return { canComplete: true, missingDocs: [] };
@@ -56,19 +56,19 @@ export function ChecklistPanel({
     const missingDocs = getMissingDocsForStage(stageId);
     const stageItems = getStageChecklist(stageId);
     const requiredIncomplete = stageItems.filter(item => item.required && !item.checked);
-    
+
     if (missingDocs.length > 0) {
       return { canComplete: false, missingDocs };
     }
-    
+
     if (requiredIncomplete.length > 0) {
-      return { 
-        canComplete: false, 
-        missingDocs: [], 
-        reason: `${requiredIncomplete.length} required checklist item(s) not completed.` 
+      return {
+        canComplete: false,
+        missingDocs: [],
+        reason: `${requiredIncomplete.length} required checklist item(s) not completed.`
       };
     }
-    
+
     return { canComplete: true, missingDocs: [] };
   };
 
@@ -89,8 +89,8 @@ export function ChecklistPanel({
         if (items.length === 0) return null;
 
         return (
-          <Card 
-            key={stage.id} 
+          <Card
+            key={stage.id}
             className={cn(
               "transition-all duration-200",
               isCurrentStage && "ring-1 ring-primary/50",
@@ -110,8 +110,8 @@ export function ChecklistPanel({
                 </CardTitle>
                 <span className={cn(
                   "text-xs px-2 py-0.5 rounded-full",
-                  completed === total 
-                    ? "bg-success/20 text-success" 
+                  completed === total
+                    ? "bg-success/20 text-success"
                     : "bg-muted text-muted-foreground"
                 )}>
                   {completed}/{total}
@@ -122,16 +122,16 @@ export function ChecklistPanel({
               <div className="space-y-2">
                 {items.map((item) => {
                   const isMissingDoc = item.documentType && missingDocs.includes(item.documentType);
-                  
+
                   return (
-                    <div 
+                    <div
                       key={item.id}
                       className={cn(
                         "flex items-center gap-2 py-1 px-2 rounded",
                         isMissingDoc && "bg-destructive/10"
                       )}
                     >
-                      <Checkbox 
+                      <Checkbox
                         id={item.id}
                         checked={item.checked}
                         onCheckedChange={() => onToggle(item.id)}
@@ -140,7 +140,7 @@ export function ChecklistPanel({
                           isMissingDoc && "border-destructive"
                         )}
                       />
-                      <label 
+                      <label
                         htmlFor={item.id}
                         className={cn(
                           "text-sm cursor-pointer flex-1",

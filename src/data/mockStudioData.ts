@@ -20,6 +20,12 @@ export interface DocumentDefinition {
   applicableStages: number[];
   renewalOnly: boolean;
   description: string;
+  cross_validation_rules?: Array<{
+    target_document_type: string;
+    source_field: string;
+    target_field: string;
+    comparison_type: string;
+  }>;
 }
 
 export interface ExtractionField {
@@ -107,7 +113,8 @@ export const mockExtractionFields: ExtractionField[] = [
 
 // Mock AI instructions
 export const mockAIInstructions: AIInstruction[] = [
-  { documentType: 'trade-license', instructions: `Extract company name, license number, and expiry date from the trade license document.
+  {
+    documentType: 'trade-license', instructions: `Extract company name, license number, and expiry date from the trade license document.
   
 RULES:
 - License number typically appears near the top, prefixed with "TL-"
@@ -115,26 +122,30 @@ RULES:
 - Ignore handwritten annotations
 - If multiple company names appear, use the one in the header section
 - Arabic text should be transliterated to English` },
-  { documentType: 'establishment-card', instructions: `Extract establishment number and employee count from MOL establishment card.
+  {
+    documentType: 'establishment-card', instructions: `Extract establishment number and employee count from MOL establishment card.
 
 RULES:
 - Employee count is labeled as "عدد العمال" or "Number of Workers"
 - Ignore inactive or terminated employees
 - Establishment number format: EST-XXXXXXX` },
-  { documentType: 'census', instructions: `Extract total member count from the census spreadsheet.
+  {
+    documentType: 'census', instructions: `Extract total member count from the census spreadsheet.
 
 RULES:
 - Count unique entries by Emirates ID
 - Include principal lives and dependents separately
 - Exclude rows with "Cancelled" or "Terminated" status` },
-  { documentType: 'customer-signed-quote', instructions: `Extract quote reference, final premium amount, and plan code.
+  {
+    documentType: 'customer-signed-quote', instructions: `Extract quote reference, final premium amount, and plan code.
 
 RULES:
 - Quote reference format: QT-YYYY-XXXXX
 - Premium should be the final amount in AED after discounts
 - Plan code is typically alphanumeric (e.g., SME-GOLD-500)
 - Verify signature is present before marking as valid` },
-  { documentType: 'kyc-signatory', instructions: `Extract signatory name and ID number from KYC documents.
+  {
+    documentType: 'kyc-signatory', instructions: `Extract signatory name and ID number from KYC documents.
 
 RULES:
 - Emirates ID format: XXX-XXXX-XXXXXXX-X

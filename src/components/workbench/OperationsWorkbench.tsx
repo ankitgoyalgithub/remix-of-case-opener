@@ -344,9 +344,6 @@ export function OperationsWorkbench({
                                                                 <RefreshCw className="h-4 w-4 animate-spin-slow" />
                                                                 Run Intelligent Agent
                                                             </Button>
-                                                            <p className="text-[10px] text-center text-muted-foreground mt-4 italic">
-                                                                Re-processing "{selectedDocument?.name}"
-                                                            </p>
                                                         </div>
                                                     </div>
                                                 </div>

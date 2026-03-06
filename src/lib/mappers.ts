@@ -77,7 +77,11 @@ export function mapBackendDocumentToDocument(backendDoc: any): Document {
         type: backendDoc.doc_type as DocumentType,
         uploadedAt: new Date(backendDoc.uploaded_at),
         status: backendDoc.status === 'processed' ? 'extracted' : (backendDoc.status as any),
-        url: backendDoc.file ? new URL(backendDoc.file, 'http://dummy.com').pathname : '',
+        url: backendDoc.file
+            ? (backendDoc.file.includes('amazonaws.com')
+                ? backendDoc.file
+                : new URL(backendDoc.file, 'http://dummy.com').pathname)
+            : '',
         extraction: backendDoc.extraction,
         requestStageId: backendDoc.request_stage,
         checklistId: backendDoc.checklist_item ? backendDoc.checklist_item.toString() : undefined,

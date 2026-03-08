@@ -64,7 +64,8 @@ export default function RequestDetail() {
         name: d.name,
         type: d.doc_type,
         applicableStages: d.applicable_stages,
-        mandatory: d.mandatory
+        mandatory: d.mandatory,
+        extraction_keys: d.extraction_keys
       }));
 
       // collect all checklists from all stages

@@ -76,6 +76,24 @@ interface OperationsWorkbenchProps {
     onMarkIssued: () => void;
 }
 
+const HINTS_BY_TYPE: Record<string, string[]> = {
+    'establishment-card': ["Registration No", "Partner names", "Manager Details", "Card Number"],
+    'trade-license': ["License Expiry", "VAT TRN", "Company Name", "Partner Names"],
+    'census': ["Total Member Count", "Salary Data", "Employee Names"],
+    'emirates-id': ["ID Number", "Nationality", "Expiry Date"],
+    'mol-list': ["Employee Count", "Designation", "Visa Status"],
+    'vat-certificate': ["VAT TRN", "Registration Date"],
+    'moa': ["Principal Activity", "Signatories", "Capital Amount"],
+    'medical-application-form': ["Health Declaration", "Policy Number", "Insured Name"]
+};
+
+const DEFAULT_HINTS = [
+    "Check for stamps/signatures",
+    "Find specific dates",
+    "Look on last page",
+    "Verify numeric values"
+];
+
 export function OperationsWorkbench({
     requestData,
     activeViewStage,
@@ -101,30 +119,23 @@ export function OperationsWorkbench({
     const currentStageData = requestData.stages.find(s => s.id === activeViewStage);
     const selectedItem = requestData.checklist.find(i => i.id === selectedChecklistItemId);
 
+    const hints = (selectedDocument ? HINTS_BY_TYPE[selectedDocument.type] : null) || DEFAULT_HINTS;
+
     // Filter extracted sections based on selection
     const filteredExtractedData = React.useMemo(() => {
         if (!selectedDocument) return [];
 
-        const standardKeyMap: Record<string, string[]> = {
-            'trade-license': ['Company Name', 'Trade License Number', 'Trade License Expiry Date', 'VAT TRN'],
-            'establishment-card': ['Establishment Card Number', 'MOL Employee Count'],
-            'census': ['Census Member Count', 'Mismatch Flag'],
-            'initial-census': ['Census Member Count', 'Mismatch Flag'],
-            'finalized-census': ['Census Member Count', 'Mismatch Flag'],
-            'emirates-id': ['Signatory Name', 'Emirates ID / Passport No'],
-            'vat-certificate': ['VAT TRN'],
-            'mol-list': ['MOL Employee Count'],
-            'customer-signed-quote': ['Quote Reference', 'Final Premium (AED)', 'Plan Code'],
-            'kyc-signatory': ['Signatory Name', 'Emirates ID / Passport No'],
-            'other': ['Document Reference', 'Note']
-        };
+        // Find keys from database-driven docDefs first
+        const docDef = requestData.docDefs?.find(d => d.type === selectedDocument.type);
+        const standardKeys = docDef?.extraction_keys || [];
 
-        const standardKeys = standardKeyMap[selectedDocument.type] || standardKeyMap['other'];
+        // Fallback for untracked types
+        const finalKeys = standardKeys.length > 0 ? standardKeys : ['Document Reference', 'Note'];
         const extraction = selectedDocument.extraction?.data || {};
 
         return [{
             title: `Extracted: ${selectedDocument.name}`,
-            fields: standardKeys.map(key => ({
+            fields: finalKeys.map(key => ({
                 label: key,
                 value: extraction[key]?.value || null,
                 confidence: (extraction[key]?.confidence || 0) * 100,
@@ -132,7 +143,7 @@ export function OperationsWorkbench({
                 documentId: selectedDocument.id
             }))
         }];
-    }, [selectedDocument]);
+    }, [selectedDocument, requestData.docDefs]);
 
     const handleReupload = async (docId: string, file: File) => {
         await onUploadDocument(file, (selectedDocument?.type || 'other') as DocumentType);
@@ -305,13 +316,7 @@ export function OperationsWorkbench({
                                                                 Quick Hints
                                                             </p>
                                                             <div className="flex flex-wrap gap-2">
-                                                                {[
-                                                                    "Look for Partner names",
-                                                                    "Find Manager/Director",
-                                                                    "Check for stamps/signatures",
-                                                                    "Find Employee Count",
-                                                                    "Look on last page"
-                                                                ].map((hint) => (
+                                                                {hints.map((hint) => (
                                                                     <button
                                                                         key={hint}
                                                                         onClick={() => setReextractPrompt(prev => prev ? `${prev}, ${hint}` : hint)}

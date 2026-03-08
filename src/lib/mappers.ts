@@ -72,17 +72,16 @@ export function mapBackendRequestChecklistToChecklistItem(rc: any): ChecklistIte
 }
 
 export function mapBackendDocumentToDocument(backendDoc: any): Document {
+    const documentUrl = backendDoc.file_url || backendDoc.file || '';
     return {
         id: backendDoc.id,
-        name: backendDoc.file.split('/').pop() || 'document',
+        name: (backendDoc.file || '').split('/').pop() || 'document',
         type: backendDoc.doc_type as DocumentType,
         uploadedAt: new Date(backendDoc.uploaded_at),
         status: backendDoc.status === 'processed' ? 'extracted' : (backendDoc.status as any),
-        url: backendDoc.file
-            ? (backendDoc.file.startsWith('http')
-                ? backendDoc.file
-                : `${(import.meta.env.VITE_API_BASE_URL || '').replace('/api', '')}${backendDoc.file.startsWith('/') ? '' : '/'}${backendDoc.file}`)
-            : '',
+        url: documentUrl.startsWith('http') 
+            ? documentUrl 
+            : `${(import.meta.env.VITE_API_BASE_URL || '').replace('/api', '')}${documentUrl.startsWith('/') ? '' : '/'}${documentUrl}`,
         extraction: backendDoc.extraction,
         requestStageId: backendDoc.request_stage,
         checklistId: backendDoc.checklist_item ? backendDoc.checklist_item.toString() : undefined,

@@ -25,7 +25,7 @@ import {
   DocumentType,
   CaseData
 } from '@/types/case';
-import { FileText, Database, Send, FileCheck, ShieldCheck, Loader2, ListTodo } from 'lucide-react';
+import { FileText, Database, Send, FileCheck, ShieldCheck, Loader2, ListTodo, Hourglass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -40,6 +40,7 @@ export default function RequestDetail() {
   const [showAssignOwnerModal, setShowAssignOwnerModal] = useState(false);
   const [selectedStageId, setSelectedStageId] = useState<number | null>(null);
   const [selectedChecklistItemId, setSelectedChecklistItemId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const fetchRequestDetails = async () => {
     if (!requestId) return;
@@ -224,6 +225,7 @@ export default function RequestDetail() {
     }
 
     try {
+      setIsUploading(true);
       await api.documents.upload(formData);
       toast.success('Document uploaded successfully');
       fetchRequestDetails();
@@ -231,6 +233,8 @@ export default function RequestDetail() {
       console.error('Failed to upload', err);
       const errorMessage = err?.message || 'Failed to upload document';
       toast.error(errorMessage, { description: 'Ensure your S3 credentials and bucket are correctly configured.' });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -477,7 +481,27 @@ export default function RequestDetail() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col bg-background relative">
+      {/* Upload Sandclock Overlay */}
+      {isUploading && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-5 p-8 rounded-3xl bg-card/90 border border-border/50 shadow-2xl">
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping" />
+              <div className="relative z-10 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center border border-primary/30">
+                <Hourglass className="h-8 w-8 text-primary animate-spin" style={{ animationDuration: '2s' }} />
+              </div>
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-sm font-bold text-foreground tracking-tight">Uploading Document</p>
+              <p className="text-xs text-muted-foreground">Please wait while we securely upload your file...</p>
+            </div>
+            <div className="w-48 h-1 bg-muted/30 rounded-full overflow-hidden">
+              <div className="h-full bg-primary rounded-full animate-[upload-progress_2s_ease-in-out_infinite]" style={{ width: '60%', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            </div>
+          </div>
+        </div>
+      )}
       <RequestDetailHeader
         requestId={requestData.smartId || requestData.id}
         companyName={requestData.companyName}

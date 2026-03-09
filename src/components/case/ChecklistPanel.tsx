@@ -1,4 +1,4 @@
-import { ChecklistItem, Stage, DocumentType, DOCUMENT_TYPE_LABELS, getMissingDocumentsForStage, Document } from '@/types/case';
+import { ChecklistItem, Stage, DocumentType, DOCUMENT_TYPE_LABELS, getMissingDocuments, Document, DocDef } from '@/types/case';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ interface ChecklistPanelProps {
   documents: Document[];
   onToggle: (itemId: string) => void;
   onMarkStageComplete?: (stageId: number) => void;
+  docDefs: DocDef[];
 }
 
 export function ChecklistPanel({
@@ -21,7 +22,8 @@ export function ChecklistPanel({
   currentStage,
   documents,
   onToggle,
-  onMarkStageComplete
+  onMarkStageComplete,
+  docDefs
 }: ChecklistPanelProps) {
   const getStageChecklist = (stageId: number) => {
     return checklist.filter(item => item.stageId === stageId);
@@ -33,8 +35,8 @@ export function ChecklistPanel({
     return { completed, total: items.length };
   };
 
-  const getMissingDocsForStage = (stageId: number): DocumentType[] => {
-    return getMissingDocumentsForStage(stageId, documents);
+  const getMissingDocsForCase = (): DocumentType[] => {
+    return getMissingDocuments(documents, docDefs);
   };
 
   const canCompleteCurrentStage = (stageId: number): { canComplete: boolean; missingDocs: DocumentType[]; reason?: string } => {
@@ -53,7 +55,7 @@ export function ChecklistPanel({
       return { canComplete: true, missingDocs: [] };
     }
 
-    const missingDocs = getMissingDocsForStage(stageId);
+    const missingDocs = getMissingDocsForCase();
     const stageItems = getStageChecklist(stageId);
     const requiredIncomplete = stageItems.filter(item => item.required && !item.checked);
 
@@ -83,7 +85,7 @@ export function ChecklistPanel({
         const items = getStageChecklist(stage.id);
         const { completed, total } = getStageProgress(stage.id);
         const isCurrentStage = stage.id === currentStage;
-        const missingDocs = getMissingDocsForStage(stage.id);
+        const missingDocs = getMissingDocsForCase();
         const stageValidation = canCompleteCurrentStage(stage.id);
 
         if (items.length === 0) return null;

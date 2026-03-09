@@ -104,7 +104,7 @@ export function RequestDetailHeader({
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground ml-14">
               <span className="flex items-center gap-1.5 text-foreground/80 font-medium">
                 <Hash className="h-3.5 w-3.5 opacity-70" />
-                {requestId.split('-')[0]}...
+                {requestId.startsWith('REQ-') ? requestId : requestId.split('-')[0] + '...'}
               </span>
               <span className="flex items-center gap-1.5">
                 Broker: <span className="text-foreground/80 font-medium">{brokerName}</span>

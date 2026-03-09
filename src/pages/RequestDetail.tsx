@@ -11,19 +11,15 @@ import { TimelineDrawer } from '@/components/case/TimelineDrawer';
 import { ExportPanel } from '@/components/case/ExportPanel';
 import { MissingInfoEmailModal } from '@/components/request/MissingInfoEmailModal';
 import { AssignOwnerModal } from '@/components/request/AssignOwnerModal';
-import { VerificationSummaryPanel } from '@/components/verification/VerificationSummaryPanel';
-import { OpsAdjudicationBar } from '@/components/verification/OpsAdjudicationBar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { OperationsWorkbench } from '@/components/workbench/OperationsWorkbench';
 import { mockExportPayload, mockChecklist } from '@/data/mockCaseData';
-import { mockVerificationChecks } from '@/data/mockVerificationData';
 import { api } from '@/lib/api';
 import { mapBackendRequestToListItem, mapBackendStageToStage, mapBackendRequestChecklistToChecklistItem, mapBackendDocumentToDocument, groupExtractionsBySection } from '@/lib/mappers';
-import { PHASES, getPhaseStatus, getOverallDecision, VerificationPhase } from '@/types/verificationChecks';
 import {
   Document,
   TimelineEvent,
-  getMissingDocumentsForStage,
+  getMissingDocuments,
   calculateSlaRemaining,
   getSlaStatus,
   DocumentType,
@@ -45,9 +41,6 @@ export default function RequestDetail() {
   const [selectedStageId, setSelectedStageId] = useState<number | null>(null);
   const [selectedChecklistItemId, setSelectedChecklistItemId] = useState<string | null>(null);
 
-  // Phase Rail state
-  const [activePhase, setActivePhase] = useState<VerificationPhase | null>(null);
-
   const fetchRequestDetails = async () => {
     if (!requestId) return;
     try {
@@ -68,9 +61,10 @@ export default function RequestDetail() {
         id: d.id,
         name: d.name,
         type: d.doc_type,
-        applicableStages: d.applicable_stages,
         mandatory: d.mandatory,
-        extraction_keys: d.extraction_keys
+        extraction_keys: d.extraction_keys,
+        aiInstructions: d.ai_instructions,
+        hints: d.hints
       }));
 
       // collect all checklists from all stages
@@ -164,63 +158,16 @@ export default function RequestDetail() {
   const activeViewStage = selectedStageId || currentStage;
 
   const getMissingForStage = (stageId: number, docs: Document[], docDefs: any[]) => {
-    const defs = docDefs.filter(d => d.applicableStages.includes(stageId) && d.mandatory);
-    const uploaded = new Set(docs.map(d => d.type));
-    return defs.filter(d => !uploaded.has(d.type)).map(d => d.type);
+    return getMissingDocuments(docs, docDefs);
   };
 
-  // Get all missing documents across all stages ahead of verification checks
+  // Get all manually-missing documents across all stages
   const allMissingDocs = useMemo(() => {
     if (!requestData || !requestData.docDefs) return [];
-    const missing: DocumentType[] = [];
-    const stages = requestData.stages.map(s => s.id);
-    for (const s of stages) {
-      missing.push(...getMissingForStage(s, requestData.documents, requestData.docDefs));
-    }
-    return [...new Set(missing)];
-  }, [requestData?.documents, requestData?.docDefs, requestData?.stages]);
+    return getMissingDocuments(requestData.documents, requestData.docDefs);
+  }, [requestData?.documents, requestData?.docDefs]);
 
-  // Dynamic Verification checks based on actual missing documents
-  const verificationChecks = useMemo(() => {
-    return mockVerificationChecks.map(check => {
-      if (check.id === 'vc-1') { // Intake: Document Completeness
-        if (allMissingDocs.length > 0) {
-          return {
-            ...check,
-            status: 'fail' as const,
-            resultText: `Missing ${allMissingDocs.length} required document(s)`,
-            actionRequired: `Upload missing documents to proceed.`,
-            evidence: {
-              ...check.evidence,
-              extractedSnippet: `Required documents missing from upload package. Please provide the remaining documents to proceed.`,
-            }
-          };
-        } else {
-          return {
-            ...check,
-            status: 'pass' as const,
-            resultText: 'All required documents digitized',
-            evidence: {
-              ...check.evidence,
-              extractedSnippet: `All required documents processed successfully.`,
-            }
-          };
-        }
-      }
-      return check;
-    });
-  }, [allMissingDocs]);
-
-  // Compute phase statuses
-  const phaseStatuses = useMemo(() => {
-    const statuses = {} as Record<VerificationPhase, ReturnType<typeof getPhaseStatus>>;
-    for (const phase of PHASES) {
-      statuses[phase.id] = getPhaseStatus(verificationChecks, phase.id);
-    }
-    return statuses;
-  }, [verificationChecks]);
-
-  const overallDecision = useMemo(() => getOverallDecision(verificationChecks), [verificationChecks]);
+  // allMissingDocs is now calculated above verificationChecks
 
   // Calculate SLA dynamically
   const slaRemaining = useMemo(() =>
@@ -232,15 +179,7 @@ export default function RequestDetail() {
     [slaRemaining, requestData?.slaTargetHours]
   );
 
-  // Get missing documents for current active view stage
-  const missingDocsCurrentStage = useMemo(() =>
-    requestData && requestData.docDefs ? getMissingForStage(activeViewStage, requestData.documents, requestData.docDefs) : [],
-    [activeViewStage, requestData?.documents, requestData?.docDefs]
-  );
-
-  // allMissingDocs is now calculated above verificationChecks
-
-  // Check if all stages are complete
+  // Check if all active stages are complete
   const allStagesComplete = useMemo(() =>
     requestData ? requestData.stages.filter((s, idx, arr) => idx < arr.length - 1).every(s => s.status === 'complete') : false,
     [requestData?.stages]
@@ -251,17 +190,14 @@ export default function RequestDetail() {
     if (!requestData) return 'In Review';
     if (requestData.isIssued) return 'Issued';
     if (allStagesComplete) return 'Ready for Export';
-    if (missingDocsCurrentStage.length > 0 || requestData.missingInfoRequested) return 'Missing Info';
+    if (allMissingDocs.length > 0 || requestData.missingInfoRequested) return 'Missing Info';
     return 'In Review';
-  }, [requestData?.isIssued, allStagesComplete, missingDocsCurrentStage, requestData?.missingInfoRequested]);
+  }, [requestData?.isIssued, allStagesComplete, allMissingDocs, requestData?.missingInfoRequested]);
 
   const headerData = {
     brokerName: 'Gulf Insurance Brokers',
     currentStageName: requestData?.stages?.find(s => s.id === currentStage)?.name || 'Unknown',
   };
-
-  // Check if Phase 5 (Adjudication) is active
-  const isAdjudicationPhase = activePhase === 'adjudication';
 
   const handleStageClick = (stageId: number) => {
     setSelectedStageId(stageId);
@@ -327,19 +263,6 @@ export default function RequestDetail() {
     }
   };
 
-  const handleVerifyField = (sectionTitle: string, fieldLabel: string) => {
-    const newTimeline: TimelineEvent = {
-      id: `t${Date.now()}`,
-      timestamp: new Date(),
-      action: `Verified: ${fieldLabel}`,
-      user: requestData.owner,
-      details: `Field in ${sectionTitle} marked as verified`,
-    };
-    setRequestData(prev => ({
-      ...prev,
-      timeline: [...prev.timeline, newTimeline],
-    }));
-  };
 
   const handleAcceptMismatch = (reason: string) => {
     const newTimeline: TimelineEvent = {
@@ -556,7 +479,7 @@ export default function RequestDetail() {
   return (
     <div className="h-full flex flex-col bg-background">
       <RequestDetailHeader
-        requestId={requestData.id}
+        requestId={requestData.smartId || requestData.id}
         companyName={requestData.companyName}
         brokerName={headerData.brokerName}
         priority={requestData.priority}
@@ -600,13 +523,9 @@ export default function RequestDetail() {
           </div>
         </div>
 
-        {/* Center Panel - The New Workbench */}
         <OperationsWorkbench
           requestData={requestData}
           activeViewStage={activeViewStage}
-          activePhase={activePhase}
-          phaseStatuses={phaseStatuses}
-          verificationChecks={verificationChecks}
           selectedDocument={selectedDocument}
           selectedChecklistItemId={selectedChecklistItemId}
           onSelectChecklistItem={handleChecklistSelect}
@@ -614,20 +533,9 @@ export default function RequestDetail() {
           onChecklistToggle={handleChecklistToggle}
           onUploadDocument={handleUploadDocument}
           onReextract={handleReextract}
-          onVerifyField={handleVerifyField}
           onSelectDocument={setSelectedDocument}
-          setActivePhase={setActivePhase}
           onExport={handleExport}
           onMarkIssued={handleMarkIssued}
-        />
-
-        {/* Ops Adjudication Bar - visible only when Phase 5 selected */}
-        <OpsAdjudicationBar
-          visible={isAdjudicationPhase}
-          decision={overallDecision}
-          onApprove={handleApprove}
-          onReject={handleReject}
-          onRequestMissingInfo={() => setShowMissingInfoModal(true)}
         />
       </div>
 

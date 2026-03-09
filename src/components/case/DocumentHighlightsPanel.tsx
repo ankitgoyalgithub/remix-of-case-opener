@@ -54,15 +54,6 @@ export function DocumentHighlightsPanel({ document, docDef, onClose }: DocumentH
               <Eye className="h-3.5 w-3.5" />
               Preview
             </Button>
-            <Button
-              variant={view === 'highlights' ? 'secondary' : 'ghost'}
-              size="sm"
-              className="h-7 px-2 text-[10px] gap-1.5"
-              onClick={() => setView('highlights')}
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Extraction
-            </Button>
             {hasRules && (
               <Button
                 variant={view === 'rules' ? 'secondary' : 'ghost'}
@@ -117,53 +108,6 @@ export function DocumentHighlightsPanel({ document, docDef, onClose }: DocumentH
               <div className="w-full h-full flex flex-col items-center justify-center p-12 text-center">
                 <FileSearch className="h-16 w-16 text-muted-foreground/20 mb-4" />
                 <p className="text-sm font-medium">Link not found</p>
-              </div>
-            )}
-          </div>
-        ) : view === 'highlights' ? (
-          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-            {/* Highlights List */}
-            {hasHighlights ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                    <Database className="h-3 w-3 text-primary" />
-                    AI Extraction Audit
-                  </p>
-                  <Badge className="bg-success/15 text-success border-0 text-[10px] font-bold">
-                    {document.highlights?.length} FIELDS
-                  </Badge>
-                </div>
-                {document.highlights!.map((highlight, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start gap-4 p-4 bg-background border border-border/40 rounded-xl hover:shadow-md hover:border-primary/20 transition-all group"
-                  >
-                    <div className="w-1 h-8 rounded-full bg-primary/20 group-hover:bg-primary transition-colors mt-1" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">{highlight.label}</span>
-                        {highlight.page && (
-                          <span className="text-[10px] text-muted-foreground/60 p-0.5 px-1.5 bg-muted rounded leading-none italic font-medium">Page {highlight.page}</span>
-                        )}
-                      </div>
-                      <p className="text-sm font-semibold text-foreground leading-snug">
-                        {highlight.value || <span className="italic opacity-50 font-normal text-xs">No value detected</span>}
-                      </p>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground/20 mt-1.5 group-hover:text-primary transition-colors" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full py-20 text-center opacity-70">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                  <Sparkles className="h-8 w-8 text-muted-foreground/30 font-thin" />
-                </div>
-                <p className="text-sm font-medium text-foreground">Awaiting AI Audit</p>
-                <p className="text-xs text-muted-foreground/60 mt-1 max-w-[200px] mx-auto">
-                  Highlights will appear here once the intelligence engine finishes processing this document.
-                </p>
               </div>
             )}
           </div>

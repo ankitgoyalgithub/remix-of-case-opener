@@ -25,6 +25,14 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -33,6 +41,8 @@ export default function RequestsInbox() {
   const navigate = useNavigate();
   const [requests, setRequests] = useState<RequestListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
 
   const fetchRequests = async () => {
     try {
@@ -94,6 +104,20 @@ export default function RequestsInbox() {
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  const filteredRequests = useMemo(() => {
+    return requests.filter(req => {
+      let matchesStatus = true;
+      if (statusFilter.length > 0) {
+        matchesStatus = statusFilter.includes(req.status);
+      }
+      let matchesPriority = true;
+      if (priorityFilter.length > 0) {
+        matchesPriority = priorityFilter.includes(req.priority);
+      }
+      return matchesStatus && matchesPriority;
+    });
+  }, [requests, statusFilter, priorityFilter]);
 
   const slaRisk = useMemo(() => {
     const amber = requests.filter(r => r.slaStatus === 'amber').length;
@@ -186,10 +210,57 @@ export default function RequestsInbox() {
                 AI Ops Studio
               </Button>
             </Link>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Filter className="h-4 w-4" />
-              Filter
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 relative">
+                  <Filter className="h-4 w-4" />
+                  Filter
+                  {(statusFilter.length > 0 || priorityFilter.length > 0) && (
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Filter by Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {['New', 'In Review', 'Missing Info', 'Ready for Export', 'Issued'].map((status) => (
+                  <DropdownMenuCheckboxItem
+                    key={status}
+                    checked={statusFilter.includes(status)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setStatusFilter([...statusFilter, status]);
+                      } else {
+                        setStatusFilter(statusFilter.filter((s) => s !== status));
+                      }
+                    }}
+                  >
+                    {status}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Filter by Priority</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {['Normal', 'Urgent'].map((priority) => (
+                  <DropdownMenuCheckboxItem
+                    key={priority}
+                    checked={priorityFilter.includes(priority)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setPriorityFilter([...priorityFilter, priority]);
+                      } else {
+                        setPriorityFilter(priorityFilter.filter((p) => p !== priority));
+                      }
+                    }}
+                  >
+                    {priority}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               variant="outline"
               size="sm"
@@ -276,14 +347,14 @@ export default function RequestsInbox() {
                     Loading requests...
                   </TableCell>
                 </TableRow>
-              ) : requests.length === 0 ? (
+              ) : filteredRequests.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
-                    No requests found in the system.
+                    No requests found matching your filters.
                   </TableCell>
                 </TableRow>
               ) : (
-                requests.map((request) => (
+                filteredRequests.map((request) => (
                   <TableRow
                     key={request.id}
                     className={getRowClassName(request)}
@@ -291,7 +362,7 @@ export default function RequestsInbox() {
                   >
                     <TableCell className="font-medium text-primary hover:underline">
                       <div className="flex items-center gap-2">
-                        {request.id}
+                        {request.smartId || request.id}
                         {getPriorityBadge(request.priority)}
                       </div>
                     </TableCell>

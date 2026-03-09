@@ -128,7 +128,6 @@ export function useStudioDocuments() {
         setDocumentsState(data.map(d => ({
           ...d,
           type: d.doc_type,
-          applicableStages: d.applicable_stages,
           renewalOnly: d.renewal_only,
           cross_validation_rules: d.cross_validation_rules || []
         })));
@@ -151,7 +150,6 @@ export function useStudioDocuments() {
         doc_type: doc.type,
         category: doc.category,
         mandatory: doc.mandatory,
-        applicable_stages: doc.applicableStages,
         renewal_only: doc.renewalOnly,
         description: doc.description,
         cross_validation_rules: doc.cross_validation_rules || []
@@ -159,7 +157,6 @@ export function useStudioDocuments() {
         setDocumentsState(current => current.map(d => d.id === tempId ? {
           ...saved,
           type: saved.doc_type,
-          applicableStages: saved.applicable_stages,
           renewalOnly: saved.renewal_only,
           cross_validation_rules: saved.cross_validation_rules || []
         } : d));
@@ -179,7 +176,6 @@ export function useStudioDocuments() {
     if (!id.toString().startsWith('temp-')) {
       const payload: any = { ...updates };
       if (updates.type !== undefined) payload.doc_type = updates.type;
-      if (updates.applicableStages !== undefined) payload.applicable_stages = updates.applicableStages;
       if (updates.renewalOnly !== undefined) payload.renewal_only = updates.renewalOnly;
       if (updates.cross_validation_rules !== undefined) payload.cross_validation_rules = updates.cross_validation_rules;
 

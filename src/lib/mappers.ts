@@ -22,6 +22,7 @@ export function mapBackendRequestToListItem(backendReq: any): RequestListItem {
 
     return {
         id: backendReq.id.toString(),
+        smartId: backendReq.smart_id,
         companyName: backendReq.company_name,
         brokerName: 'Broker X', // Not in backend yet
         brokerEmail: 'broker@example.com', // Not in backend yet
@@ -52,6 +53,7 @@ export function mapBackendStageToStage(rs: any): Stage {
         id: rs.stage,
         instanceId: rs.id,
         name: rs.stage_name,
+        order: rs.stage_order || 0,
         status: statusMap[rs.status] || 'pending',
         description: '', // Could be fetched if needed
         nextStageId: rs.next_stage_id,
@@ -73,9 +75,11 @@ export function mapBackendRequestChecklistToChecklistItem(rc: any): ChecklistIte
 
 export function mapBackendDocumentToDocument(backendDoc: any): Document {
     const documentUrl = backendDoc.file_url || backendDoc.file || '';
+    const fileName = (backendDoc.file || '').split('/').pop() || 'document';
+    const cleanName = fileName.split('?')[0];
     return {
         id: backendDoc.id,
-        name: (backendDoc.file || '').split('/').pop() || 'document',
+        name: cleanName,
         type: backendDoc.doc_type as DocumentType,
         uploadedAt: new Date(backendDoc.uploaded_at),
         status: backendDoc.status === 'processed' ? 'extracted' : (backendDoc.status as any),

@@ -5,11 +5,14 @@ import { DocumentsPanel } from '@/components/case/DocumentsPanel';
 import { ExtractedDataPanel } from '@/components/case/ExtractedDataPanel';
 import { DocumentHighlightsPanel } from '@/components/case/DocumentHighlightsPanel';
 import { Badge } from '@/components/ui/badge';
-import { PHASES, VerificationPhase } from '@/types/verificationChecks';
+import { VerificationPhase } from '@/types/verificationChecks';
 import {
     Document,
+    TimelineEvent,
+    getMissingDocuments,
     DocumentType,
-    CaseData
+    CaseData,
+    DocDef
 } from '@/types/case';
 import {
     FileText,
@@ -41,51 +44,22 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
-const REQUIRED_DOC_TYPES: DocumentType[] = [
-    'customer-signed-quote',
-    'finalized-census',
-    'trade-license',
-    'vat-certificate',
-    'establishment-card',
-    'group-declaration',
-    'medical-application-form',
-    'mol-list',
-    'salary-declaration',
-    'coc',
-    'moa',
-    'initial-census'
-];
 
 interface OperationsWorkbenchProps {
     requestData: CaseData;
     activeViewStage: number;
-    activePhase: VerificationPhase | null;
-    phaseStatuses: any;
-    verificationChecks: any[];
     selectedDocument: Document | null;
     selectedChecklistItemId: string | null;
     onSelectChecklistItem: (itemId: string) => void;
     onStageComplete: (stageId: number) => void;
     onChecklistToggle: (itemId: string) => void;
     onUploadDocument: (file: File, type: DocumentType, checklistId?: string) => Promise<void>;
-    onVerifyField: (section: string, field: string) => void;
     onSelectDocument: (doc: Document | null) => void;
     onReextract?: (docId: string, additionalPrompt?: string) => Promise<void>;
-    setActivePhase: (phase: VerificationPhase) => void;
     onExport: () => void;
     onMarkIssued: () => void;
 }
 
-const HINTS_BY_TYPE: Record<string, string[]> = {
-    'establishment-card': ["Registration No", "Partner names", "Manager Details", "Card Number"],
-    'trade-license': ["License Expiry", "VAT TRN", "Company Name", "Partner Names"],
-    'census': ["Total Member Count", "Salary Data", "Employee Names"],
-    'emirates-id': ["ID Number", "Nationality", "Expiry Date"],
-    'mol-list': ["Employee Count", "Designation", "Visa Status"],
-    'vat-certificate': ["VAT TRN", "Registration Date"],
-    'moa': ["Principal Activity", "Signatories", "Capital Amount"],
-    'medical-application-form': ["Health Declaration", "Policy Number", "Insured Name"]
-};
 
 const DEFAULT_HINTS = [
     "Check for stamps/signatures",
@@ -97,9 +71,6 @@ const DEFAULT_HINTS = [
 export function OperationsWorkbench({
     requestData,
     activeViewStage,
-    activePhase,
-    phaseStatuses,
-    verificationChecks,
     selectedDocument,
     selectedChecklistItemId,
     onSelectChecklistItem,
@@ -107,9 +78,7 @@ export function OperationsWorkbench({
     onChecklistToggle,
     onUploadDocument,
     onReextract,
-    onVerifyField,
     onSelectDocument,
-    setActivePhase,
     onExport,
     onMarkIssued
 }: OperationsWorkbenchProps) {
@@ -119,7 +88,24 @@ export function OperationsWorkbench({
     const currentStageData = requestData.stages.find(s => s.id === activeViewStage);
     const selectedItem = requestData.checklist.find(i => i.id === selectedChecklistItemId);
 
-    const hints = (selectedDocument ? HINTS_BY_TYPE[selectedDocument.type] : null) || DEFAULT_HINTS;
+    // Dynamic derivation from DB definitions
+    const caseRequiredDocTypes = React.useMemo(() => {
+        if (!requestData.docDefs) return [];
+        return requestData.docDefs
+            .filter(d => d.mandatory)
+            .map(d => d.type) as DocumentType[];
+    }, [requestData.docDefs]);
+
+    const activeDocDef = React.useMemo(() => 
+        requestData.docDefs?.find(d => d.type === selectedDocument?.type),
+    [requestData.docDefs, selectedDocument]);
+
+    const missingDocs = React.useMemo(() => {
+        if (!requestData.docDefs) return [];
+        return getMissingDocuments(requestData.documents, requestData.docDefs);
+    }, [requestData.documents, requestData.docDefs]);
+
+    const hints = (activeDocDef?.hints?.length ? activeDocDef.hints : null) || DEFAULT_HINTS;
 
     // Filter extracted sections based on selection
     const filteredExtractedData = React.useMemo(() => {
@@ -147,7 +133,7 @@ export function OperationsWorkbench({
         const extraction = selectedDocument.extraction?.data || {};
 
         return [{
-            title: `Extracted: ${selectedDocument.name}`,
+            title: docDef?.name || selectedDocument.type.replace(/-/g, ' '),
             fields: finalKeys.map(key => ({
                 label: key,
                 value: extraction[key]?.value || null,
@@ -178,23 +164,6 @@ export function OperationsWorkbench({
                         </h2>
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Operational Context</span>
                     </div>
-                    <Separator orientation="vertical" className="h-8 bg-border/50" />
-                    <div className="flex items-center gap-6">
-                        {PHASES.map((phase) => (
-                            <div key={phase.id} className="flex flex-col">
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-[0.1em]">{phase.label}</span>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                    <div className={cn(
-                                        "w-3 h-3 rounded-full border-[2.5px]",
-                                        phaseStatuses[phase.id] === 'passed' ? "bg-success/20 border-success" :
-                                            phaseStatuses[phase.id] === 'failed' ? "bg-destructive/20 border-destructive" :
-                                                "bg-muted border-muted-foreground/30"
-                                    )}></div>
-                                    <span className="text-[11px] font-bold text-foreground/80 lowercase">{phaseStatuses[phase.id] || 'pending'}</span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -219,7 +188,7 @@ export function OperationsWorkbench({
                     <div className="h-[320px] glass-card rounded-3xl flex flex-col overflow-hidden bg-card/40 border-primary/10">
                         <RequiredDocumentsPanel
                             documents={requestData.documents}
-                            requiredDocTypes={REQUIRED_DOC_TYPES}
+                            requiredDocTypes={caseRequiredDocTypes}
                             onUpload={onUploadDocument}
                             onSelectDocument={onSelectDocument}
                             selectedDocumentId={selectedDocument?.id}
@@ -247,7 +216,7 @@ export function OperationsWorkbench({
                                         stage={currentStageData}
                                         checklist={requestData.checklist}
                                         documents={requestData.documents}
-                                        missingDocs={[]}
+                                        missingDocs={missingDocs}
                                         docDefs={requestData.docDefs || []}
                                         onToggle={onChecklistToggle}
                                         onMarkStageComplete={onStageComplete}
@@ -412,7 +381,6 @@ export function OperationsWorkbench({
                                     ) : filteredExtractedData.length > 0 ? (
                                         <ExtractedDataPanel
                                             sections={filteredExtractedData}
-                                            onVerify={onVerifyField}
                                             isCompact
                                         />
                                     ) : (

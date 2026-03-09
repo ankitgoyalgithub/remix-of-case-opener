@@ -24,8 +24,9 @@ export interface DocDef {
   name: string;
   category: string;
   mandatory: boolean;
-  applicableStages: number[];
   description?: string;
+  aiInstructions?: string;
+  hints?: string[];
   validation_rules?: string;
   extraction_keys?: string[];
   cross_validation_rules?: CrossValidationRule[];
@@ -86,6 +87,7 @@ export interface Stage {
   id: number;
   instanceId?: number | string;
   name: string;
+  order: number;
   status: 'complete' | 'active' | 'pending' | 'needs-review';
   description: string;
   nextStageId?: number;
@@ -110,6 +112,7 @@ export interface StageRequirements {
 
 export interface CaseData {
   id: string;
+  smartId?: string;
   companyName: string;
   status: 'New' | 'In Review' | 'Missing Info' | 'Ready for Export' | 'Issued';
   currentStage: number;
@@ -162,45 +165,6 @@ export function getSlaStatus(remaining: number, targetHours: number): 'green' | 
   return 'green';
 }
 
-// Stage requirements configuration
-export const STAGE_REQUIREMENTS: StageRequirements[] = [
-  {
-    stageId: 1, // Intelligent Intake & Digitization
-    requiredDocuments: [
-      'trade-license',
-      'vat-certificate',
-      'moa',
-      'establishment-card',
-      'customer-signed-quote',
-      'finalized-census',
-      'group-declaration',
-      'medical-application-form',
-      'mol-list',
-      'initial-census'
-    ],
-    optionalDocuments: [
-      'salary-declaration',
-      'coc',
-      'kyc-signatory'
-    ]
-  },
-  {
-    stageId: 2, // Source of Truth Verification
-    requiredDocuments: [],
-  },
-  {
-    stageId: 3, // Ownership & UBO Mapping
-    requiredDocuments: [],
-  },
-  {
-    stageId: 4, // Compliance & Screening
-    requiredDocuments: [],
-  },
-  {
-    stageId: 5, // Final Adjudication
-    requiredDocuments: [],
-  },
-];
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   'census': 'Census',
@@ -226,25 +190,28 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   'other': 'Other Document',
 };
 
-export function getMissingDocumentsForStage(stageId: number, documents: Document[]): DocumentType[] {
-  const requirements = STAGE_REQUIREMENTS.find(r => r.stageId === stageId);
-  if (!requirements) return [];
-
+export function getMissingDocuments(documents: Document[], docDefs: DocDef[]): DocumentType[] {
+  const requirements = docDefs.filter(d => d.mandatory);
   const uploadedTypes = new Set(documents.map(d => d.type));
-  return requirements.requiredDocuments.filter(docType => !uploadedTypes.has(docType));
+  return requirements.map(r => r.type as DocumentType).filter(docType => !uploadedTypes.has(docType));
 }
 
-export function canCompleteStage(stageId: number, documents: Document[], stages: Stage[]): { canComplete: boolean; missingDocs: DocumentType[] } {
-  // Stage 7 requires all previous stages to be complete
-  if (stageId === 7) {
+export function canCompleteStage(stageOrder: number, documents: Document[], stages: Stage[], docDefs: DocDef[]): { canComplete: boolean; missingDocs: DocumentType[] } {
+  // Final stage (usually Export/Issued) requires all previous stages to be complete
+  // Assuming the highest order stage is the final one
+  const maxOrder = Math.max(...stages.map(s => s.order));
+  if (stageOrder === maxOrder) {
     const allPreviousComplete = stages
-      .filter((s, index, arr) => index < arr.length - 1) // exclude last stage (usually Export/Issued)
+      .filter(s => s.order < maxOrder)
       .every(s => s.status === 'complete');
-    return { canComplete: allPreviousComplete, missingDocs: [] };
+      
+    // Before completing the final stage, all mandatory docs for the case must be present.
+    const missingDocs = getMissingDocuments(documents, docDefs);
+    return { canComplete: allPreviousComplete && missingDocs.length === 0, missingDocs: allPreviousComplete ? missingDocs : [] };
   }
 
-  const missingDocs = getMissingDocumentsForStage(stageId, documents);
-  return { canComplete: missingDocs.length === 0, missingDocs };
+  // Intermediate stages no longer require specific documents to be uploaded
+  return { canComplete: true, missingDocs: [] };
 }
 
 // Ops team members for assignment

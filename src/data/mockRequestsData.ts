@@ -2,6 +2,7 @@ import { SLA_TARGETS, calculateSlaRemaining, getSlaStatus, getAutoAssignedQueue 
 
 export interface RequestListItem {
   id: string;
+  smartId?: string;
   companyName: string;
   brokerName: string;
   brokerEmail: string;

@@ -1,4 +1,4 @@
-import { Stage, ChecklistItem, Document, DocumentType, DOCUMENT_TYPE_LABELS, STAGE_REQUIREMENTS, getMissingDocumentsForStage } from '@/types/case';
+import { Stage, ChecklistItem, Document, DocumentType, DOCUMENT_TYPE_LABELS } from '@/types/case';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -8,44 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { getDocumentsForStage } from '@/lib/stageDocumentMapping';
 
 // Must stay in sync with ExtractionAgent.DOCUMENT_KEY_MAP on the backend
-const DOCUMENT_EXTRACTION_FIELDS: Record<string, string[]> = {
-  'trade-license': ['Company Name', 'Trade License Number', 'Trade License Expiry Date', 'VAT TRN'],
-  'establishment-card': ['Establishment Card Number', 'MOL Employee Count'],
-  'census': ['Census Member Count', 'Mismatch Flag'],
-  'initial-census': ['Census Member Count', 'Mismatch Flag'],
-  'finalized-census': ['Census Member Count', 'Mismatch Flag'],
-  'emirates-id': ['Signatory Name', 'Emirates ID / Passport No'],
-  'emirates-id-passport': ['Signatory Name', 'Emirates ID / Passport No'],
-  'passport': ['Signatory Name', 'Emirates ID / Passport No'],
-  'vat-certificate': ['VAT TRN'],
-  'mol-list': ['MOL Employee Count'],
-  'mol-sheet': ['MOL Employee Count'],
-  'customer-signed-quote': ['Quote Reference', 'Final Premium (AED)', 'Plan Code'],
-  'signed-quotation': ['Quote Reference', 'Final Premium (AED)', 'Plan Code'],
-  'kyc-signatory': ['Signatory Name', 'Emirates ID / Passport No'],
-  'moa': ['Company Name', 'Signatory Name'],
-  'other': ['Document Reference', 'Note'],
-};
-
-const DOC_TYPE_LABELS: Record<string, string> = {
-  'trade-license': 'Trade License',
-  'establishment-card': 'Establishment Card',
-  'census': 'Census',
-  'initial-census': 'Initial Census',
-  'finalized-census': 'Finalized Census',
-  'emirates-id': 'Emirates ID',
-  'emirates-id-passport': 'Emirates ID / Passport',
-  'passport': 'Passport',
-  'vat-certificate': 'VAT Certificate',
-  'mol-list': 'MOL List',
-  'mol-sheet': 'MOL Sheet',
-  'customer-signed-quote': 'Signed Quotation',
-  'signed-quotation': 'Signed Quotation',
-  'kyc-signatory': 'Signatory KYC',
-  'moa': 'Memorandum of Association',
-  'medical-application-form': 'Medical Application Form',
-  'other': 'Other Document',
-};
 
 interface ActiveStagePanelProps {
   stage: Stage;

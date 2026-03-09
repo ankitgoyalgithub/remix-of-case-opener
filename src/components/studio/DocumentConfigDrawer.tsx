@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -23,34 +23,32 @@ import {
   Trash2,
   X,
   Network,
+  Save,
+  Loader2
 } from 'lucide-react';
-import { DocumentDefinition, ExtractionField } from '@/data/mockStudioData';
-import { useStudioFields, useStudioInstructions, useStudioDocuments } from '@/hooks/useStudioStore';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 interface DocumentConfigDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  document: DocumentDefinition | null;
+  document: any | null;
+  onSave?: () => void;
 }
 
-const dataTypeIcons = {
-  Text: Type,
-  Number: Hash,
-  Date: Calendar,
-};
+export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocument, onSave }: DocumentConfigDrawerProps) {
+  const [docDef, setDocDef] = useState<any | null>(null);
+  const [saving, setSaving] = useState(false);
+  
+  // Local states for complex fields
+  const [fields, setFields] = useState<string[]>([]);
+  const [aiInstructions, setAiInstructions] = useState('');
+  const [crossValRules, setCrossValRules] = useState<any[]>([]);
 
-export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentConfigDrawerProps) {
-  const { fields, addField, removeField, updateField } = useStudioFields();
-  const { instructions, updateInstruction } = useStudioInstructions();
   const [showAdvancedFields, setShowAdvancedFields] = useState(false);
   const [addingField, setAddingField] = useState(false);
   const [newFieldName, setNewFieldName] = useState('');
-  const [newFieldType, setNewFieldType] = useState<'Text' | 'Number' | 'Date'>('Text');
-  const [newFieldMandatory, setNewFieldMandatory] = useState(false);
-
-  const { documents, updateDocument } = useStudioDocuments();
 
   const [addingRule, setAddingRule] = useState(false);
   const [newRuleSourceField, setNewRuleSourceField] = useState('');
@@ -58,39 +56,41 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
   const [newRuleTargetField, setNewRuleTargetField] = useState('');
   const [newRuleComparisonType, setNewRuleComparisonType] = useState('exact_match');
 
-  if (!document) return null;
+  useEffect(() => {
+    if (initialDocument) {
+      setDocDef({ ...initialDocument });
+      setFields([...(initialDocument.extraction_keys || [])]);
+      setAiInstructions(initialDocument.ai_instructions || '');
+      setCrossValRules([...(initialDocument.cross_validation_rules || [])]);
+    }
+  }, [initialDocument, open]);
 
-  const docFields = fields.filter(f => f.documentType === document.type);
-  const currentInstruction = instructions.find(i => i.documentType === document.type);
+  if (!docDef) return null;
 
   const handleAddField = () => {
     const trimmedName = newFieldName.trim();
-    if (!trimmedName) return;
-    addField({
-      documentType: document.type,
-      fieldName: trimmedName,
-      dataType: newFieldType,
-      mandatory: newFieldMandatory,
-      confidenceThreshold: 90,
-    });
+    if (!trimmedName || fields.includes(trimmedName)) return;
+    setFields([...fields, trimmedName]);
     setNewFieldName('');
-    setNewFieldType('Text');
-    setNewFieldMandatory(false);
     setAddingField(false);
     toast.success('Field added');
   };
 
-  const handleRemoveField = (id: string) => {
-    removeField(id);
+  const handleRemoveField = (index: number) => {
+    const newFields = [...fields];
+    newFields.splice(index, 1);
+    setFields(newFields);
     toast.success('Field removed');
   };
 
-  const handleUpdateInstruction = (text: string) => {
-    updateInstruction(document.type, text);
-  };
+  const handleUpdateField = (index: number, newName: string) => {
+    const newFields = [...fields];
+    newFields[index] = newName;
+    setFields(newFields);
+  }
 
   const handleAddRule = () => {
-    const newRules = [...(document?.cross_validation_rules || [])];
+    const newRules = [...crossValRules];
     newRules.push({
       target_document_type: newRuleTargetDoc,
       source_field: newRuleSourceField,
@@ -98,9 +98,7 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
       comparison_type: newRuleComparisonType
     });
 
-    if (document) {
-      updateDocument(document.id, { cross_validation_rules: newRules });
-    }
+    setCrossValRules(newRules);
     setAddingRule(false);
     setNewRuleSourceField('');
     setNewRuleTargetDoc('');
@@ -109,20 +107,63 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
     toast.success('Cross-validation rule added');
   };
 
+  const handleRemoveRule = (index: number) => {
+    const newRules = [...crossValRules];
+    newRules.splice(index, 1);
+    setCrossValRules(newRules);
+    toast.success('Cross-validation rule removed');
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      
+      const payload = {
+        category: docDef.category,
+        mandatory: docDef.mandatory,
+        renewal_only: docDef.renewal_only, // Ensure this matches backend field name
+        extraction_keys: fields,
+        ai_instructions: aiInstructions,
+        cross_validation_rules: crossValRules,
+        hints: docDef.hints // Preserve hints
+      };
+
+      await api.studio.documents.update(docDef.id, payload);
+      toast.success('Document configuration saved successfully.');
+      
+      if (onSave) {
+        onSave();
+      }
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Failed to save document config', error);
+      toast.error('Failed to save configuration');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-[540px] sm:max-w-[540px] overflow-y-auto">
         <SheetHeader className="pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <FileText className="h-5 w-5 text-primary" />
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <FileText className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex flex-col items-start gap-1">
+                <SheetTitle className="text-left">{docDef.name}</SheetTitle>
+                <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px]">{docDef.category}</Badge>
+                    {docDef.mandatory && <Badge className="bg-destructive/10 text-destructive border-0 text-[10px]">Required</Badge>}
+                </div>
+              </div>
             </div>
-            <div>
-              <SheetTitle className="text-left">{document.name}</SheetTitle>
-              <SheetDescription className="text-left">
-                {document.category} · {document.mandatory ? 'Required' : 'Optional'}
-              </SheetDescription>
-            </div>
+            <Button onClick={handleSave} disabled={saving} className="gap-2 shrink-0 h-9">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save
+            </Button>
           </div>
         </SheetHeader>
 
@@ -153,75 +194,41 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
             </p>
 
             <div className="space-y-3">
-              {docFields.map(field => {
-                const Icon = dataTypeIcons[field.dataType];
+              {fields.map((field, index) => {
                 return (
                   <div
-                    key={field.id}
+                    key={index}
                     className="p-3 rounded-lg border border-border hover:border-primary/30 transition-colors space-y-2"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={cn(
-                          "w-7 h-7 rounded flex items-center justify-center",
-                          field.dataType === 'Text' && "bg-blue-500/10 text-blue-600",
-                          field.dataType === 'Number' && "bg-emerald-500/10 text-emerald-600",
-                          field.dataType === 'Date' && "bg-purple-500/10 text-purple-600",
-                        )}>
-                          <Icon className="h-3.5 w-3.5" />
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-1">
+                        <div className="w-7 h-7 rounded flex items-center justify-center bg-blue-500/10 text-blue-600 shrink-0">
+                          <Type className="h-3.5 w-3.5" />
                         </div>
-                        <span className="font-medium text-sm">{field.fieldName}</span>
-                        <Badge variant="outline" className="text-xs">{field.dataType}</Badge>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-xs">Required</Label>
-                        <Switch
-                          checked={field.mandatory}
-                          onCheckedChange={(checked) => updateField(field.id, { mandatory: checked })}
+                        <Input 
+                            value={field}
+                            onChange={(e) => handleUpdateField(index, e.target.value)}
+                            className="h-8 text-sm font-medium"
                         />
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() => handleRemoveField(field.id)}
+                          onClick={() => handleRemoveField(index)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>
-
-                    {field.validationRule && (
-                      <p className="text-xs text-muted-foreground pl-9">
-                        Validation: {field.validationRule}
-                      </p>
-                    )}
-
-                    {showAdvancedFields && (
-                      <div className="flex items-center gap-2 pl-9">
-                        <Label className="text-xs text-muted-foreground">Confidence Threshold</Label>
-                        <Input
-                          type="number"
-                          min={50}
-                          max={100}
-                          value={field.confidenceThreshold}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value);
-                            if (val >= 50 && val <= 100) {
-                              updateField(field.id, { confidenceThreshold: val });
-                            }
-                          }}
-                          className="w-20 h-7 text-xs"
-                        />
-                        <span className="text-xs text-muted-foreground">%</span>
-                      </div>
-                    )}
                   </div>
                 );
               })}
             </div>
 
-            {docFields.length === 0 && !addingField && (
-              <div className="text-center py-8">
+            {fields.length === 0 && !addingField && (
+              <div className="text-center py-8 border rounded-lg border-dashed">
                 <Database className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">No fields configured yet</p>
               </div>
@@ -242,25 +249,6 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
                     autoFocus
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Data Type</Label>
-                    <Select value={newFieldType} onValueChange={(v) => setNewFieldType(v as typeof newFieldType)}>
-                      <SelectTrigger className="mt-1 h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Text">Text</SelectItem>
-                        <SelectItem value="Number">Number</SelectItem>
-                        <SelectItem value="Date">Date</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-end gap-2 pb-0.5">
-                    <Label className="text-xs">Required</Label>
-                    <Switch checked={newFieldMandatory} onCheckedChange={setNewFieldMandatory} />
-                  </div>
-                </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleAddField} disabled={!newFieldName.trim()} className="gap-1.5 h-7 text-xs">
                     <Check className="h-3 w-3" />
@@ -274,17 +262,11 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-2">
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setAddingField(true)} disabled={addingField}>
+            <div className="flex flex-col gap-2">
+              <Button variant="outline" size="sm" className="gap-1.5 self-start" onClick={() => setAddingField(true)} disabled={addingField}>
                 <Plus className="h-4 w-4" />
                 Add Field
               </Button>
-              <button
-                onClick={() => setShowAdvancedFields(!showAdvancedFields)}
-                className="text-xs text-muted-foreground hover:text-foreground underline"
-              >
-                {showAdvancedFields ? 'Hide' : 'Show'} Advanced Options
-              </button>
             </div>
           </TabsContent>
 
@@ -300,7 +282,7 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
             </div>
 
             <div className="space-y-3">
-              {document.cross_validation_rules?.map((rule, idx) => (
+              {crossValRules.map((rule, idx) => (
                 <div key={idx} className="p-3 rounded-lg border border-orange-500/20 bg-background space-y-3 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
                     <Badge variant="outline" className="text-[10px] uppercase border-orange-500/20 text-orange-600">{rule.comparison_type.replace(/_/g, ' ')}</Badge>
@@ -308,12 +290,7 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
                       variant="ghost"
                       size="icon"
                       className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => {
-                        const newRules = [...(document.cross_validation_rules || [])];
-                        newRules.splice(idx, 1);
-                        updateDocument(document.id, { cross_validation_rules: newRules });
-                        toast.success('Cross-validation rule removed');
-                      }}
+                      onClick={() => handleRemoveRule(idx)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -327,15 +304,15 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
                       <Network className="h-2.5 w-2.5 text-orange-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <Label className="text-[9px] uppercase text-orange-600/70 font-bold tracking-wider">{documents.find(d => d.type === rule.target_document_type)?.name || rule.target_document_type}</Label>
+                      <Label className="text-[9px] uppercase text-orange-600/70 font-bold tracking-wider">{rule.target_document_type}</Label>
                       <p className="text-xs font-semibold mt-0.5 truncate text-orange-600">{rule.target_field}</p>
                     </div>
                   </div>
                 </div>
               ))}
 
-              {(!document.cross_validation_rules || document.cross_validation_rules.length === 0) && !addingRule && (
-                <div className="text-center py-8 opacity-70">
+              {crossValRules.length === 0 && !addingRule && (
+                <div className="text-center py-8 opacity-70 border rounded-lg border-dashed">
                   <Network className="h-8 w-8 text-orange-500/30 mx-auto mb-2" />
                   <p className="text-sm text-foreground font-medium">No rules configured</p>
                   <p className="text-xs text-muted-foreground mt-1 max-w-[200px] mx-auto">Click "Add Rule" below to set up a relational check.</p>
@@ -352,23 +329,19 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
                       <SelectValue placeholder="Select field..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {docFields.map(f => <SelectItem key={f.id} value={f.fieldName}>{f.fieldName}</SelectItem>)}
+                      {fields.map((f, idx) => <SelectItem key={idx} value={f}>{f}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label className="text-xs">Target Document</Label>
-                    <Select value={newRuleTargetDoc} onValueChange={setNewRuleTargetDoc}>
-                      <SelectTrigger className="mt-1 h-8 text-xs">
-                        <SelectValue placeholder="Select doc..." />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[200px]">
-                        {documents.filter(d => d.id !== document.id).map(d => (
-                          <SelectItem key={d.id} value={d.type}>{d.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label className="text-xs">Target Document Type</Label>
+                    <Input
+                      value={newRuleTargetDoc}
+                      onChange={(e) => setNewRuleTargetDoc(e.target.value)}
+                      placeholder="e.g. quote"
+                      className="mt-1 h-8 text-xs bg-background"
+                    />
                   </div>
                   <div>
                     <Label className="text-xs">Target Field Name</Label>
@@ -407,7 +380,7 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
               </div>
             )}
 
-            <div className="flex items-center justify-between pt-2 border-t border-border/50">
+            <div className="flex items-center justify-between pt-2">
               <Button variant="outline" size="sm" className="gap-1.5 text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700" onClick={() => setAddingRule(true)} disabled={addingRule}>
                 <Plus className="h-4 w-4" />
                 Add Rule
@@ -425,9 +398,9 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
             </div>
 
             <Textarea
-              value={currentInstruction?.instructions || ''}
-              onChange={(e) => handleUpdateInstruction(e.target.value)}
-              placeholder={`Example guidance for ${document.name}:
+              value={aiInstructions}
+              onChange={(e) => setAiInstructions(e.target.value)}
+              placeholder={`Example guidance for ${docDef.name}:
 
 - Extract [field names] from this document
 - Look for values in [specific section]
@@ -436,24 +409,11 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
 - If multiple values found, use the one in the header`}
               className="min-h-[240px] text-sm"
             />
-
+            
             <div className="flex items-center gap-2">
-              {currentInstruction?.instructions ? (
-                <Badge className="bg-success/20 text-success border-0 gap-1">
-                  <Check className="h-3 w-3" />
-                  Saved
-                </Badge>
-              ) : (
-                <Badge className="bg-warning/20 text-warning-foreground border-0 gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  Not Configured
-                </Badge>
-              )}
-              {currentInstruction?.instructions && (
-                <span className="text-xs text-muted-foreground">
-                  {currentInstruction.instructions.split('\n').length} lines · Auto-saved
-                </span>
-              )}
+              <Badge className="bg-primary/10 text-primary border-0 gap-1 rounded-sm text-xs py-0.5">
+                  <AlertCircle className="h-3 w-3" /> Remember to click Save
+              </Badge>
             </div>
           </TabsContent>
 
@@ -461,7 +421,7 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
           <TabsContent value="settings" className="mt-4 space-y-5">
             <div>
               <Label className="text-sm">Document Category</Label>
-              <Select defaultValue={document.category}>
+              <Select value={docDef.category} onValueChange={(val) => setDocDef({...docDef, category: val})}>
                 <SelectTrigger className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>
@@ -479,51 +439,24 @@ export function DocumentConfigDrawer({ open, onOpenChange, document }: DocumentC
 
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-sm">Relevant for Renewals</Label>
+                <Label className="text-sm">Mandatory</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Show this document type in renewal requests
+                  Make this document generally required
                 </p>
               </div>
-              <Switch defaultChecked={document.renewalOnly} />
+              <Switch checked={docDef.mandatory} onCheckedChange={(val) => setDocDef({...docDef, mandatory: val})} />
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-sm">Expiry Tracking</Label>
+                <Label className="text-sm">Relevant for Renewals Only</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Track expiry dates for this document type
+                  Show this document type only in renewal requests
                 </p>
               </div>
-              <Switch defaultChecked={false} />
+              <Switch checked={docDef.renewal_only} onCheckedChange={(val) => setDocDef({...docDef, renewal_only: val})} />
             </div>
 
-            <Separator />
-
-            <div>
-              <Label className="text-sm">Accepted Formats</Label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {['PDF', 'Image', 'Excel'].map(fmt => (
-                  <Badge
-                    key={fmt}
-                    variant="outline"
-                    className="cursor-pointer hover:bg-primary/10"
-                  >
-                    {fmt}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <Label className="text-sm">Aliases / Alternate Names</Label>
-              <Input
-                placeholder="e.g., Business License, Commercial Permit"
-                className="mt-1.5"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Comma-separated alternate names for document matching
-              </p>
-            </div>
           </TabsContent>
         </Tabs>
       </SheetContent>

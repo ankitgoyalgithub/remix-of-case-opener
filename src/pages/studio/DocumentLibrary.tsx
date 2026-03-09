@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,13 +15,13 @@ import {
   UserCheck,
   Settings2,
   BookOpen,
+  Loader2
 } from 'lucide-react';
-import { DocumentDefinition } from '@/data/mockStudioData';
-import { useStudioDocuments } from '@/hooks/useStudioStore';
 import { DocumentConfigDrawer } from '@/components/studio/DocumentConfigDrawer';
-import { AddDocumentDialog } from '@/components/studio/AddDocumentDialog';
+// import { AddDocumentDialog } from '@/components/studio/AddDocumentDialog';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 const categoryIcons: Record<string, React.ElementType> = {
   Employer: FileText,
@@ -34,12 +34,30 @@ const categoryIcons: Record<string, React.ElementType> = {
 const categories = ['Employer', 'Workforce', 'Medical', 'Commercial', 'Signatory'] as const;
 
 export default function DocumentLibrary() {
-  const { documents, addDocument } = useStudioDocuments();
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [drawerDoc, setDrawerDoc] = useState<DocumentDefinition | null>(null);
+  const [drawerDoc, setDrawerDoc] = useState<any | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
+
+  const fetchDocuments = async () => {
+    try {
+      setLoading(true);
+      const res = await api.studio.documents.list();
+      setDocuments(res);
+    } catch (error) {
+      console.error('Failed to fetch documents', error);
+      toast.error('Failed to load documents');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredDocuments = documents.filter(doc => {
     const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -47,10 +65,19 @@ export default function DocumentLibrary() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleCreateNew = (docData: Omit<DocumentDefinition, 'id'>) => {
-    addDocument(docData);
-    toast.success(`${docData.name} created`);
+  const handleCreateNew = () => {
+    // Stub for future feature, AddDocumentDialog is currently mocked
+    toast.info('Document creation will be supported in a future update.');
+    setAddDialogOpen(false);
   };
+
+  if (loading) {
+      return (
+          <div className="flex h-[400px] items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+      );
+  }
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -64,7 +91,7 @@ export default function DocumentLibrary() {
             Manage all document types outside of workflow context
           </p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={() => setAddDialogOpen(true)}>
+        <Button variant="outline" className="gap-2" onClick={() => handleCreateNew()}>
           <Plus className="h-4 w-4" />
           Add Document Type
         </Button>
@@ -134,11 +161,11 @@ export default function DocumentLibrary() {
                       <h4 className="font-medium text-sm">{doc.name}</h4>
                       <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{doc.description}</p>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <Badge variant="outline" className="text-xs">{doc.category}</Badge>
+                        <Badge variant="outline" className="text-xs">{doc.category || 'Uncategorized'}</Badge>
                         {doc.mandatory && (
                           <Badge className="bg-destructive/10 text-destructive border-0 text-xs">Required</Badge>
                         )}
-                        {doc.renewalOnly && (
+                        {doc.renewal_only && (
                           <Badge variant="secondary" className="text-xs">Renewal Only</Badge>
                         )}
                       </div>
@@ -174,16 +201,7 @@ export default function DocumentLibrary() {
         open={drawerOpen}
         onOpenChange={setDrawerOpen}
         document={drawerDoc}
-      />
-
-      <AddDocumentDialog
-        open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
-        allDocuments={documents}
-        stageDocuments={[]}
-        selectedStage={0}
-        onAttachExisting={() => {}}
-        onCreateNew={handleCreateNew}
+        onSave={fetchDocuments}
       />
     </div>
   );

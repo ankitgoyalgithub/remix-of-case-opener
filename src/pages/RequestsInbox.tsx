@@ -13,10 +13,21 @@ import {
 import { RequestListItem } from '@/data/mockRequestsData';
 import { api } from '@/lib/api';
 import { mapBackendRequestToListItem } from '@/lib/mappers';
-import { Inbox, Filter, RefreshCw, AlertTriangle, Clock, Sparkles, Loader2 } from 'lucide-react';
+import { Inbox, Filter, RefreshCw, AlertTriangle, Clock, Sparkles, Loader2, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SlaRiskNotification } from '@/components/request/SlaRiskNotification';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function RequestsInbox() {
   const navigate = useNavigate();
@@ -34,6 +45,49 @@ export default function RequestsInbox() {
       toast.error('Failed to load requests from server');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
+  const [newRequestData, setNewRequestData] = useState({ companyName: '', priority: 'normal' });
+  const [creating, setCreating] = useState(false);
+
+  const handleCreateRequest = async () => {
+    if (!newRequestData.companyName) {
+      toast.error('Company Name is required');
+      return;
+    }
+    try {
+      setCreating(true);
+      const res = await api.requests.create({
+        company_name: newRequestData.companyName,
+        priority: newRequestData.priority,
+      });
+      toast.success('Request created successfully');
+      setIsNewRequestOpen(false);
+      setNewRequestData({ companyName: '', priority: 'normal' });
+      fetchRequests();
+      navigate(`/request/${res.id}`);
+    } catch (error) {
+      console.error('Failed to create request:', error);
+      toast.error('Failed to create request');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeleteRequest = async (e: React.MouseEvent, requestId: string) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this request?')) return;
+    
+    try {
+      toast.loading('Deleting request...', { id: 'delete-request' });
+      await api.requests.delete(requestId);
+      toast.success('Request deleted successfully', { id: 'delete-request' });
+      fetchRequests();
+    } catch (error) {
+      console.error('Failed to delete request:', error);
+      toast.error('Failed to delete request', { id: 'delete-request' });
     }
   };
 
@@ -146,6 +200,53 @@ export default function RequestsInbox() {
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               Refresh
             </Button>
+            
+            <Dialog open={isNewRequestOpen} onOpenChange={setIsNewRequestOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90">
+                  <Plus className="h-4 w-4" />
+                  New Request
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Create New Request</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="companyName">Company Name</Label>
+                    <Input
+                      id="companyName"
+                      placeholder="e.g. Acme Corp"
+                      value={newRequestData.companyName}
+                      onChange={(e) => setNewRequestData({ ...newRequestData, companyName: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="priority">Priority</Label>
+                    <Select
+                      value={newRequestData.priority}
+                      onValueChange={(value) => setNewRequestData({ ...newRequestData, priority: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="normal">Normal</SelectItem>
+                        <SelectItem value="urgent">Urgent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsNewRequestOpen(false)}>Cancel</Button>
+                  <Button onClick={handleCreateRequest} disabled={creating}>
+                    {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Create Request
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>
@@ -205,6 +306,16 @@ export default function RequestsInbox() {
                       request.owner === 'Unassigned' ? 'text-muted-foreground italic' : ''
                     )}>
                       {request.owner}
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => handleDeleteRequest(e, request.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))

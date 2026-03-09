@@ -1,6 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building2, Hash, Clock, User, ArrowLeft, UserPlus, AlertCircle, ArrowUpRight, Users } from 'lucide-react';
+import { Building2, Hash, Clock, User, ArrowLeft, UserPlus, AlertCircle, ArrowUpRight, Users, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
@@ -21,6 +21,7 @@ interface RequestDetailHeaderProps {
   onAssignOwner?: () => void;
   onRequestMissingInfo?: () => void;
   onEscalate?: () => void;
+  onDelete?: () => void;
   timelineDrawer?: ReactNode;
 }
 
@@ -40,6 +41,7 @@ export function RequestDetailHeader({
   onAssignOwner,
   onRequestMissingInfo,
   onEscalate,
+  onDelete,
   timelineDrawer,
 }: RequestDetailHeaderProps) {
   const navigate = useNavigate();
@@ -152,6 +154,19 @@ export function RequestDetailHeader({
             <Button variant="outline" size="sm" className="gap-2 h-9 border-destructive/20 text-destructive hover:bg-destructive/10 hover:border-destructive/40" onClick={onEscalate}>
               <ArrowUpRight className="h-4 w-4" />
               Escalate
+            </Button>
+            <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2 h-9 border-destructive/40 text-destructive hover:bg-destructive/20 hover:border-destructive"
+                onClick={() => {
+                    if (window.confirm('Are you sure you want to delete this request? This will permanently remove all associated data and documents.')) {
+                        onDelete?.();
+                    }
+                }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
             </Button>
           </div>
         </div>

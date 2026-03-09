@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { CaseStepper } from '@/components/case/CaseStepper';
 import { RequestDetailHeader } from '@/components/request/RequestDetailHeader';
 import { ExtractedDataPanel } from '@/components/case/ExtractedDataPanel';
@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 export default function RequestDetail() {
+  const navigate = useNavigate();
   const { requestId } = useParams();
   const [loading, setLoading] = useState(true);
   const [requestData, setRequestData] = useState<CaseData | null>(null);
@@ -56,6 +57,10 @@ export default function RequestDetail() {
         api.documents.list(),
         api.studio.documents.list()
       ]);
+
+      console.log('DEBUG_FRONTEND: docsRes length =', docsRes.length);
+      console.log('DEBUG_FRONTEND: docsRes[0] =', JSON.stringify(docsRes[0]));
+      console.log('DEBUG_FRONTEND: requestId =', requestId);
 
       const listItem = mapBackendRequestToListItem(req);
 
@@ -117,6 +122,8 @@ export default function RequestDetail() {
         missingInfoRequested: undefined
       };
 
+      console.log('DEBUG_FRONTEND: fullData.documents names =', fullData.documents.map(d => d.name));
+      console.log('DEBUG_FRONTEND: fullData.documents urls =', fullData.documents.map(d => d.url));
       setRequestData(fullData);
     } catch (error) {
       console.error('Failed to fetch request details:', error);
@@ -284,9 +291,10 @@ export default function RequestDetail() {
       await api.documents.upload(formData);
       toast.success('Document uploaded successfully');
       fetchRequestDetails();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to upload', err);
-      toast.error('Failed to upload document');
+      const errorMessage = err?.message || 'Failed to upload document';
+      toast.error(errorMessage, { description: 'Ensure your S3 credentials and bucket are correctly configured.' });
     }
   };
 
@@ -461,9 +469,11 @@ export default function RequestDetail() {
       await api.documents.extract(docId, additionalPrompt);
       toast.success('Re-extraction complete', { id: 'reextract' });
       fetchRequestDetails();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to re-extract', err);
-      toast.error('Failed to re-extract document', { id: 'reextract' });
+      // Try to get a more descriptive error from the backend Response if possible
+      const errorMessage = err?.message || 'Failed to re-extract document';
+      toast.error(errorMessage, { id: 'reextract', description: 'Check your AI and Storage configuration.' });
     }
   };
 
@@ -503,6 +513,19 @@ export default function RequestDetail() {
     toast.error('Request rejected', {
       description: 'Rejection reason logged to timeline',
     });
+  };
+
+  const handleDeleteRequest = async () => {
+    if (!requestId) return;
+    try {
+      toast.loading('Deleting request...', { id: 'delete-request' });
+      await api.requests.delete(requestId);
+      toast.success('Request deleted successfully', { id: 'delete-request' });
+      navigate('/requests');
+    } catch (err) {
+      console.error('Failed to delete request', err);
+      toast.error('Failed to delete request', { id: 'delete-request' });
+    }
   };
 
   if (loading) {
@@ -548,6 +571,7 @@ export default function RequestDetail() {
         onAssignOwner={() => setShowAssignOwnerModal(true)}
         onRequestMissingInfo={() => setShowMissingInfoModal(true)}
         onEscalate={handleEscalate}
+        onDelete={handleDeleteRequest}
         timelineDrawer={<TimelineDrawer events={requestData.timeline} />}
       />
 

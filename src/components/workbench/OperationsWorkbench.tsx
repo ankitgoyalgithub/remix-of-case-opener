@@ -125,10 +125,23 @@ export function OperationsWorkbench({
     const filteredExtractedData = React.useMemo(() => {
         if (!selectedDocument) return [];
 
+        if (selectedDocument.status === 'failed') {
+            return [{
+                title: `Extraction Failed: ${selectedDocument.name}`,
+                fields: [{
+                    label: "Error",
+                    value: "The AI agent could not process this document. Check your S3 credentials and bucket configuration.",
+                    confidence: 0,
+                    status: 'pending' as const,
+                    documentId: selectedDocument.id
+                }]
+            }];
+        }
+
         // Find keys from database-driven docDefs first
         const docDef = requestData.docDefs?.find(d => d.type === selectedDocument.type);
         const standardKeys = docDef?.extraction_keys || [];
-
+        
         // Fallback for untracked types
         const finalKeys = standardKeys.length > 0 ? standardKeys : ['Document Reference', 'Note'];
         const extraction = selectedDocument.extraction?.data || {};

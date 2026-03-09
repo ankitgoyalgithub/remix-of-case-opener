@@ -37,7 +37,7 @@ export interface Document {
   name: string;
   type: DocumentType;
   uploadedAt: Date;
-  status: 'uploaded' | 'processing' | 'extracted' | 'verified';
+  status: 'uploaded' | 'processing' | 'processed' | 'failed' | 'extracted' | 'verified';
   highlights?: DocumentHighlight[];
   url?: string;
   extraction?: any;

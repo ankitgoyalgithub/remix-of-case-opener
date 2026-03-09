@@ -45,6 +45,13 @@ export const api = {
             method: 'PATCH',
             body: JSON.stringify(data),
         }),
+        delete: (id: string) => fetchApi(`/requests/${id}/`, {
+            method: 'DELETE',
+        }),
+        create: (data: any) => fetchApi('/requests/', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
     },
     workflow: {
         stages: () => fetchApi('/workflow/stages/'),

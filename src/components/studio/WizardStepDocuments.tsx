@@ -52,9 +52,7 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [detachConfirm, setDetachConfirm] = useState<string | null>(null);
 
-  const stageDocuments = documents.filter(doc =>
-    doc.applicableStages.includes(selectedStage)
-  );
+  const stageDocuments = documents;
 
   const filteredDocuments = stageDocuments.filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -64,12 +62,8 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
   const optionalDocs = filteredDocuments.filter(d => !d.mandatory);
 
   const handleAttachExisting = (doc: DocumentDefinition) => {
-    if (!doc.applicableStages.includes(selectedStage)) {
-      updateDocument(doc.id, {
-        applicableStages: [...doc.applicableStages, selectedStage],
-      });
-      toast.success(`${doc.name} attached to stage`);
-    }
+    // Documents are now case-level; just confirm to user
+    toast.success(`${doc.name} is available across all stages`);
   };
 
   const handleCreateNew = (docData: Omit<DocumentDefinition, 'id'>) => {
@@ -78,17 +72,9 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
   };
 
   const handleDetach = (docId: string) => {
-    const doc = documents.find(d => d.id === docId);
-    if (!doc) return;
-    const newStages = doc.applicableStages.filter(s => s !== selectedStage);
-    if (newStages.length === 0) {
-      // If no stages left, remove entirely
-      removeDocument(docId);
-    } else {
-      updateDocument(docId, { applicableStages: newStages });
-    }
+    removeDocument(docId);
     setDetachConfirm(null);
-    toast.success('Document removed from stage');
+    toast.success('Document definition removed');
   };
 
   const docToDetach = documents.find(d => d.id === detachConfirm);
@@ -159,7 +145,7 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
           </div>
           <div className="flex-1 overflow-auto pr-2 space-y-1.5 custom-scrollbar">
             {stages.map(stage => {
-              const count = documents.filter(d => d.applicableStages.includes(stage.order)).length;
+              const count = documents.length;
               const isSelected = selectedStage === stage.order;
               return (
                 <button
@@ -289,11 +275,9 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-black tracking-tight">Detach Evidence Type</AlertDialogTitle>
             <AlertDialogDescription className="text-sm font-medium text-muted-foreground/80 leading-relaxed">
-              Are you sure you want to remove <span className="text-foreground font-bold italic">"{docToDetach?.name}"</span> from this stage?
+              Are you sure you want to remove <span className="text-foreground font-bold italic">"{docToDetach?.name}"</span> from the document catalog?
               <br />
-              {docToDetach && docToDetach.applicableStages.length <= 1
-                ? ' This is the only stage — the definition will be permanently deleted.'
-                : ' The document type will persist in other workflow phases.'}
+              {' This definition will be permanently deleted.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 pt-4">

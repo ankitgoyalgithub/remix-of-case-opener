@@ -176,11 +176,7 @@ export default function DocumentCatalog() {
                           <Badge variant="secondary" className="text-xs">Renewal Only</Badge>
                         )}
                       </div>
-                      <div className="mt-2 text-xs text-muted-foreground">
-                        Stages: {doc.applicableStages.map(s => `S${s}`).join(', ')}
-                      </div>
 
-                      {/* Extraction Keys Section */}
                       <div className="mt-4 pt-3 border-t border-border/50">
                         <div className="flex items-center justify-between mb-2">
                           <Label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">

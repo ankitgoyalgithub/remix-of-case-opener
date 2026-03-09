@@ -72,7 +72,6 @@ export function AddDocumentDialog({
       type: typeSlug,
       category: newCategory,
       mandatory: newMandatory,
-      applicableStages: [selectedStage],
       renewalOnly: false,
       description: '',
     });

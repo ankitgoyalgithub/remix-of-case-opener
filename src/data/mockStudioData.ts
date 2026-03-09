@@ -17,7 +17,6 @@ export interface DocumentDefinition {
   type: DocumentType;
   category: 'Employer' | 'Workforce' | 'Medical' | 'Commercial' | 'Signatory';
   mandatory: boolean;
-  applicableStages: number[];
   renewalOnly: boolean;
   extraction_keys?: string[];
   validation_rules?: string;
@@ -91,7 +90,6 @@ export const mockDocumentDefinitions: DocumentDefinition[] = [
     type: 'trade-license',
     category: 'Employer',
     mandatory: true,
-    applicableStages: [1, 2],
     renewalOnly: false,
     extraction_keys: ['Company Name', 'Trade License Number', 'Trade License Expiry Date', 'VAT TRN'],
     validation_rules: 'Must be issued by DED or UAE Freezone. Expiry date must be > today.',
@@ -100,16 +98,17 @@ export const mockDocumentDefinitions: DocumentDefinition[] = [
     ],
     description: 'Valid trade license issued by DED or relevant authority'
   },
-  { id: 'dd-2', name: 'Establishment Card', type: 'establishment-card', category: 'Employer', mandatory: true, applicableStages: [2], renewalOnly: false, extraction_keys: ['Establishment Card Number', 'MOL Employee Count'], description: 'MOL establishment card showing company details' },
-  { id: 'dd-3', name: 'VAT Certificate', type: 'vat-certificate', category: 'Employer', mandatory: false, applicableStages: [2], renewalOnly: false, extraction_keys: ['VAT TRN'], description: 'VAT registration certificate from FTA' },
-  { id: 'dd-4', name: 'MOA', type: 'moa', category: 'Employer', mandatory: false, applicableStages: [2], renewalOnly: false, extraction_keys: ['Company Name', 'Signatory Name'], description: 'Memorandum of Association' },
-  { id: 'dd-5', name: 'MOL Employee List', type: 'mol-list', category: 'Workforce', mandatory: true, applicableStages: [3], renewalOnly: false, extraction_keys: ['MOL Employee Count'], description: 'Official employee list from Ministry of Labour' },
-  { id: 'dd-6', name: 'Employee Census', type: 'census', category: 'Workforce', mandatory: true, applicableStages: [1, 3], renewalOnly: false, extraction_keys: ['Census Member Count', 'Mismatch Flag'], description: 'List of employees to be covered under the policy' },
-  { id: 'dd-7', name: 'Medical Application Form', type: 'medical-application-form', category: 'Medical', mandatory: true, applicableStages: [1, 4], renewalOnly: false, extraction_keys: ['Member Name', 'Date of Birth', 'Emirates ID'], description: 'Completed medical application form' },
-  { id: 'dd-8', name: 'Group Declaration Form', type: 'group-declaration', category: 'Medical', mandatory: true, applicableStages: [4], renewalOnly: false, extraction_keys: ['Company Name', 'Signatory Name'], description: 'Group health declaration form' },
-  { id: 'dd-9', name: 'Salary Declaration Form', type: 'salary-declaration', category: 'Medical', mandatory: true, applicableStages: [4], renewalOnly: false, extraction_keys: ['Total Salary Bill', 'Employee Count'], description: 'Salary details for sum insured calculation' },
-  { id: 'dd-10', name: 'Customer Signed Quote', type: 'customer-signed-quote', category: 'Commercial', mandatory: true, applicableStages: [1, 5], renewalOnly: false, extraction_keys: ['Quote Reference', 'Final Premium (AED)', 'Plan Code'], description: 'Quote proposal signed by customer' },
-  { id: 'dd-11', name: 'KYC Signatory', type: 'kyc-signatory', category: 'Signatory', mandatory: true, applicableStages: [6], renewalOnly: false, extraction_keys: ['Signatory Name', 'Emirates ID / Passport No'], description: 'KYC documents for authorized signatory' },
+  { id: 'dd-1', name: 'Trade License', type: 'trade-license', category: 'Employer', mandatory: true, renewalOnly: false, extraction_keys: ['License Number', 'Company Name', 'Expiry Date', 'License Type', 'Issuing Authority'], description: 'Business trade license from DED or free zone authority' },
+  { id: 'dd-2', name: 'Establishment Card', type: 'establishment-card', category: 'Employer', mandatory: true, renewalOnly: false, extraction_keys: ['Establishment Card Number', 'MOL Employee Count'], description: 'MOL establishment card showing company details' },
+  { id: 'dd-3', name: 'VAT Certificate', type: 'vat-certificate', category: 'Employer', mandatory: false, renewalOnly: false, extraction_keys: ['VAT TRN'], description: 'VAT registration certificate from FTA' },
+  { id: 'dd-4', name: 'MOA', type: 'moa', category: 'Employer', mandatory: false, renewalOnly: false, extraction_keys: ['Company Name', 'Signatory Name'], description: 'Memorandum of Association' },
+  { id: 'dd-5', name: 'MOL Employee List', type: 'mol-list', category: 'Workforce', mandatory: true, renewalOnly: false, extraction_keys: ['MOL Employee Count'], description: 'Official employee list from Ministry of Labour' },
+  { id: 'dd-6', name: 'Employee Census', type: 'census', category: 'Workforce', mandatory: true, renewalOnly: false, extraction_keys: ['Census Member Count', 'Mismatch Flag'], description: 'List of employees to be covered under the policy' },
+  { id: 'dd-7', name: 'Medical Application Form', type: 'medical-application-form', category: 'Medical', mandatory: true, renewalOnly: false, extraction_keys: ['Member Name', 'Date of Birth', 'Emirates ID'], description: 'Completed medical application form' },
+  { id: 'dd-8', name: 'Group Declaration Form', type: 'group-declaration', category: 'Medical', mandatory: true, renewalOnly: false, extraction_keys: ['Company Name', 'Signatory Name'], description: 'Group health declaration form' },
+  { id: 'dd-9', name: 'Salary Declaration Form', type: 'salary-declaration', category: 'Medical', mandatory: true, renewalOnly: false, extraction_keys: ['Total Salary Bill', 'Employee Count'], description: 'Salary details for sum insured calculation' },
+  { id: 'dd-10', name: 'Customer Signed Quote', type: 'customer-signed-quote', category: 'Commercial', mandatory: true, renewalOnly: false, extraction_keys: ['Quote Reference', 'Final Premium (AED)', 'Plan Code'], description: 'Quote proposal signed by customer' },
+  { id: 'dd-11', name: 'KYC Signatory', type: 'kyc-signatory', category: 'Signatory', mandatory: true, renewalOnly: false, extraction_keys: ['Signatory Name', 'Emirates ID / Passport No'], description: 'KYC documents for authorized signatory' },
 ];
 
 // Mock extraction fields

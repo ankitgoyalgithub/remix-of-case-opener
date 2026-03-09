@@ -94,10 +94,8 @@ export function DocumentsPanel({
     }
   };
 
-  // Strictly filter documents to show only associated ones for this stage
-  const filteredDocuments = activeStage && docDefs
-    ? documents.filter(d => docDefs.some(def => def.type === d.type && def.applicableStages.includes(activeStage)))
-    : documents;
+  // Show all uploaded case documents (requirements are now case-level, not stage-level)
+  const filteredDocuments = documents;
 
   return (
     <div className="space-y-4">

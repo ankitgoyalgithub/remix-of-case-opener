@@ -167,40 +167,40 @@ export const mockTimeline: TimelineEvent[] = [
 
 export const mockChecklist: ChecklistItem[] = [
   // Stage 1: Intake & Completeness
-  { id: 'c1', label: 'Census uploaded', checked: true, stageId: 1, required: true, documentType: 'census' },
-  { id: 'c2', label: 'Trade License uploaded', checked: true, stageId: 1, required: true, documentType: 'trade-license' },
-  { id: 'c3', label: 'Customer Signed Quote uploaded', checked: true, stageId: 1, required: true, documentType: 'customer-signed-quote' },
-  { id: 'c4', label: 'Medical Application Form uploaded', checked: true, stageId: 1, required: true, documentType: 'medical-application-form' },
+  { id: 'c1', label: 'Census uploaded', checked: true, stageId: 1, required: true, itemType: 'manual', documentType: ['census'] },
+  { id: 'c2', label: 'Trade License uploaded', checked: true, stageId: 1, required: true, itemType: 'manual', documentType: ['trade-license'] },
+  { id: 'c3', label: 'Customer Signed Quote uploaded', checked: true, stageId: 1, required: true, itemType: 'manual', documentType: ['customer-signed-quote'] },
+  { id: 'c4', label: 'Medical Application Form uploaded', checked: true, stageId: 1, required: true, itemType: 'manual', documentType: ['medical-application-form'] },
   
   // Stage 2: Employer & Legal Validation
-  { id: 'c5', label: 'Trade License validated', checked: true, stageId: 2, required: true, documentType: 'trade-license' },
-  { id: 'c6', label: 'Establishment Card validated', checked: true, stageId: 2, required: true, documentType: 'establishment-card' },
-  { id: 'c7', label: 'VAT Certificate verified', checked: false, stageId: 2, required: false, documentType: 'vat-certificate' },
-  { id: 'c8', label: 'MOA reviewed (if applicable)', checked: false, stageId: 2, required: false, documentType: 'moa' },
+  { id: 'c5', label: 'Trade License validated', checked: true, stageId: 2, required: true, itemType: 'verification', documentType: ['trade-license'] },
+  { id: 'c6', label: 'Establishment Card validated', checked: true, stageId: 2, required: true, itemType: 'verification', documentType: ['establishment-card'] },
+  { id: 'c7', label: 'VAT Certificate verified', checked: false, stageId: 2, required: false, itemType: 'verification', documentType: ['vat-certificate'] },
+  { id: 'c8', label: 'MOA reviewed (if applicable)', checked: false, stageId: 2, required: false, itemType: 'manual', documentType: ['moa'] },
   
   // Stage 3: Workforce Validation
-  { id: 'c9', label: 'MOL List verified', checked: true, stageId: 3, required: true, documentType: 'mol-list' },
-  { id: 'c10', label: 'Census verified', checked: true, stageId: 3, required: true, documentType: 'census' },
-  { id: 'c11', label: 'Mismatch resolved or accepted', checked: false, stageId: 3, required: true },
+  { id: 'c9', label: 'MOL List verified', checked: true, stageId: 3, required: true, itemType: 'verification', documentType: ['mol-list'] },
+  { id: 'c10', label: 'Census verified', checked: true, stageId: 3, required: true, itemType: 'verification', documentType: ['census'] },
+  { id: 'c11', label: 'Mismatch resolved or accepted', checked: false, stageId: 3, required: true, itemType: 'manual' },
   
   // Stage 4: Declarations & Medical
-  { id: 'c12', label: 'Medical Application Form reviewed', checked: false, stageId: 4, required: true, documentType: 'medical-application-form' },
-  { id: 'c13', label: 'Group Declaration Form verified', checked: false, stageId: 4, required: true, documentType: 'group-declaration-form' },
-  { id: 'c14', label: 'Salary Declaration Form verified', checked: false, stageId: 4, required: true, documentType: 'salary-declaration-form' },
-  { id: 'c15', label: 'Sub Group Declaration reviewed (if applicable)', checked: false, stageId: 4, required: false, documentType: 'sub-group-declaration-form' },
+  { id: 'c12', label: 'Medical Application Form reviewed', checked: false, stageId: 4, required: true, itemType: 'verification', documentType: ['medical-application-form'] },
+  { id: 'c13', label: 'Group Declaration Form verified', checked: false, stageId: 4, required: true, itemType: 'verification', documentType: ['group-declaration-form'] },
+  { id: 'c14', label: 'Salary Declaration Form verified', checked: false, stageId: 4, required: true, itemType: 'verification', documentType: ['salary-declaration-form'] },
+  { id: 'c15', label: 'Sub Group Declaration reviewed (if applicable)', checked: false, stageId: 4, required: false, itemType: 'manual', documentType: ['sub-group-declaration-form'] },
   
   // Stage 5: Commercial Validation
-  { id: 'c16', label: 'Customer Signed Quote validated', checked: false, stageId: 5, required: true, documentType: 'customer-signed-quote' },
-  { id: 'c17', label: 'Premium confirmed', checked: false, stageId: 5, required: true },
+  { id: 'c16', label: 'Customer Signed Quote validated', checked: false, stageId: 5, required: true, itemType: 'verification', documentType: ['customer-signed-quote'] },
+  { id: 'c17', label: 'Premium confirmed', checked: false, stageId: 5, required: true, itemType: 'manual' },
   
   // Stage 6: Authorized Signatory
-  { id: 'c18', label: 'KYC of Authorised Signatory verified', checked: false, stageId: 6, required: true, documentType: 'kyc-signatory' },
-  { id: 'c19', label: 'Signatory authority confirmed', checked: false, stageId: 6, required: true },
+  { id: 'c18', label: 'KYC of Authorised Signatory verified', checked: false, stageId: 6, required: true, itemType: 'verification', documentType: ['kyc-signatory'] },
+  { id: 'c19', label: 'Signatory authority confirmed', checked: false, stageId: 6, required: true, itemType: 'manual' },
   
   // Stage 7: Export & Issue
-  { id: 'c20', label: 'All stages complete', checked: false, stageId: 7, required: true },
-  { id: 'c21', label: 'Exported to core system', checked: false, stageId: 7, required: true },
-  { id: 'c22', label: 'Policy issued', checked: false, stageId: 7, required: false },
+  { id: 'c20', label: 'All stages complete', checked: false, stageId: 7, required: true, itemType: 'manual' },
+  { id: 'c21', label: 'Exported to core system', checked: false, stageId: 7, required: true, itemType: 'manual' },
+  { id: 'c22', label: 'Policy issued', checked: false, stageId: 7, required: false, itemType: 'manual' },
 ];
 
 // Create a date that's about 30 hours ago for realistic SLA simulation

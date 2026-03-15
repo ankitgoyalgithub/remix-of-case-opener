@@ -46,7 +46,7 @@ export interface AIInstruction {
 
 export interface ChecklistDefinition {
   id: string;
-  stageId: number;
+  stageId: number | string;
   name: string;
   required: boolean;
   linkedDocuments: DocumentType[];

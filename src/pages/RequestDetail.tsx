@@ -139,8 +139,10 @@ export default function RequestDetail() {
     let nextDoc = null;
     if (selectedChecklistItemId) {
       const item = requestData.checklist.find(i => i.id === selectedChecklistItemId);
-      if (item?.documentType) {
-        nextDoc = requestData.documents.find(d => d.type === item.documentType) || null;
+      if (item?.documentType && item.documentType.length > 0) {
+        // Attempt to find the first required document that belongs to this checklist item
+        const firstDocType = item.documentType[0];
+        nextDoc = requestData.documents.find(d => d.type === firstDocType) || null;
       }
     } else if (selectedDocument) {
       nextDoc = requestData.documents.find(d => d.id === selectedDocument.id) || null;
@@ -310,9 +312,13 @@ export default function RequestDetail() {
 
     // If the item is an extraction task and has a document type, try to find that document
     const item = requestData?.checklist.find(i => i.id === itemId);
-    if (item?.documentType) {
-      const doc = requestData?.documents.find(d => d.type === item.documentType);
-      if (doc) setSelectedDocument(doc);
+    // If the item is linked to a document type, select that document automatically
+    if (item?.documentType && item.documentType.length > 0) {
+      const firstDocType = item.documentType[0];
+      const doc = requestData?.documents.find(d => d.type === firstDocType);
+      if (doc) {
+        setSelectedDocument(doc);
+      }
     }
   };
 

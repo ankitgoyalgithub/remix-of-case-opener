@@ -69,7 +69,14 @@ export function mapBackendRequestChecklistToChecklistItem(rc: any): ChecklistIte
         stageId: rc.stage_id,
         required: rc.required,
         itemType: rc.item_type || 'manual',
-        documentType: rc.document_type && rc.document_type.length > 0 ? rc.document_type[0] as DocumentType : undefined
+        documentType: rc.document_type && rc.document_type.length > 0 ? rc.document_type as DocumentType[] : undefined,
+        taskDescription: rc.task_description,
+        taskDetails: rc.task_details,
+        crossValidationPairs: rc.cross_validation_pairs,
+        expectedCrossValidationRules: rc.expected_cross_validation_rules,
+        apiConfig: rc.api_config,
+        isThirdPartyApi: rc.is_third_party_api,
+        result: rc.result,
     };
 }
 

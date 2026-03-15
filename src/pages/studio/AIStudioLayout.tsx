@@ -226,21 +226,7 @@ function StudioSidebar({ isAdvanced }: { isAdvanced: boolean }) {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Sidebar Footer: Operational Health */}
-      {!collapsed && (
-        <div className="p-6 mt-auto border-t border-border/50">
-          <div className="glass-card rounded-2xl p-4 bg-primary/5 border-primary/20">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Engine Health</span>
-              <div className="w-2 h-2 rounded-full bg-success shadow-[0_0_8px_hsl(var(--success))]" />
-            </div>
-            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-              <div className="h-full w-[94%] bg-gradient-to-r from-primary to-indigo-500" />
-            </div>
-            <p className="text-[9px] font-medium text-muted-foreground mt-2">Optimal throughput detected.</p>
-          </div>
-        </div>
-      )}
+      {/* Sidebar Footer Removed */}
     </Sidebar>
   );
 }

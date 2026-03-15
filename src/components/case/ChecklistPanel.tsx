@@ -123,7 +123,7 @@ export function ChecklistPanel({
             <CardContent className="pt-0">
               <div className="space-y-2">
                 {items.map((item) => {
-                  const isMissingDoc = item.documentType && missingDocs.includes(item.documentType);
+                  const isMissingDoc = item.documentType && item.documentType.some(dt => missingDocs.includes(dt));
 
                   return (
                     <div

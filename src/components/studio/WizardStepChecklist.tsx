@@ -101,7 +101,7 @@ export function WizardStepChecklist() {
                   )}
 
                   <div className="flex items-center justify-between relative z-10">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0 pr-2">
                       <div className={cn(
                         "w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black transition-all",
                         isSelected ? "bg-white/20 text-white" : "bg-primary/10 text-primary"

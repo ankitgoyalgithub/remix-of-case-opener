@@ -94,14 +94,46 @@ export interface Stage {
   prevStageId?: number;
 }
 
+export interface ChecklistRuleResult {
+  pair: string;
+  rule: string;
+  source_field?: string;
+  target_field?: string;
+  source_doc_type?: string;
+  target_doc_type?: string;
+  source_value: string | null;
+  target_value: string | null;
+  comparison_type?: string;
+  passed: boolean;
+  note?: string | null;
+}
+
+export interface ChecklistValidationResult {
+  status: 'pass' | 'fail' | 'pending' | 'error';
+  details: ChecklistRuleResult[];
+  run_at?: string;
+}
+
+export interface CrossValidationPair {
+  source_doc_type: string;
+  target_doc_type: string;
+}
+
 export interface ChecklistItem {
   id: string;
   label: string;
   checked: boolean;
   stageId: number;
   required: boolean;
-  itemType: 'extraction' | 'verification' | 'cross-validation' | 'manual';
-  documentType?: DocumentType; // Links checklist item to a document type
+  itemType: 'extraction' | 'verification' | 'cross-validation' | 'third-party-api' | 'manual';
+  documentType?: DocumentType[];
+  taskDescription?: string;
+  taskDetails?: string;
+  isThirdPartyApi?: boolean;
+  expectedCrossValidationRules?: any[];
+  crossValidationPairs?: CrossValidationPair[];
+  apiConfig?: Record<string, any>;
+  result?: ChecklistValidationResult | null;
 }
 
 export interface StageRequirements {
@@ -109,6 +141,7 @@ export interface StageRequirements {
   requiredDocuments: DocumentType[];
   optionalDocuments?: DocumentType[];
 }
+
 
 export interface CaseData {
   id: string;

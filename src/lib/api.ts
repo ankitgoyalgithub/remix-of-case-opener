@@ -65,6 +65,9 @@ export const api = {
             method: 'PATCH',
             body: JSON.stringify(data),
         }),
+        runChecklistValidation: (id: string | number) => fetchApi(`/workflow/request-checklists/${id}/run_validation/`, {
+            method: 'POST',
+        }),
     },
     documents: {
         list: () => fetchApi('/documents/files/'),

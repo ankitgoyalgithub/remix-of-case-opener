@@ -4,6 +4,7 @@ import { ActiveStagePanel } from '@/components/case/ActiveStagePanel';
 import { DocumentsPanel } from '@/components/case/DocumentsPanel';
 import { ExtractedDataPanel } from '@/components/case/ExtractedDataPanel';
 import { DocumentHighlightsPanel } from '@/components/case/DocumentHighlightsPanel';
+import { ChecklistDetailPanel } from '@/components/case/ChecklistDetailPanel';
 import { Badge } from '@/components/ui/badge';
 import { VerificationPhase } from '@/types/verificationChecks';
 import {
@@ -240,11 +241,15 @@ export function OperationsWorkbench({
                                         <Database className="h-4 w-4 text-blue-500" />
                                     </div>
                                     <h4 className="text-xs font-bold uppercase tracking-wider">
-                                        {activeViewStage === 5 ? 'Adjudication Report' : 'Field Extractions'}
+                                        {activeViewStage === 5 
+                                          ? 'Adjudication Report' 
+                                          : selectedItem 
+                                            ? 'Checklist Details' 
+                                            : 'Field Extractions'}
                                     </h4>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    {(selectedDocument || selectedItem?.documentType) && activeViewStage !== 5 && (
+                                    {(selectedDocument || (selectedItem?.documentType && selectedItem.documentType.length > 0)) && activeViewStage !== 5 && (
                                         <Dialog open={isReextractDialogOpen} onOpenChange={setIsReextractDialogOpen}>
                                             <DialogTrigger asChild>
                                                 <Button
@@ -326,7 +331,7 @@ export function OperationsWorkbench({
                                                                         btn.disabled = false;
                                                                     }
                                                                 }}
-                                                                className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                                                                className="w-full h-11 bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg shadow-primary/25 font-bold gap-2 transition-all hover:scale-[1.02]"
                                                             >
                                                                 <RefreshCw className="h-4 w-4 animate-spin-slow" />
                                                                 Run Intelligent Agent
@@ -337,14 +342,26 @@ export function OperationsWorkbench({
                                             </DialogContent>
                                         </Dialog>
                                     )}
-                                    {selectedItem?.documentType && activeViewStage !== 5 && (
-                                        <Badge className="text-[10px] bg-blue-500/10 text-blue-500 border-none px-2">{selectedItem.documentType}</Badge>
+                                    {selectedItem?.documentType && selectedItem.documentType.length > 0 && activeViewStage !== 5 && (
+                                        <div className="flex gap-1.5 flex-wrap justify-end">
+                                            {selectedItem.documentType.map((dt, i) => (
+                                                <Badge key={i} className="text-[10px] bg-blue-500/10 text-blue-500 border-none px-2">{dt}</Badge>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
                             </div>
                             <ScrollArea className="flex-1">
                                 <div className="p-5">
-                                    {activeViewStage === 5 ? (
+                                    {/* If a checklist item is selected, show its detail panel instead of extraction */}
+                                    {selectedItem && activeViewStage !== 5 ? (
+                                        <ChecklistDetailPanel
+                                            item={selectedItem}
+                                            onValidationComplete={(updated) => {
+                                                // Parent refresh handled via toast; result is updated in local state inside panel
+                                            }}
+                                        />
+                                    ) : activeViewStage === 5 ? (
                                         <div className="space-y-6">
                                             <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10">
                                                 <h5 className="text-[11px] font-black uppercase tracking-widest text-primary mb-3">Traffic Light Summary</h5>

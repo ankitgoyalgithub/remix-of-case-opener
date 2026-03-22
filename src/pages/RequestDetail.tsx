@@ -528,23 +528,25 @@ export default function RequestDetail() {
         timelineDrawer={<TimelineDrawer events={requestData.timeline} />}
       />
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Stage Navigation Only */}
-        <div className="w-60 border-r border-border bg-card overflow-y-auto flex flex-col">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        {/* Stages Sidebar - Top on mobile, Left on desktop */}
+        <div className="w-full lg:w-60 border-b lg:border-b-0 lg:border-r border-border bg-card overflow-y-auto flex flex-col shrink-0">
           {/* Stage Stepper */}
-          <div className="p-4 border-b border-border">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+          <div className="p-4 lg:border-b border-border">
+            <h3 className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
               Issuance Stages
             </h3>
-            <CaseStepper
-              stages={requestData.stages}
-              currentStage={activeViewStage}
-              onStageClick={handleStageClick}
-            />
+            <div className="flex lg:block overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 gap-4">
+              <CaseStepper
+                stages={requestData.stages}
+                currentStage={activeViewStage}
+                onStageClick={handleStageClick}
+              />
+            </div>
           </div>
 
-          <div className="mt-auto p-4 border-t border-border">
-            <Link to="/evidence-pack">
+          <div className="hidden lg:flex mt-auto p-4 border-t border-border">
+            <Link to="/evidence-pack" className="w-full">
               <Button variant="outline" size="sm" className="w-full gap-2">
                 <FileCheck className="h-4 w-4" />
                 Evidence Pack
@@ -553,20 +555,22 @@ export default function RequestDetail() {
           </div>
         </div>
 
-        <OperationsWorkbench
-          requestData={requestData}
-          activeViewStage={activeViewStage}
-          selectedDocument={selectedDocument}
-          selectedChecklistItemId={selectedChecklistItemId}
-          onSelectChecklistItem={handleChecklistSelect}
-          onStageComplete={handleMarkStageComplete}
-          onChecklistToggle={handleChecklistToggle}
-          onUploadDocument={handleUploadDocument}
-          onReextract={handleReextract}
-          onSelectDocument={setSelectedDocument}
-          onExport={handleExport}
-          onMarkIssued={handleMarkIssued}
-        />
+        <div className="flex-1 min-w-0">
+          <OperationsWorkbench
+            requestData={requestData}
+            activeViewStage={activeViewStage}
+            selectedDocument={selectedDocument}
+            selectedChecklistItemId={selectedChecklistItemId}
+            onSelectChecklistItem={handleChecklistSelect}
+            onStageComplete={handleMarkStageComplete}
+            onChecklistToggle={handleChecklistToggle}
+            onUploadDocument={handleUploadDocument}
+            onReextract={handleReextract}
+            onSelectDocument={setSelectedDocument}
+            onExport={handleExport}
+            onMarkIssued={handleMarkIssued}
+          />
+        </div>
       </div>
 
       {/* Modals */}

@@ -12,11 +12,21 @@ export interface ExtractedDataSection {
   fields: ExtractedField[];
 }
 
-export interface CrossValidationRule {
-  target_document_type: string;
+export interface FieldMatchRule {
+  id?: number;
   source_field: string;
   target_field: string;
-  comparison_type: string;
+  comparison_type: 'exact' | 'fuzzy' | 'numeric' | 'contains';
+  tolerance_percentage?: number;
+}
+
+export interface CrossValidationRule {
+  id: number;
+  name: string;
+  source_doc_type: string;
+  target_doc_type: string;
+  description?: string;
+  field_rules: FieldMatchRule[];
 }
 
 export interface DocDef {
@@ -131,6 +141,8 @@ export interface ChecklistItem {
   taskDetails?: string;
   isThirdPartyApi?: boolean;
   expectedCrossValidationRules?: any[];
+  cross_validation_rules?: CrossValidationRule[];
+  cross_validation_rule_ids?: number[];
   crossValidationPairs?: CrossValidationPair[];
   apiConfig?: Record<string, any>;
   result?: ChecklistValidationResult | null;

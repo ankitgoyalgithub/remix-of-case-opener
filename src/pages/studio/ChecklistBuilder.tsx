@@ -16,7 +16,8 @@ import {
   Hand,
   Link2,
   AlertCircle,
-  Check
+  Check,
+  ShieldCheck
 } from 'lucide-react';
 import { mockChecklistDefinitions, mockWorkflowStages, ChecklistDefinition } from '@/data/mockStudioData';
 import { toast } from 'sonner';
@@ -26,6 +27,7 @@ import { DOCUMENT_TYPE_LABELS } from '@/types/case';
 const autoCheckRuleLabels = {
   'document-present': 'Document Present',
   'field-extracted': 'Field Extracted',
+  'cross-validation': 'Cross-validation Auto',
   'manual': 'Manual Only',
 };
 
@@ -148,6 +150,18 @@ export default function ChecklistBuilder() {
                         {item.linkedDocuments.map(d => DOCUMENT_TYPE_LABELS[d] || d).join(', ')}
                       </div>
                     )}
+                    
+                    {/* Selected CV Rules - New Section */}
+                    {item.autoCheckRule === 'cross-validation' && (
+                      <div className="flex items-center gap-1 mt-1 text-primary">
+                        <ShieldCheck className="h-3 w-3" />
+                        <span className="font-semibold uppercase tracking-tighter">
+                          {item.cross_validation_rules?.length 
+                            ? `${item.cross_validation_rules.length} Rules Linked` 
+                            : 'No Rules Linked'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -165,6 +179,7 @@ export default function ChecklistBuilder() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="cross-validation">Cross-validation Auto</SelectItem>
                     <SelectItem value="document-present">Document Present</SelectItem>
                     <SelectItem value="field-extracted">Field Extracted</SelectItem>
                     <SelectItem value="manual">Manual Only</SelectItem>
@@ -224,6 +239,13 @@ export default function ChecklistBuilder() {
               <div>
                 <p className="font-medium">Field Extracted</p>
                 <p className="text-xs text-muted-foreground">Auto-checked when AI extracts required fields</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Zap className="h-4 w-4 text-warning mt-0.5" />
+              <div>
+                <p className="font-medium">Cross-validation Auto</p>
+                <p className="text-xs text-muted-foreground">Auto-checked when fields match between documents</p>
               </div>
             </div>
             <div className="flex items-start gap-2">

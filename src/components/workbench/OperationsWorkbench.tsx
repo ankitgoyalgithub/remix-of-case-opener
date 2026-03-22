@@ -182,11 +182,11 @@ export function OperationsWorkbench({
                 </div>
             </div>
 
-            <div className="flex-1 flex gap-4 min-h-0">
+            <div className="flex-1 flex flex-col xl:flex-row gap-4 min-h-0 overflow-auto xl:overflow-hidden">
                 {/* Left Column: Input & Tasks */}
-                <div className="w-[380px] lg:w-[420px] flex flex-col gap-4 min-h-0">
+                <div className="w-full xl:w-[420px] flex flex-col gap-4 shrink-0">
                     {/* Required Documents Section */}
-                    <div className="h-[320px] glass-card rounded-3xl flex flex-col overflow-hidden bg-card/40 border-primary/10">
+                    <div className="h-[320px] lg:h-[380px] xl:h-[320px] glass-card rounded-3xl flex flex-col overflow-hidden bg-card/40 border-primary/10">
                         <RequiredDocumentsPanel
                             documents={requestData.documents}
                             requiredDocTypes={caseRequiredDocTypes}
@@ -197,7 +197,7 @@ export function OperationsWorkbench({
                     </div>
 
                     {/* Operational Checklist Section */}
-                    <div className="flex-1 glass-card rounded-3xl flex flex-col overflow-hidden border-indigo-500/10">
+                    <div className="h-[400px] xl:flex-1 glass-card rounded-3xl flex flex-col overflow-hidden border-indigo-500/10">
                         <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center justify-between shrink-0">
                             <div className="flex items-center gap-2">
                                 <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
@@ -232,9 +232,9 @@ export function OperationsWorkbench({
 
                 {/* Right Column: Intelligence & Evidence */}
                 <div className="flex-1 flex flex-col gap-4 min-w-0">
-                    <div className="flex-1 grid grid-cols-1 xl:grid-cols-[480px_1fr] gap-4 min-h-0">
+                    <div className="flex-1 grid grid-cols-1 2xl:grid-cols-[500px_1fr] gap-4 min-h-0">
                         {/* Data Bento Card / Traffic Light Report */}
-                        <div className="glass-card rounded-3xl flex flex-col overflow-hidden bg-card/30 border-blue-500/10">
+                        <div className="glass-card rounded-3xl flex flex-col overflow-hidden bg-card/30 border-blue-500/10 min-h-[400px] 2xl:min-h-0">
                             <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center justify-between shrink-0">
                                 <div className="flex items-center gap-2">
                                     <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
@@ -259,7 +259,8 @@ export function OperationsWorkbench({
                                                     disabled={!selectedDocument}
                                                 >
                                                     <BrainCircuit className="h-3.5 w-3.5" />
-                                                    RE-EXTRACT
+                                                    <span className="hidden sm:inline">RE-EXTRACT</span>
+                                                    <span className="sm:hidden">FIX</span>
                                                 </Button>
                                             </DialogTrigger>
                                             <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden border-none shadow-2xl">
@@ -343,7 +344,7 @@ export function OperationsWorkbench({
                                         </Dialog>
                                     )}
                                     {selectedItem?.documentType && selectedItem.documentType.length > 0 && activeViewStage !== 5 && (
-                                        <div className="flex gap-1.5 flex-wrap justify-end">
+                                        <div className="flex gap-1.5 flex-wrap justify-end hidden md:flex">
                                             {selectedItem.documentType.map((dt, i) => (
                                                 <Badge key={i} className="text-[10px] bg-blue-500/10 text-blue-500 border-none px-2">{dt}</Badge>
                                             ))}
@@ -352,7 +353,7 @@ export function OperationsWorkbench({
                                 </div>
                             </div>
                             <ScrollArea className="flex-1">
-                                <div className="p-5">
+                                <div className="p-4 md:p-5">
                                     {/* If a checklist item is selected, show its detail panel instead of extraction */}
                                     {selectedItem && activeViewStage !== 5 ? (
                                         <ChecklistDetailPanel
@@ -382,7 +383,7 @@ export function OperationsWorkbench({
                                                             </div>
                                                             <div className="text-right">
                                                                 <div className={cn("text-[11px] font-black uppercase", item.color)}>{item.status}</div>
-                                                                <div className="text-[9px] text-muted-foreground font-medium group-hover:text-primary transition-colors">Source: {item.source}</div>
+                                                                <div className="text-[9px] text-muted-foreground font-medium group-hover:text-primary transition-colors hidden xs:block">Source: {item.source}</div>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -401,12 +402,12 @@ export function OperationsWorkbench({
                                             isCompact
                                         />
                                     ) : (
-                                        <div className="h-full flex flex-col items-center justify-center py-24 text-center">
+                                        <div className="h-full flex flex-col items-center justify-center py-12 md:py-24 text-center">
                                             <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mb-4 border border-border border-dashed">
                                                 <Database className="h-6 w-6 text-muted-foreground/40" />
                                             </div>
                                             <p className="text-sm font-bold text-foreground">Operational Signal Missing</p>
-                                            <p className="text-[11px] text-muted-foreground mt-1 px-12 leading-relaxed text-balance">Select a verification task or document to stream AI-extracted data points.</p>
+                                            <p className="text-[11px] text-muted-foreground mt-1 px-6 md:px-12 leading-relaxed text-balance">Select a verification task or document to stream AI-extracted data points.</p>
                                         </div>
                                     )}
                                 </div>
@@ -414,7 +415,7 @@ export function OperationsWorkbench({
                         </div>
 
                         {/* Evidence Bento Card */}
-                        <div className="glass-card rounded-3xl flex flex-col overflow-hidden bg-card/20 border-indigo-500/10">
+                        <div className="glass-card rounded-3xl flex flex-col overflow-hidden bg-card/20 border-indigo-500/10 min-h-[400px] 2xl:min-h-0">
                             <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center justify-between shrink-0">
                                 <div className="flex items-center gap-2">
                                     <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
@@ -430,11 +431,12 @@ export function OperationsWorkbench({
                                         onClick={() => onSelectDocument(null)}
                                     >
                                         <ArrowRightLeft className="h-3.5 w-3.5" />
-                                        SWITCH SOURCE
+                                        <span className="hidden sm:inline">SWITCH SOURCE</span>
+                                        <span className="sm:hidden">SWITCH</span>
                                     </Button>
                                 )}
                             </div>
-                            <div className="flex-1 p-5 overflow-hidden flex flex-col min-h-0">
+                            <div className="flex-1 p-4 md:p-5 overflow-hidden flex flex-col min-h-0">
                                 {selectedDocument ? (
                                     <div className="bg-card/50 rounded-2xl border border-border flex flex-col shadow-inner h-full overflow-hidden">
                                         <DocumentHighlightsPanel

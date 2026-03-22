@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { 
-  Workflow, 
+  Workflow as WorkflowIcon, 
   GripVertical, 
   Plus, 
   Save, 
@@ -15,17 +15,21 @@ import {
   Edit2, 
   Check,
   X,
-  AlertCircle
+  AlertCircle,
+  PlusCircle
 } from 'lucide-react';
-import { mockWorkflowStages, WorkflowStage } from '@/data/mockStudioData';
+import { useStudioStages } from '@/hooks/useStudioStore';
+import { WorkflowStage } from '@/data/mockStudioData';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { AddStageDialog } from '@/components/studio/AddStageDialog';
 
 export default function WorkflowBuilder() {
-  const [stages, setStages] = useState<WorkflowStage[]>(mockWorkflowStages);
+  const { stages, addStage, removeStage, reorderStages, updateStage } = useStudioStages();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<WorkflowStage>>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
 
   const handleEdit = (stage: WorkflowStage) => {
     setEditingId(stage.id);
@@ -34,12 +38,11 @@ export default function WorkflowBuilder() {
 
   const handleSaveEdit = () => {
     if (!editingId) return;
-    setStages(prev => prev.map(s => 
-      s.id === editingId ? { ...s, ...editForm } as WorkflowStage : s
-    ));
+    updateStage(editingId, editForm);
     setEditingId(null);
     setEditForm({});
     setHasChanges(true);
+    toast.success('Stage updated');
   };
 
   const handleCancelEdit = () => {
@@ -47,10 +50,8 @@ export default function WorkflowBuilder() {
     setEditForm({});
   };
 
-  const handleToggleMandatory = (id: string) => {
-    setStages(prev => prev.map(s => 
-      s.id === id ? { ...s, mandatory: !s.mandatory } : s
-    ));
+  const handleToggleMandatory = (id: string, current: boolean) => {
+    updateStage(id, { mandatory: !current });
     setHasChanges(true);
   };
 
@@ -61,13 +62,18 @@ export default function WorkflowBuilder() {
     setHasChanges(false);
   };
 
+  const handleAddStage = (name: string, description: string) => {
+    addStage(name, description);
+    toast.success('Stage added');
+  };
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Workflow className="h-6 w-6 text-primary" />
+            <WorkflowIcon className="h-6 w-6 text-primary" />
             Workflow Builder
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -101,7 +107,7 @@ export default function WorkflowBuilder() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Processing Stages</CardTitle>
-            <Button variant="outline" size="sm" className="gap-1.5">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setAddDialogOpen(true)}>
               <Plus className="h-4 w-4" />
               Add Stage
             </Button>
@@ -194,7 +200,7 @@ export default function WorkflowBuilder() {
                       <Label className="text-xs text-muted-foreground">Mandatory</Label>
                       <Switch
                         checked={stage.mandatory}
-                        onCheckedChange={() => handleToggleMandatory(stage.id)}
+                        onCheckedChange={() => handleToggleMandatory(stage.id, stage.mandatory)}
                       />
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(stage)}>
@@ -213,6 +219,12 @@ export default function WorkflowBuilder() {
           </p>
         </CardContent>
       </Card>
+
+      <AddStageDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onAdd={handleAddStage}
+      />
     </div>
   );
 }

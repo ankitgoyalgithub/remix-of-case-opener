@@ -32,6 +32,7 @@ import {
   FileStack,
   Database,
   Brain,
+  Link2,
   ClipboardCheck,
   Mail,
 } from 'lucide-react';
@@ -58,6 +59,7 @@ const advancedMenuItems = [
   { title: 'Document Catalog', url: '/studio/documents', icon: FileStack, description: 'Define document types' },
   { title: 'Fields to Extract', url: '/studio/extraction', icon: Database, description: 'Configure AI fields' },
   { title: 'AI Notes', url: '/studio/ai-instructions', icon: Brain, description: 'Extraction guidance' },
+  { title: 'Cross-Validation', url: '/studio/cv-rules', icon: Link2, description: 'Define matching rules' },
   { title: 'Stage Checklist', url: '/studio/checklists', icon: ClipboardCheck, description: 'Stage checklists' },
   { title: 'Email Templates', url: '/studio/emails', icon: Mail, description: 'Notification templates' },
   { title: 'Settings', url: '/studio/settings', icon: Settings, description: 'Global settings' },
@@ -76,49 +78,50 @@ export default function AIStudioLayout() {
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] -z-10 pointer-events-none" />
 
             {/* Top Bar: Cinematic Navigator */}
-            <div className="h-16 border-b border-border/50 bg-card/60 backdrop-blur-xl flex items-center px-6 gap-6 relative z-10 sticky top-0">
-              <SidebarTrigger className="hover:bg-primary/5 text-primary" />
+            <div className="h-16 border-b border-border/50 bg-card/60 backdrop-blur-xl flex items-center px-4 md:px-6 gap-3 md:gap-6 relative z-10 sticky top-0">
+              <SidebarTrigger className="hover:bg-primary/5 text-primary h-9 w-9" />
 
               <Link to="/requests">
-                <Button variant="ghost" size="sm" className="gap-2.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl px-4 py-2 transition-all">
+                <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl px-2 md:px-4 py-2 transition-all">
                   <ArrowLeft className="h-4 w-4" />
-                  <span className="text-xs font-bold tracking-tight">EXIT STUDIO</span>
+                  <span className="text-[10px] md:text-xs font-bold tracking-tight">EXIT</span>
                 </Button>
               </Link>
 
               <div className="flex-1" />
 
               {/* Mode Control Group */}
-              <div className="flex items-center gap-6 glass-card px-4 py-1.5 rounded-2xl border-primary/10">
-                <div className="flex items-center gap-3">
-                  <span className={cn("text-[10px] font-bold tracking-wider transition-colors", !isAdvanced ? "text-primary" : "text-muted-foreground")}>STANDARD</span>
+              <div className="flex items-center gap-2 md:gap-6 glass-card px-2 md:px-4 py-1.5 rounded-2xl border-primary/10 overflow-hidden">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <span className={cn("text-[8px] md:text-[10px] font-bold tracking-wider transition-colors hidden xs:block", !isAdvanced ? "text-primary" : "text-muted-foreground")}>STANDARD</span>
                   <Switch
                     checked={isAdvanced}
                     onCheckedChange={setIsAdvanced}
-                    className="data-[state=checked]:bg-primary"
+                    className="data-[state=checked]:bg-primary h-5 w-9 md:h-6 md:w-11"
                   />
-                  <span className={cn("text-[10px] font-bold tracking-wider transition-colors", isAdvanced ? "text-primary" : "text-muted-foreground")}>ADVANCED</span>
+                  <span className={cn("text-[8px] md:text-[10px] font-bold tracking-wider transition-colors hidden xs:block", isAdvanced ? "text-primary" : "text-muted-foreground")}>ADVANCED</span>
                 </div>
 
-                <Separator orientation="vertical" className="h-4 bg-border/50" />
+                <Separator orientation="vertical" className="h-4 bg-border/50 hidden sm:block" />
 
-                <Badge variant="outline" className="gap-2 py-1 px-3 bg-success/5 border-success/20 text-success text-[10px] font-bold rounded-lg group hover:bg-success/10 transition-colors">
-                  <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                  SYSTEM LIVE
-                  <Sparkles className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
+                <Badge variant="outline" className="gap-2 py-0.5 md:py-1 px-2 md:px-3 bg-success/5 border-success/20 text-success text-[8px] md:text-[10px] font-bold rounded-lg group hover:bg-success/10 transition-colors whitespace-nowrap">
+                  <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-success animate-pulse" />
+                  <span className="hidden xs:inline">SYSTEM LIVE</span>
+                  <span className="xs:hidden">LIVE</span>
+                  <Sparkles className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity ml-1 hidden md:block" />
                 </Badge>
               </div>
 
-              <div className="w-px h-6 bg-border/50 mx-2" />
+              <div className="w-px h-6 bg-border/50 mx-1 md:mx-2 hidden sm:block" />
 
-              <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl border-border/50 hover:bg-muted">
+              <Button variant="outline" size="icon" className="h-8 w-8 md:h-9 md:w-9 rounded-xl border-border/50 hover:bg-muted shrink-0">
                 <Settings className="h-4 w-4 text-muted-foreground" />
               </Button>
             </div>
 
             {/* Content Area */}
             <div className="flex-1 overflow-auto relative z-0">
-              <div className="max-w-[1400px] mx-auto min-h-full">
+              <div className="max-w-[1400px] xl:max-w-[1600px] w-full mx-auto min-h-full p-4 md:p-6 lg:p-8">
                 <Outlet />
               </div>
             </div>

@@ -94,37 +94,41 @@ function RuleResultRow({ rule }: { rule: ChecklistRuleResult }) {
       </div>
 
       {(rule.source_value !== null || rule.target_value !== null) && (
-        <div className="flex items-center gap-2 pl-7">
-          <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 min-w-0 border border-border/40">
-            <div className="flex justify-between items-center mb-0.5">
-               <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground truncate max-w-[100px]">
-                 {rule.source_doc_type?.replace(/-/g, ' ') || 'Source'}
-               </p>
-               {rule.source_field && (
-                 <p className="text-[9px] font-bold text-muted-foreground truncate pl-1">
-                   ({rule.source_field})
+        <div className="flex flex-col gap-2 pl-0 sm:pl-7">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 min-w-0 border border-border/40">
+              <div className="flex justify-between items-center mb-1">
+                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground truncate">
+                   {rule.source_doc_type?.replace(/-/g, ' ') || 'Source'}
                  </p>
-               )}
+              </div>
+              <div className="flex items-center gap-1.5 mb-1">
+                 <Badge variant="outline" className="text-[8px] h-3.5 px-1 bg-primary/5 text-primary border-primary/20 font-bold">
+                   {rule.source_field || 'Unknown Field'}
+                 </Badge>
+              </div>
+              <p className="text-xs font-bold text-foreground truncate">
+                {rule.source_value ?? <span className="text-muted-foreground italic">Not found</span>}
+              </p>
             </div>
-            <p className="text-xs font-bold text-foreground truncate">
-              {rule.source_value ?? <span className="text-muted-foreground italic">Not found</span>}
-            </p>
-          </div>
-          <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
-          <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 min-w-0 border border-border/40">
-            <div className="flex justify-between items-center mb-0.5">
-               <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground truncate max-w-[100px]">
-                 {rule.target_doc_type?.replace(/-/g, ' ') || 'Target'}
-               </p>
-               {rule.target_field && (
-                 <p className="text-[9px] font-bold text-muted-foreground truncate pl-1">
-                   ({rule.target_field})
+            <div className="flex items-center justify-center sm:block">
+              <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0 rotate-90 sm:rotate-0" />
+            </div>
+            <div className="flex-1 bg-muted/30 rounded-lg px-2.5 py-1.5 min-w-0 border border-border/40">
+              <div className="flex justify-between items-center mb-1">
+                 <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground truncate">
+                   {rule.target_doc_type?.replace(/-/g, ' ') || 'Target'}
                  </p>
-               )}
+              </div>
+              <div className="flex items-center gap-1.5 mb-1">
+                 <Badge variant="outline" className="text-[8px] h-3.5 px-1 bg-purple-500/5 text-purple-600 border-purple-500/20 font-bold">
+                   {rule.target_field || 'Unknown Field'}
+                 </Badge>
+              </div>
+              <p className="text-xs font-bold text-foreground truncate">
+                {rule.target_value ?? <span className="text-muted-foreground italic">Not found</span>}
+              </p>
             </div>
-            <p className="text-xs font-bold text-foreground truncate">
-              {rule.target_value ?? <span className="text-muted-foreground italic">Not found</span>}
-            </p>
           </div>
         </div>
       )}
@@ -145,17 +149,25 @@ function ExpectedRuleRow({ rule }: { rule: any }) {
           <span className="font-semibold text-foreground truncate">{rule.source_field} ↔ {rule.target_field}</span>
         </div>
       </div>
-      <div className="flex items-center gap-2 pl-5.5">
-        <div className="flex-1 bg-muted/40 rounded-lg px-2.5 py-1.5 min-w-0">
-           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pl-0 sm:pl-5.5">
+        <div className="flex-1 bg-muted/40 rounded-lg px-2.5 py-1.5 min-w-0 border border-border/30">
+           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">
              {rule.source_doc_type?.replace(/-/g, ' ') || 'Source'}
            </p>
+           <Badge variant="outline" className="text-[8px] h-3.5 px-1 bg-primary/5 text-primary border-primary/20 font-bold truncate block w-fit">
+             {rule.source_field}
+           </Badge>
         </div>
-        <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
-        <div className="flex-1 bg-muted/40 rounded-lg px-2.5 py-1.5 min-w-0">
-           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-0.5">
+        <div className="flex items-center justify-center sm:block">
+          <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0 rotate-90 sm:rotate-0" />
+        </div>
+        <div className="flex-1 bg-muted/40 rounded-lg px-2.5 py-1.5 min-w-0 border border-border/30">
+           <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">
              {rule.target_doc_type?.replace(/-/g, ' ') || 'Target'}
            </p>
+           <Badge variant="outline" className="text-[8px] h-3.5 px-1 bg-purple-500/5 text-purple-600 border-purple-500/20 font-bold truncate block w-fit">
+             {rule.target_field}
+           </Badge>
         </div>
       </div>
     </div>

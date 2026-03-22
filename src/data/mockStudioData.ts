@@ -49,9 +49,11 @@ export interface ChecklistDefinition {
   stageId: number | string;
   name: string;
   required: boolean;
+  itemType: 'extraction' | 'verification' | 'cross-validation' | 'third-party-api' | 'manual';
   linkedDocuments: DocumentType[];
-  autoCheckRule: 'document-present' | 'field-extracted' | 'manual';
+  autoCheckRule: 'document-present' | 'field-extracted' | 'cross-validation' | 'manual';
   manualOverrideAllowed: boolean;
+  cross_validation_rules?: any[];
 }
 
 export interface EmailTemplate {
@@ -170,13 +172,13 @@ RULES:
 
 // Mock checklist definitions
 export const mockChecklistDefinitions: ChecklistDefinition[] = [
-  { id: 'cd-1', stageId: 1, name: 'Census uploaded', required: true, linkedDocuments: ['census'], autoCheckRule: 'document-present', manualOverrideAllowed: false },
-  { id: 'cd-2', stageId: 1, name: 'Trade License uploaded', required: true, linkedDocuments: ['trade-license'], autoCheckRule: 'document-present', manualOverrideAllowed: false },
-  { id: 'cd-3', stageId: 1, name: 'Customer Signed Quote uploaded', required: true, linkedDocuments: ['customer-signed-quote'], autoCheckRule: 'document-present', manualOverrideAllowed: false },
-  { id: 'cd-4', stageId: 2, name: 'Trade License validated', required: true, linkedDocuments: ['trade-license'], autoCheckRule: 'field-extracted', manualOverrideAllowed: true },
-  { id: 'cd-5', stageId: 2, name: 'Establishment Card validated', required: true, linkedDocuments: ['establishment-card'], autoCheckRule: 'field-extracted', manualOverrideAllowed: true },
-  { id: 'cd-6', stageId: 3, name: 'MOL List verified', required: true, linkedDocuments: ['mol-list'], autoCheckRule: 'field-extracted', manualOverrideAllowed: true },
-  { id: 'cd-7', stageId: 3, name: 'Mismatch resolved or accepted', required: true, linkedDocuments: [], autoCheckRule: 'manual', manualOverrideAllowed: true },
+  { id: 'cd-1', stageId: 1, name: 'Census uploaded', required: true, itemType: 'extraction', linkedDocuments: ['census'], autoCheckRule: 'document-present', manualOverrideAllowed: false },
+  { id: 'cd-2', stageId: 1, name: 'Trade License uploaded', required: true, itemType: 'extraction', linkedDocuments: ['trade-license'], autoCheckRule: 'document-present', manualOverrideAllowed: false },
+  { id: 'cd-3', stageId: 1, name: 'Customer Signed Quote uploaded', required: true, itemType: 'extraction', linkedDocuments: ['customer-signed-quote'], autoCheckRule: 'document-present', manualOverrideAllowed: false },
+  { id: 'cd-4', stageId: 2, name: 'Trade License validated', required: true, itemType: 'verification', linkedDocuments: ['trade-license'], autoCheckRule: 'field-extracted', manualOverrideAllowed: true },
+  { id: 'cd-5', stageId: 2, name: 'Establishment Card validated', required: true, itemType: 'verification', linkedDocuments: ['establishment-card'], autoCheckRule: 'field-extracted', manualOverrideAllowed: true },
+  { id: 'cd-6', stageId: 3, name: 'MOL List verified', required: true, itemType: 'verification', linkedDocuments: ['mol-list'], autoCheckRule: 'field-extracted', manualOverrideAllowed: true },
+  { id: 'cd-7', stageId: 3, name: 'Mismatch resolved or accepted', required: true, itemType: 'manual', linkedDocuments: [], autoCheckRule: 'manual', manualOverrideAllowed: true },
 ];
 
 // Mock email templates

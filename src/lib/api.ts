@@ -124,5 +124,17 @@ export const api = {
             update: (id: string, data: any) => fetchApi(`/studio/checklists/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
             delete: (id: string) => fetchApi(`/studio/checklists/${id}/`, { method: 'DELETE' }),
         },
+        cvRules: {
+            list: () => fetchApi('/studio/cv-rules/'),
+            create: (data: any) => fetchApi('/studio/cv-rules/', { method: 'POST', body: JSON.stringify(data) }),
+            update: (id: string | number, data: any) => fetchApi(`/studio/cv-rules/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+            delete: (id: string | number) => fetchApi(`/studio/cv-rules/${id}/`, { method: 'DELETE' }),
+        },
+        fieldMatchRules: {
+            list: () => fetchApi('/studio/field-match-rules/'),
+            create: (data: any) => fetchApi('/studio/field-match-rules/', { method: 'POST', body: JSON.stringify(data) }),
+            update: (id: string | number, data: any) => fetchApi(`/studio/field-match-rules/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+            delete: (id: string | number) => fetchApi(`/studio/field-match-rules/${id}/`, { method: 'DELETE' }),
+        },
     }
 };

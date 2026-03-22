@@ -23,6 +23,7 @@ import DocumentCatalog from "./pages/studio/DocumentCatalog";
 import ExtractionSchema from "./pages/studio/ExtractionSchema";
 import AIInstructions from "./pages/studio/AIInstructions";
 import ChecklistBuilder from "./pages/studio/ChecklistBuilder";
+import CrossValidationRules from "./pages/studio/CrossValidationRules";
 import EmailTemplates from "./pages/studio/EmailTemplates";
 import StudioSettings from "./pages/studio/StudioSettings";
 
@@ -61,6 +62,7 @@ const App = () => (
               <Route path="documents" element={<DocumentCatalog />} />
               <Route path="extraction" element={<ExtractionSchema />} />
               <Route path="ai-instructions" element={<AIInstructions />} />
+              <Route path="cv-rules" element={<CrossValidationRules />} />
               <Route path="checklists" element={<ChecklistBuilder />} />
               <Route path="emails" element={<EmailTemplates />} />
 

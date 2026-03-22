@@ -187,34 +187,36 @@ export default function RequestsInbox() {
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Header */}
-      <div className="bg-card border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
+      <div className="bg-card border-b border-border px-4 md:px-6 py-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
               <Inbox className="h-5 w-5 text-primary" />
             </div>
             <div>
               <h1 className="text-xl font-semibold">Requests Inbox</h1>
-              <p className="text-sm text-muted-foreground">SME Health Policy Issuance Requests</p>
+              <p className="text-sm text-muted-foreground hidden xs:block">SME Health Policy Issuance Requests</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <SlaRiskNotification
-              amberCount={slaRisk.amber}
-              redCount={slaRisk.red}
-              onClick={() => {/* Could filter to show only at-risk requests */ }}
-            />
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+            <div className="hidden xs:block">
+              <SlaRiskNotification
+                amberCount={slaRisk.amber}
+                redCount={slaRisk.red}
+                onClick={() => {/* Could filter to show only at-risk requests */ }}
+              />
+            </div>
             <Link to="/studio">
               <Button variant="outline" size="sm" className="gap-2">
                 <Sparkles className="h-4 w-4" />
-                AI Ops Studio
+                <span className="hidden sm:inline">AI Ops Studio</span>
               </Button>
             </Link>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2 relative">
                   <Filter className="h-4 w-4" />
-                  Filter
+                  <span className="hidden sm:inline">Filter</span>
                   {(statusFilter.length > 0 || priorityFilter.length > 0) && (
                     <span className="absolute -top-1 -right-1 flex h-3 w-3">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -269,14 +271,14 @@ export default function RequestsInbox() {
               disabled={loading}
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Refresh
+              <span className="hidden lg:inline">Refresh</span>
             </Button>
             
             <Dialog open={isNewRequestOpen} onOpenChange={setIsNewRequestOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="gap-2 bg-primary hover:bg-primary/90">
                   <Plus className="h-4 w-4" />
-                  New Request
+                  <span className="hidden sm:inline">New Request</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
@@ -323,76 +325,101 @@ export default function RequestsInbox() {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="bg-card rounded-lg border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[140px]">Request ID</TableHead>
-                <TableHead>Company Name</TableHead>
-                <TableHead>Broker Name</TableHead>
-                <TableHead className="w-[80px] text-center">Age</TableHead>
-                <TableHead className="w-[130px]">SLA Remaining</TableHead>
-                <TableHead>Current Stage</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Queue</TableHead>
-                <TableHead>Owner</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading && requests.length === 0 ? (
+      <div className="flex-1 overflow-auto p-3 sm:p-6">
+        <div className="bg-card rounded-lg border border-border overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 opacity-50" />
-                    Loading requests...
-                  </TableCell>
+                  <TableHead className="w-[120px] md:w-[140px]">Request ID</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead className="hidden lg:table-cell">Broker</TableHead>
+                  <TableHead className="w-[60px] md:w-[80px] text-center hidden sm:table-cell">Age</TableHead>
+                  <TableHead className="w-[110px] md:w-[130px]">SLA</TableHead>
+                  <TableHead className="hidden md:table-cell">Stage</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="hidden xl:table-cell">Queue</TableHead>
+                  <TableHead className="hidden sm:table-cell">Owner</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
-              ) : filteredRequests.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="h-32 text-center text-muted-foreground">
-                    No requests found matching your filters.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredRequests.map((request) => (
-                  <TableRow
-                    key={request.id}
-                    className={getRowClassName(request)}
-                    onClick={() => handleRowClick(request.id)}
-                  >
-                    <TableCell className="font-medium text-primary hover:underline">
-                      <div className="flex items-center gap-2">
-                        {request.smartId || request.id}
-                        {getPriorityBadge(request.priority)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{request.companyName}</TableCell>
-                    <TableCell className="text-muted-foreground">{request.brokerName}</TableCell>
-                    <TableCell className="text-center text-muted-foreground">{request.age}d</TableCell>
-                    <TableCell>{getSlaStatusBadge(request.slaStatus, request.slaRemaining, request.slaTargetHours)}</TableCell>
-                    <TableCell className="text-muted-foreground">{request.currentStage}</TableCell>
-                    <TableCell>{getStatusBadge(request.status)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{request.queue}</TableCell>
-                    <TableCell className={cn(
-                      request.owner === 'Unassigned' ? 'text-muted-foreground italic' : ''
-                    )}>
-                      {request.owner}
-                    </TableCell>
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                        onClick={(e) => handleDeleteRequest(e, request.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+              </TableHeader>
+              <TableBody>
+                {loading && requests.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
+                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 opacity-50" />
+                      Loading requests...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : filteredRequests.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="h-32 text-center text-muted-foreground">
+                      No requests found matching your filters.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredRequests.map((request) => (
+                    <TableRow
+                      key={request.id}
+                      className={getRowClassName(request)}
+                      onClick={() => handleRowClick(request.id)}
+                    >
+                      <TableCell className="font-medium text-primary hover:underline">
+                        <div className="flex flex-col gap-1">
+                          <span className="truncate">{request.smartId || request.id}</span>
+                          {request.priority === 'Urgent' && (
+                            <div className="sm:hidden">
+                               {getPriorityBadge(request.priority)}
+                            </div>
+                          )}
+                          <div className="sm:hidden">
+                             {getSlaStatusBadge(request.slaStatus, request.slaRemaining, request.slaTargetHours)}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                           <span>{request.companyName}</span>
+                           <span className="text-[10px] text-muted-foreground lg:hidden">
+                             {request.brokerName}
+                           </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground hidden lg:table-cell">{request.brokerName}</TableCell>
+                      <TableCell className="text-center text-muted-foreground hidden sm:table-cell">{request.age}d</TableCell>
+                      <TableCell className="hidden sm:table-cell">{getSlaStatusBadge(request.slaStatus, request.slaRemaining, request.slaTargetHours)}</TableCell>
+                      <TableCell className="text-muted-foreground hidden md:table-cell">{request.currentStage}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          {getStatusBadge(request.status)}
+                          <span className="text-[10px] text-muted-foreground md:hidden">
+                            {request.currentStage}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground hidden xl:table-cell">{request.queue}</TableCell>
+                      <TableCell className={cn(
+                        "hidden sm:table-cell",
+                        request.owner === 'Unassigned' ? 'text-muted-foreground italic' : ''
+                      )}>
+                        {request.owner}
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                          onClick={(e) => handleDeleteRequest(e, request.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </div>
     </div>

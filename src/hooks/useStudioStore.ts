@@ -60,18 +60,32 @@ export function useStudioStages() {
   }, []);
 
   const addStage = useCallback((name: string, description: string) => {
+    const tempId = `temp-${Date.now()}`;
+    let maxOrder = 0;
+    
     setStagesState(prev => {
-      const maxOrder = prev.reduce((max, s) => Math.max(max, s.order), 0);
-      const tempId = `temp-${Date.now()}`;
+      maxOrder = prev.reduce((max, s) => Math.max(max, s.order), 0);
       const newStage: WorkflowStage = { id: tempId, name, description, order: maxOrder + 1, mandatory: false };
-
-      import('@/lib/api').then(({ api }) => {
-        api.studio.stages.create({ name, description, order: maxOrder + 1, mandatory: false })
-          .then(saved => {
-            setStagesState(current => current.map(s => s.id === tempId ? { ...saved, slaHours: saved.sla_hours } : s))
-          });
-      });
       return [...prev, newStage];
+    });
+
+    // Side effect: API call moved outside of setState callback
+    import('@/lib/api').then(({ api }) => {
+      api.studio.stages.create({
+        name,
+        description,
+        order: maxOrder + 1,
+        mandatory: false,
+        workflow: 2 // Assign to Standard Insurance Intake (ID 2)
+      })
+      .then(saved => {
+        setStagesState(current => current.map(s => s.id === tempId ? { ...saved, slaHours: saved.sla_hours } : s));
+      })
+      .catch(err => {
+        console.error('Failed to create stage:', err);
+        // Rollback on error
+        setStagesState(current => current.filter(s => s.id !== tempId));
+      });
     });
   }, []);
 

@@ -87,26 +87,27 @@ export default function SetupWizard() {
       </div>
 
       {/* Navigation: Corporate Command Bar */}
-      <div className="flex items-center justify-between glass px-8 py-5 rounded-3xl border-primary/10 bg-card/40 shadow-xl">
+      <div className="flex items-center justify-between glass px-4 md:px-8 py-4 md:py-5 rounded-3xl border-primary/10 bg-card/40 shadow-xl gap-2">
         <Button
           variant="outline"
           onClick={handlePrev}
           disabled={currentStep === 1}
-          className="gap-3 h-12 px-6 rounded-2xl border-border/50 hover:bg-primary/5 hover:text-primary transition-all font-bold text-xs tracking-wider"
+          className="gap-2 md:gap-3 h-10 md:h-12 px-3 md:px-6 rounded-xl md:rounded-2xl border-border/50 hover:bg-primary/5 hover:text-primary transition-all font-bold text-[10px] md:text-xs tracking-wider shrink-0"
         >
-          <ArrowLeft className="h-4 w-4" />
-          PREVIOUS STEP
+          <ArrowLeft className="h-3 md:h-4 w-3 md:w-4" />
+          <span className="hidden xs:inline">PREVIOUS STEP</span>
+          <span className="xs:hidden">PREV</span>
         </Button>
 
-        <div className="flex flex-col items-center gap-1">
-          <span className="text-[10px] font-black tracking-[0.2em] text-primary/40 uppercase">Progress</span>
-          <div className="flex gap-1.5">
+        <div className="flex flex-col items-center gap-1 shrink-0">
+          <span className="text-[8px] md:text-[10px] font-black tracking-[0.2em] text-primary/40 uppercase hidden sm:block">Progress</span>
+          <div className="flex gap-1 md:gap-1.5">
             {wizardSteps.map((s) => (
               <div
                 key={s.id}
                 className={cn(
                   "h-1 rounded-full transition-all duration-500",
-                  s.id === currentStep ? "w-8 bg-primary" : "w-2 bg-muted/50"
+                  s.id === currentStep ? "w-6 md:w-8 bg-primary" : "w-1.5 md:w-2 bg-muted/50"
                 )}
               />
             ))}
@@ -116,13 +117,14 @@ export default function SetupWizard() {
         {currentStep < wizardSteps.length ? (
           <Button
             onClick={handleNext}
-            className="gap-3 h-12 px-8 rounded-2xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 font-bold text-xs tracking-wider"
+            className="gap-2 md:gap-3 h-10 md:h-12 px-4 md:px-8 rounded-xl md:rounded-2xl bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 font-bold text-[10px] md:text-xs tracking-wider shrink-0"
           >
-            NEXT PHASE
-            <ArrowRight className="h-4 w-4" />
+            <span className="hidden xs:inline">NEXT PHASE</span>
+            <span className="xs:hidden">NEXT</span>
+            <ArrowRight className="h-3 md:h-4 w-3 md:w-4" />
           </Button>
         ) : (
-          <div className="w-[140px]" /> // Spacing for balance
+          <div className="w-[80px] md:w-[140px]" /> // Spacing for balance
         )}
       </div>
 

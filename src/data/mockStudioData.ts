@@ -9,6 +9,7 @@ export interface WorkflowStage {
   order: number;
   mandatory: boolean;
   slaHours?: number;
+  documents?: string[]; // Array of document doc_type strings
 }
 
 export interface DocumentDefinition {

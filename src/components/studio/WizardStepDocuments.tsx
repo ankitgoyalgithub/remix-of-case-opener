@@ -45,14 +45,22 @@ interface WizardStepDocumentsProps {
 }
 
 export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocumentsProps) {
-  const { documents, addDocument, updateDocument, removeDocument } = useStudioDocuments();
-  const { stages } = useStudioStages();
-  const [selectedStage, setSelectedStage] = useState(stages[0]?.order ?? 1);
+  const { documents, addDocument, removeDocument } = useStudioDocuments();
+  const { stages, updateStage } = useStudioStages();
+  const [selectedStageId, setSelectedStageId] = useState<string | null>(stages[0]?.id || null);
   const [searchQuery, setSearchQuery] = useState('');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [detachConfirm, setDetachConfirm] = useState<string | null>(null);
 
-  const stageDocuments = documents;
+  // Sync selectedStageId if it's null and stages load
+  if (!selectedStageId && stages.length > 0) {
+    setSelectedStageId(stages[0].id);
+  }
+
+  const currentStage = stages.find(s => s.id === selectedStageId);
+  const stageDocumentTypes = currentStage?.documents || [];
+  
+  const stageDocuments = documents.filter(doc => stageDocumentTypes.includes(doc.type));
 
   const filteredDocuments = stageDocuments.filter(doc =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -62,19 +70,33 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
   const optionalDocs = filteredDocuments.filter(d => !d.mandatory);
 
   const handleAttachExisting = (doc: DocumentDefinition) => {
-    // Documents are now case-level; just confirm to user
-    toast.success(`${doc.name} is available across all stages`);
+    if (!selectedStageId || !currentStage) return;
+    
+    const updatedDocs = [...stageDocumentTypes, doc.type];
+    updateStage(selectedStageId, { documents: updatedDocs });
+    toast.success(`${doc.name} attached to ${currentStage.name}`);
   };
 
   const handleCreateNew = (docData: Omit<DocumentDefinition, 'id'>) => {
-    addDocument(docData);
+    // Add document globally first
+    addDocument({ ...docData });
+    
+    // Also attach to current stage
+    if (selectedStageId && currentStage) {
+      const updatedDocs = [...stageDocumentTypes, docData.type];
+      updateStage(selectedStageId, { documents: updatedDocs });
+    }
+    
     toast.success(`${docData.name} created and attached`);
   };
 
-  const handleDetach = (docId: string) => {
-    removeDocument(docId);
+  const handleDetach = (docType: string) => {
+    if (!selectedStageId || !currentStage) return;
+    
+    const updatedDocs = stageDocumentTypes.filter(t => t !== docType);
+    updateStage(selectedStageId, { documents: updatedDocs });
     setDetachConfirm(null);
-    toast.success('Document definition removed');
+    toast.success('Document detached from stage');
   };
 
   const docToDetach = documents.find(d => d.id === detachConfirm);
@@ -117,7 +139,7 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 rounded-lg text-destructive hover:bg-destructive/10 transition-all"
-                onClick={() => setDetachConfirm(doc.id)}
+                onClick={() => setDetachConfirm(doc.type)}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -145,12 +167,12 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
           </div>
           <div className="flex-1 overflow-auto pr-2 space-y-1.5 custom-scrollbar">
             {stages.map(stage => {
-              const count = documents.length;
-              const isSelected = selectedStage === stage.order;
+              const count = stage.documents?.length || 0;
+              const isSelected = selectedStageId === stage.id;
               return (
                 <button
                   key={stage.id}
-                  onClick={() => setSelectedStage(stage.order)}
+                  onClick={() => setSelectedStageId(stage.id)}
                   className={cn(
                     "w-full group text-left px-4 py-3.5 rounded-2xl transition-all duration-300 relative overflow-hidden active:scale-95",
                     isSelected
@@ -265,7 +287,7 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
         onOpenChange={setAddDialogOpen}
         allDocuments={documents}
         stageDocuments={stageDocuments}
-        selectedStage={selectedStage}
+        selectedStage={currentStage?.order || 1}
         onAttachExisting={handleAttachExisting}
         onCreateNew={handleCreateNew}
       />
@@ -275,9 +297,9 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl font-black tracking-tight">Detach Evidence Type</AlertDialogTitle>
             <AlertDialogDescription className="text-sm font-medium text-muted-foreground/80 leading-relaxed">
-              Are you sure you want to remove <span className="text-foreground font-bold italic">"{docToDetach?.name}"</span> from the document catalog?
+              Are you sure you want to remove <span className="text-foreground font-bold italic">"{documents.find(d => d.type === detachConfirm)?.name || detachConfirm}"</span> from this stage?
               <br />
-              {' This definition will be permanently deleted.'}
+              {' This will not delete the document definition from the library.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 pt-4">

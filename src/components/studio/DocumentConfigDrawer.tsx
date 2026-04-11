@@ -145,29 +145,24 @@ export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocu
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[540px] sm:max-w-[540px] overflow-y-auto">
-        <SheetHeader className="pb-4">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <FileText className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex flex-col items-start gap-1">
-                <SheetTitle className="text-left">{docDef.name}</SheetTitle>
-                <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs">{docDef.category}</Badge>
-                    {docDef.mandatory && <Badge className="bg-destructive/10 text-destructive border-0 text-xs">Required</Badge>}
-                </div>
+      <SheetContent className="w-[540px] sm:max-w-[540px] flex flex-col p-0">
+        <SheetHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-3 pr-8">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex flex-col items-start gap-1 min-w-0">
+              <SheetTitle className="text-left truncate">{docDef.name}</SheetTitle>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">{docDef.category}</Badge>
+                {docDef.mandatory && <Badge className="bg-destructive/10 text-destructive border-0 text-xs">Required</Badge>}
               </div>
             </div>
-            <Button onClick={handleSave} disabled={saving} className="gap-2 shrink-0 h-9">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Save
-            </Button>
           </div>
         </SheetHeader>
 
-        <Tabs defaultValue="fields" className="mt-2">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <Tabs defaultValue="fields" className="mt-0">
           <TabsList className="w-full grid grid-cols-4">
             <TabsTrigger value="fields" className="text-sm gap-1.5 px-1 focus:outline-none">
               <Database className="h-3.5 w-3.5" />
@@ -459,6 +454,15 @@ export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocu
 
           </TabsContent>
         </Tabs>
+        </div>
+
+        {/* Sticky footer */}
+        <div className="shrink-0 px-6 py-4 border-t border-border bg-background">
+          <Button onClick={handleSave} disabled={saving} className="w-full gap-2">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save Configuration
+          </Button>
+        </div>
       </SheetContent>
     </Sheet>
   );

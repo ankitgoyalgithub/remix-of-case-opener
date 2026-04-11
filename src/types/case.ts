@@ -30,10 +30,12 @@ export interface CrossValidationRule {
 }
 
 export interface DocDef {
+  id: number | string;
   type: string;
   name: string;
   category: string;
   mandatory: boolean;
+  renewalOnly?: boolean;
   description?: string;
   aiInstructions?: string;
   hints?: string[];
@@ -141,10 +143,13 @@ export interface ChecklistItem {
   taskDetails?: string;
   isThirdPartyApi?: boolean;
   expectedCrossValidationRules?: any[];
+  verifications?: Array<{ id: string; type: string; handler?: string; config: any }>;
   cross_validation_rules?: CrossValidationRule[];
   cross_validation_rule_ids?: number[];
   crossValidationPairs?: CrossValidationPair[];
   apiConfig?: Record<string, any>;
+  handlerName?: string;
+  configPayload?: Record<string, any>;
   result?: ChecklistValidationResult | null;
 }
 

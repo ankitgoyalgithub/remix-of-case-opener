@@ -62,30 +62,20 @@ export function CaseStepper({ stages, currentStage, onStageClick }: CaseStepperP
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">
-            {stages.filter(s => s.status === 'complete').length}/{stages.length} complete
+      <div className="flex items-center gap-4">
+        <div className="flex items-center shrink-0">
+          <span className="text-xs text-muted-foreground font-medium whitespace-nowrap bg-muted/30 px-2 py-1 rounded-full">
+            {stages.filter(s => s.status === 'complete').length}/{stages.length} done
           </span>
         </div>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
           {stages.map((stage, index) => {
             const isActive = currentStage === stage.id;
             const helperText = STAGE_HELPER_TEXT[stage.id];
 
             return (
-              <div key={stage.id} className="relative">
-                {/* Connector line */}
-                {index < stages.length - 1 && (
-                  <div
-                    className={cn(
-                      "absolute left-[0.9rem] top-[2.5rem] w-0.5 h-3 -translate-x-1/2 z-0",
-                      stage.status === 'complete' ? 'bg-success/50' : 'bg-border'
-                    )}
-                  />
-                )}
-
+              <div key={stage.id} className="relative flex items-center shrink-0">
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div
@@ -98,33 +88,40 @@ export function CaseStepper({ stages, currentStage, onStageClick }: CaseStepperP
                       <div className={getIconStyles(stage, isActive)}>
                         {getStageIcon(stage)}
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="min-w-0">
                         <p className={cn(
-                          "text-sm font-medium truncate",
+                          "text-xs font-medium truncate whitespace-nowrap",
                           isActive && "text-primary font-semibold"
                         )}>
                           {stage.name}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {stage.status === 'needs-review' && !isActive && (
-                          <span className="text-xs bg-warning/20 text-warning-foreground px-1.5 py-0.5 rounded">
+                      
+                      {stage.status === 'needs-review' && !isActive && (
+                        <div className="flex items-center gap-1.5 shrink-0 ml-1">
+                          <span className="text-xs bg-warning/20 text-warning-foreground px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                             Review
                           </span>
-                        )}
-                        <ChevronRight className={cn(
-                          "h-4 w-4 transition-transform",
-                          isActive ? "text-primary rotate-90" : "text-muted-foreground group-hover:translate-x-0.5"
-                        )} />
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </TooltipTrigger>
                   {helperText && (
-                    <TooltipContent side="right" className="max-w-[200px]">
+                    <TooltipContent side="bottom" className="max-w-[200px]">
                       <p className="text-xs">{helperText}</p>
                     </TooltipContent>
                   )}
                 </Tooltip>
+
+                {/* Horizontal Connector line */}
+                {index < stages.length - 1 && (
+                  <div
+                    className={cn(
+                      "w-4 h-0.5 ml-2 rounded-full",
+                      stage.status === 'complete' ? 'bg-success/50' : 'bg-border/50'
+                    )}
+                  />
+                )}
               </div>
             );
           })}

@@ -85,7 +85,7 @@ export function GlobalHeader() {
                         <span className="text-base md:text-lg font-extrabold tracking-tight text-foreground leading-none">
                             INSURE<span className="text-primary italic">AUTO</span>
                         </span>
-                        <span className="text-[8px] md:text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase opacity-80 mt-1">
+                        <span className="text-[10px] md:text-xs font-bold tracking-[0.2em] text-muted-foreground uppercase opacity-80 mt-1">
                             Enterprise Operations
                         </span>
                     </div>
@@ -125,7 +125,7 @@ export function GlobalHeader() {
                                     <p className="text-sm font-bold leading-none text-foreground mb-1 truncate">
                                         {user?.first_name ? `${user.first_name} ${user.last_name}` : user?.username || 'System Administrator'}
                                     </p>
-                                    <p className="text-[11px] leading-none text-muted-foreground font-medium opacity-80 truncate">
+                                    <p className="text-sm leading-none text-muted-foreground font-medium opacity-80 truncate">
                                         {user?.email || 'admin@insureauto.com'}
                                     </p>
                                 </div>

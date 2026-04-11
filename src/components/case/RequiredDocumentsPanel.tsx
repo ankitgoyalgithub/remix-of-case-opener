@@ -1,7 +1,7 @@
 import React from 'react';
 import { Document, DocumentType, DOCUMENT_TYPE_LABELS } from '@/types/case';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Circle, FileText, Upload, Clock, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Circle, FileText, Upload, Clock, AlertCircle, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 
@@ -46,12 +46,12 @@ export function RequiredDocumentsPanel({
                         <FileText className="h-4 w-4" />
                         Required Documents
                     </h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">
                         {stats.uploaded} / {stats.total}
                     </span>
                 </div>
                 <div className="space-y-1.5">
-                    <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
+                    <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase">
                         <span>Overall Completion</span>
                         <span>{Math.round(stats.percentage)}%</span>
                     </div>
@@ -95,18 +95,27 @@ export function RequiredDocumentsPanel({
 
                                 <div className="flex flex-col min-w-0">
                                     <span className={cn(
-                                        "text-[11px] font-bold leading-tight truncate",
+                                        "text-sm font-bold leading-tight truncate",
                                         isUploaded ? "text-foreground" : "text-muted-foreground"
                                     )}>
                                         {DOCUMENT_TYPE_LABELS[type] || type}
                                     </span>
-                                    <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-tight">
+                                    <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-tight">
                                         {isUploaded ? (isProcessing ? 'Processing...' : 'Available') : 'Missing'}
                                     </span>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1 transition-opacity">
+                                {isUploaded && doc?.url && (
+                                    <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); window.open(doc.url, "_blank"); }}
+                                        className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
+                                    >
+                                        <Eye className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
                                 <label className="cursor-pointer h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors">
                                     <Upload className="h-3.5 w-3.5" />
                                     <input

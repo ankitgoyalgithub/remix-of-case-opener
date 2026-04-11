@@ -265,7 +265,9 @@ export function useStudioChecklist() {
           stageId: d.stage,
           linkedDocuments: d.linked_documents,
           autoCheckRule: d.auto_check_rule,
-          manualOverrideAllowed: d.manual_override_allowed
+          manualOverrideAllowed: d.manual_override_allowed,
+          handlerName: d.handler_name,
+          configPayload: d.config_payload
         })));
       });
     });
@@ -287,14 +289,18 @@ export function useStudioChecklist() {
         required: item.required,
         linked_documents: item.linkedDocuments,
         auto_check_rule: item.autoCheckRule,
-        manual_override_allowed: item.manualOverrideAllowed
+        manual_override_allowed: item.manualOverrideAllowed,
+        handler_name: item.handlerName,
+        config_payload: item.configPayload
       }).then(saved => {
         setItemsState(current => current.map(i => i.id === tempId ? {
           ...saved,
           stageId: saved.stage,
           linkedDocuments: saved.linked_documents,
           autoCheckRule: saved.auto_check_rule,
-          manualOverrideAllowed: saved.manual_override_allowed
+          manualOverrideAllowed: saved.manual_override_allowed,
+          handlerName: saved.handler_name,
+          configPayload: saved.config_payload
         } : i));
       });
     });
@@ -315,6 +321,8 @@ export function useStudioChecklist() {
       if (updates.linkedDocuments !== undefined) payload.linked_documents = updates.linkedDocuments;
       if (updates.autoCheckRule !== undefined) payload.auto_check_rule = updates.autoCheckRule;
       if (updates.manualOverrideAllowed !== undefined) payload.manual_override_allowed = updates.manualOverrideAllowed;
+      if (updates.handlerName !== undefined) payload.handler_name = updates.handlerName;
+      if (updates.configPayload !== undefined) payload.config_payload = updates.configPayload;
 
       import('@/lib/api').then(({ api }) => api.studio.checklists.update(id, payload));
     }

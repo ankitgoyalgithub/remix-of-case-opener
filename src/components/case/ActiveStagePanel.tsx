@@ -3,7 +3,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { Check, AlertCircle, Lock, AlertTriangle, CheckCircle2, FileText, Sparkles, ShieldCheck, ListTodo } from 'lucide-react';
+import { Check, AlertCircle, Lock, AlertTriangle, CheckCircle2, FileText, Sparkles, ShieldCheck, ListTodo, RefreshCw, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { getDocumentsForStage } from '@/lib/stageDocumentMapping';
 
@@ -26,6 +27,7 @@ interface ActiveStagePanelProps {
   onUploadDocument?: (file: globalThis.File, docType: DocumentType, checklistId?: string) => Promise<void>;
   selectedItemId?: string | null;
   onSelectItem?: (itemId: string) => void;
+  onRunValidation?: (itemId: string) => Promise<void>;
 }
 
 export function ActiveStagePanel({
@@ -39,8 +41,10 @@ export function ActiveStagePanel({
   docDefs,
   onUploadDocument,
   selectedItemId,
-  onSelectItem
+  onSelectItem,
+  onRunValidation
 }: ActiveStagePanelProps) {
+  const [runningItems, setRunningItems] = useState<Record<string, boolean>>({});
   const stageChecklist = checklist.filter(item => item.stageId === stage.id);
 
   const stageChecklistWithComputed = stageChecklist.map(item => {
@@ -55,10 +59,10 @@ export function ActiveStagePanel({
     if (stage.status === 'complete') {
       return { status: 'complete', message: 'Stage complete – all required validations passed' };
     }
-    if (stage.id === 5 && requiredIncomplete.length > 0) {
+    if (stage.id === 1 && requiredIncomplete.length > 0) {
       return { status: 'blocked', message: 'Final adjudication requires all tasks to be cleared.' };
     }
-    if (stage.id === 3 && workforceMismatch?.detected && !workforceMismatch?.accepted) {
+    if (stage.id === 1 && workforceMismatch?.detected && !workforceMismatch?.accepted) {
       return {
         status: 'warning',
         message: `Mismatch detected: MOL = ${workforceMismatch.molCount} employees, Census = ${workforceMismatch.censusCount} members`
@@ -144,7 +148,7 @@ export function ActiveStagePanel({
       {/* Checklist Items */}
       <div className="space-y-2">
         <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 opacity-70">
-          Operational Tasks
+          Checklist
         </p>
         {stageChecklistWithComputed.map((item) => {
           const isSelected = selectedItemId === item.id;
@@ -185,7 +189,7 @@ export function ActiveStagePanel({
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex items-center gap-1">
                         {getItemTypeIcon(item.itemType)}
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">
+                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">
                           {item.itemType}
                         </span>
                       </div>
@@ -193,11 +197,35 @@ export function ActiveStagePanel({
                   </div>
                 </div>
 
-                {!isChecked && item.required && (
-                  <Badge variant="outline" className="text-[9px] font-bold py-0 bg-destructive/5 text-destructive border-destructive/20 uppercase shrink-0">
-                    Action Required
-                  </Badge>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                  {( (item.handlerName && item.handlerName !== 'manual') || 
+                     item.itemType === 'cross-validation' || 
+                     item.verifications?.some(v => v.type !== 'manual') ) && onRunValidation && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        setRunningItems(prev => ({...prev, [item.id]: true}));
+                        try {
+                          await onRunValidation(item.id);
+                        } finally {
+                          setRunningItems(prev => ({...prev, [item.id]: false}));
+                        }
+                      }}
+                      disabled={runningItems[item.id]}
+                      title="Run Validation Logic"
+                    >
+                      {runningItems[item.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    </Button>
+                  )}
+                  {!isChecked && item.required && (
+                    <Badge variant="outline" className="text-[11px] font-bold py-0 bg-destructive/5 text-destructive border-destructive/20 uppercase shrink-0">
+                      Req
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
           );

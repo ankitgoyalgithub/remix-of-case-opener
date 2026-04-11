@@ -45,7 +45,7 @@ export function PhaseRail({ activePhase: activeStageId, onPhaseClick: onStageCli
     <TooltipProvider delayDuration={300}>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase">Operational Sequence</h3>
+          <h3 className="text-xs font-black tracking-[0.2em] text-muted-foreground uppercase">Operational Sequence</h3>
         </div>
 
         {/* "Full Timeline" option */}
@@ -59,7 +59,7 @@ export function PhaseRail({ activePhase: activeStageId, onPhaseClick: onStageCli
           )}
         >
           <div className={cn(
-            'flex items-center justify-center w-6 h-6 rounded-lg text-[10px] font-black shrink-0',
+            'flex items-center justify-center w-6 h-6 rounded-lg text-xs font-black shrink-0',
             activeStageId === null ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'
           )}>
             ALL
@@ -111,7 +111,7 @@ export function PhaseRail({ activePhase: activeStageId, onPhaseClick: onStageCli
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={cn(
-                          'text-[10px] font-black uppercase tracking-widest truncate',
+                          'text-xs font-black uppercase tracking-widest truncate',
                           isActive ? 'text-primary' : (status === 'complete' ? 'text-success/80' : 'text-muted-foreground')
                         )}>
                           {stage.label}
@@ -124,7 +124,7 @@ export function PhaseRail({ activePhase: activeStageId, onPhaseClick: onStageCli
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="right" className="max-w-[220px] rounded-xl border-border/50 shadow-xl bg-card">
-                    <p className="text-[10px] font-medium leading-relaxed">{stageHelperText[stage.id]}</p>
+                    <p className="text-xs font-medium leading-relaxed">{stageHelperText[stage.id]}</p>
                   </TooltipContent>
                 </Tooltip>
               </div>

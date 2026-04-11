@@ -12,26 +12,26 @@ interface ExtractedDataPanelProps {
 export function ExtractedDataPanel({ sections, isCompact }: ExtractedDataPanelProps) {
   return (
     <TooltipProvider>
-      <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
+      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
         {sections.map((section) => (
-          <div key={section.title} className="space-y-2">
+          <div key={section.title} className="space-y-3">
             {section.title && (
               <div className="flex items-center justify-between px-1">
-                <span className="text-[10px] font-black tracking-widest text-muted-foreground/60 uppercase">
+                <span className="text-xs font-semibold text-muted-foreground uppercase">
                   {section.title}
                 </span>
-                <Badge variant="outline" className="text-[9px] font-bold py-0 bg-primary/5 text-primary border-primary/20">
+                <Badge variant="secondary" className="text-xs">
                   {section.fields.filter(f => f.value).length}/{section.fields.length} FIELDS
                 </Badge>
               </div>
             )}
 
-            <div className="grid gap-1.5">
+            <div className="grid gap-2">
               {section.fields.map((field) => (
                 <ExtractedFieldRow
-                  key={`${field.documentId}-${field.label}`}
-                  field={field}
-                  isCompact={isCompact}
+                   key={`${field.documentId}-${field.label}`}
+                   field={field}
+                   isCompact={isCompact}
                 />
               ))}
             </div>
@@ -51,20 +51,20 @@ function ExtractedFieldRow({ field, isCompact }: ExtractedFieldRowProps) {
   const hasValue = field.value !== null && field.value !== undefined;
 
   return (
-    <div className="group flex items-center justify-between p-3 rounded-2xl border bg-card/50 border-border/50 hover:border-primary/30 transition-all duration-300">
+    <div className="group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/40 transition-colors shadow-sm">
       <div className="flex-1 min-w-0 pr-4">
-        <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-tight block mb-0.5">
+        <span className="text-xs font-semibold text-muted-foreground uppercase block mb-1">
           {field.label}
         </span>
         <div className="flex items-center gap-2">
           {hasValue ? (
-            <p className="text-xs font-bold text-foreground tabular-nums">
+            <p className="text-sm font-semibold text-foreground break-words">
               {field.value}
             </p>
           ) : (
-            <div className="flex items-center gap-1.5">
-              <AlertCircle className="h-3 w-3 text-destructive/50" />
-              <span className="text-xs font-bold text-destructive/40 italic">Not detected in source</span>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-3.5 w-3.5 text-destructive/60" />
+              <span className="text-sm font-semibold text-destructive/50 italic">Not detected</span>
             </div>
           )}
         </div>
@@ -73,8 +73,8 @@ function ExtractedFieldRow({ field, isCompact }: ExtractedFieldRowProps) {
       <div className="flex items-center gap-3 shrink-0">
         {hasValue && (
           <div className={cn(
-            "px-1.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-tighter",
-            field.confidence > 90 ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+            "px-2 py-0.5 rounded text-xs font-bold uppercase shadow-sm border",
+            field.confidence > 90 ? "bg-success/10 text-success border-success/10" : "bg-warning/10 text-warning border-warning/10"
           )}>
             {Math.round(field.confidence)}% AI
           </div>
@@ -83,3 +83,4 @@ function ExtractedFieldRow({ field, isCompact }: ExtractedFieldRowProps) {
     </div>
   );
 }
+

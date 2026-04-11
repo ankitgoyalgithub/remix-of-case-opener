@@ -50,7 +50,7 @@ export default function LoginPage() {
                         <h1 className="text-4xl font-black tracking-tight text-white mb-1 uppercase bg-clip-text text-transparent bg-gradient-to-b from-white to-zinc-500">
                             InsureAuto
                         </h1>
-                        <p className="text-primary font-bold tracking-[0.2em] text-[10px] uppercase opacity-80">
+                        <p className="text-primary font-bold tracking-[0.2em] text-xs uppercase opacity-80">
                             Precision Risk Automation
                         </p>
                     </div>

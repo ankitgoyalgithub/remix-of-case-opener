@@ -45,6 +45,12 @@ export interface AIInstruction {
   instructions: string;
 }
 
+export interface VerificationConfig {
+  id: string;
+  type: 'manual' | 'document_verification' | 'cross_validation';
+  config: Record<string, any>;
+}
+
 export interface ChecklistDefinition {
   id: string;
   stageId: number | string;
@@ -54,7 +60,7 @@ export interface ChecklistDefinition {
   linkedDocuments: DocumentType[];
   autoCheckRule: 'document-present' | 'field-extracted' | 'cross-validation' | 'manual';
   manualOverrideAllowed: boolean;
-  cross_validation_rules?: any[];
+  verifications?: VerificationConfig[];
 }
 
 export interface EmailTemplate {
@@ -176,10 +182,14 @@ export const mockChecklistDefinitions: ChecklistDefinition[] = [
   { id: 'cd-1', stageId: 1, name: 'Census uploaded', required: true, itemType: 'extraction', linkedDocuments: ['census'], autoCheckRule: 'document-present', manualOverrideAllowed: false },
   { id: 'cd-2', stageId: 1, name: 'Trade License uploaded', required: true, itemType: 'extraction', linkedDocuments: ['trade-license'], autoCheckRule: 'document-present', manualOverrideAllowed: false },
   { id: 'cd-3', stageId: 1, name: 'Customer Signed Quote uploaded', required: true, itemType: 'extraction', linkedDocuments: ['customer-signed-quote'], autoCheckRule: 'document-present', manualOverrideAllowed: false },
-  { id: 'cd-4', stageId: 2, name: 'Trade License validated', required: true, itemType: 'verification', linkedDocuments: ['trade-license'], autoCheckRule: 'field-extracted', manualOverrideAllowed: true },
+  { id: 'cd-4', stageId: 2, name: 'Trade License validated', required: true, itemType: 'verification', linkedDocuments: ['trade-license'], autoCheckRule: 'field-extracted', manualOverrideAllowed: true, verifications: [{ id: 'v-1', type: 'document_verification', config: { expiry_field: 'Trade License Expiry Date' } }] },
   { id: 'cd-5', stageId: 2, name: 'Establishment Card validated', required: true, itemType: 'verification', linkedDocuments: ['establishment-card'], autoCheckRule: 'field-extracted', manualOverrideAllowed: true },
   { id: 'cd-6', stageId: 3, name: 'MOL List verified', required: true, itemType: 'verification', linkedDocuments: ['mol-list'], autoCheckRule: 'field-extracted', manualOverrideAllowed: true },
-  { id: 'cd-7', stageId: 3, name: 'Mismatch resolved or accepted', required: true, itemType: 'manual', linkedDocuments: [], autoCheckRule: 'manual', manualOverrideAllowed: true },
+  { id: 'cd-8', stageId: 2, name: 'Trade License Entity & Expiry Sync', required: true, itemType: 'verification', linkedDocuments: ['trade-license', 'vat-certificate', 'moa'], autoCheckRule: 'field-extracted', manualOverrideAllowed: true, verifications: [
+    { id: 'v-2', type: 'cross_validation', config: { company_name_field: 'Company Name', match_docs: ['vat-certificate', 'moa'] } },
+    { id: 'v-3', type: 'manual', config: { taskDescription: 'Ensure the UBO matches Trade License.' } }
+  ]},
+  { id: 'cd-7', stageId: 3, name: 'Mismatch resolved or accepted', required: true, itemType: 'manual', linkedDocuments: [], autoCheckRule: 'manual', manualOverrideAllowed: true, verifications: [{ id: 'v-4', type: 'manual', config: { taskDescription: 'Manually review mismatch and approve or reject.' } }] },
 ];
 
 // Mock email templates

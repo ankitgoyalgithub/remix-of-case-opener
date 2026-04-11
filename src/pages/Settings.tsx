@@ -65,7 +65,7 @@ export default function Settings() {
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
                                         <Label className="text-sm font-bold">Interface Theme</Label>
-                                        <p className="text-[11px] text-muted-foreground font-medium">Customize how the platform looks on your screen.</p>
+                                        <p className="text-sm text-muted-foreground font-medium">Customize how the platform looks on your screen.</p>
                                     </div>
                                     <Select defaultValue="system">
                                         <SelectTrigger className="w-32 rounded-xl border-border/50 font-bold text-xs">
@@ -81,7 +81,7 @@ export default function Settings() {
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
                                         <Label className="text-sm font-bold">Density Mode</Label>
-                                        <p className="text-[11px] text-muted-foreground font-medium">Control the amount of information on screen.</p>
+                                        <p className="text-sm text-muted-foreground font-medium">Control the amount of information on screen.</p>
                                     </div>
                                     <Select defaultValue="comfortable">
                                         <SelectTrigger className="w-32 rounded-xl border-border/50 font-bold text-xs">
@@ -107,14 +107,14 @@ export default function Settings() {
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
                                         <Label className="text-sm font-bold">Predictive Prefetching</Label>
-                                        <p className="text-[11px] text-muted-foreground font-medium">Pre-load data for faster navigation between stages.</p>
+                                        <p className="text-sm text-muted-foreground font-medium">Pre-load data for faster navigation between stages.</p>
                                     </div>
                                     <Switch defaultChecked />
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
                                         <Label className="text-sm font-bold">Automated Refresh</Label>
-                                        <p className="text-[11px] text-muted-foreground font-medium">Keep the inbox up to date in real-time.</p>
+                                        <p className="text-sm text-muted-foreground font-medium">Keep the inbox up to date in real-time.</p>
                                     </div>
                                     <Switch defaultChecked />
                                 </div>
@@ -138,7 +138,7 @@ export default function Settings() {
                         </CardHeader>
                         <CardContent className="p-8 space-y-8">
                             <div className="space-y-4">
-                                <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-primary/70">Operational Alerts</h4>
+                                <h4 className="text-sm font-black uppercase tracking-[0.3em] text-primary/70">Operational Alerts</h4>
                                 {[
                                     { label: 'Stage Completion', desc: 'Notify when an AI stage completes processing.', enabled: true },
                                     { label: 'SLA Warnings', desc: 'Alert when a request enters the final 10% of its SLA.', enabled: true },
@@ -147,7 +147,7 @@ export default function Settings() {
                                     <div key={idx} className="flex items-center justify-between pb-4 border-b border-border/40 last:border-0 last:pb-0">
                                         <div className="space-y-0.5">
                                             <Label className="text-sm font-bold">{item.label}</Label>
-                                            <p className="text-[11px] text-muted-foreground font-medium">{item.desc}</p>
+                                            <p className="text-sm text-muted-foreground font-medium">{item.desc}</p>
                                         </div>
                                         <Switch defaultChecked={item.enabled} />
                                     </div>
@@ -155,7 +155,7 @@ export default function Settings() {
                             </div>
 
                             <div className="space-y-4 pt-4 border-t border-border/50">
-                                <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-indigo-500/70">Collaboration</h4>
+                                <h4 className="text-sm font-black uppercase tracking-[0.3em] text-indigo-500/70">Collaboration</h4>
                                 {[
                                     { label: 'Comment Mentions', desc: 'When a team member @mentions you on a request.', enabled: true },
                                     { label: 'Owner Assignments', desc: 'When a request is redirected to your queue.', enabled: false },
@@ -163,7 +163,7 @@ export default function Settings() {
                                     <div key={idx} className="flex items-center justify-between pb-4 border-b border-border/40 last:border-0 last:pb-0">
                                         <div className="space-y-0.5">
                                             <Label className="text-sm font-bold">{item.label}</Label>
-                                            <p className="text-[11px] text-muted-foreground font-medium">{item.desc}</p>
+                                            <p className="text-sm text-muted-foreground font-medium">{item.desc}</p>
                                         </div>
                                         <Switch defaultChecked={item.enabled} />
                                     </div>
@@ -210,7 +210,7 @@ export default function Settings() {
                                                 <span className="text-sm font-bold">{app.name}</span>
                                             </div>
                                             <Badge variant="outline" className={cn(
-                                                "text-[9px] font-black uppercase tracking-wider px-2",
+                                                "text-[11px] font-black uppercase tracking-wider px-2",
                                                 app.status === 'Connected' ? "bg-success/5 text-success border-success/20" : "bg-muted text-muted-foreground/60 border-border/40"
                                             )}>{app.status}</Badge>
                                         </div>

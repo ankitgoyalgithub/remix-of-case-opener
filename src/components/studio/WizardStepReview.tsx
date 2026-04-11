@@ -75,10 +75,10 @@ export function WizardStepReview() {
   const warnings = sections.filter(s => s.status === 'warning');
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+    <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-black tracking-tighter text-foreground">Mission Control Review</h2>
-        <p className="text-sm font-medium text-muted-foreground/70 max-w-2xl">
+        <h2 className="text-2xl font-semibold text-foreground">Mission Control Review</h2>
+        <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
           Finalize and deploy your enterprise configuration. Publishing will activate these parameters for all future requests.
         </p>
       </div>
@@ -90,35 +90,35 @@ export function WizardStepReview() {
           return (
             <div key={section.title} className="group relative">
               <div className={cn(
-                "glass-card rounded-[2rem] p-6 border-border/40 transition-all duration-500",
-                "hover:border-primary/40 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-1"
+                "bg-card rounded-xl border p-6 transition-all duration-200",
+                "hover:border-primary/40 hover:shadow-sm hover:-translate-y-0.5"
               )}>
                 <div className="flex items-center justify-between mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                    <Icon className="h-6 w-6" />
+                  <div className="w-10 h-10 rounded-lg bg-muted border flex items-center justify-center text-foreground group-hover:bg-primary group-hover:text-white group-hover:border-primary transition-colors">
+                    <Icon className="h-5 w-5" />
                   </div>
                   {section.status === 'complete' ? (
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-success/10 border border-success/20">
-                      <Check className="h-3 w-3 text-success" />
-                      <span className="text-[9px] font-black text-success uppercase tracking-widest">VALIDATED</span>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/10 text-success">
+                      <Check className="h-3 w-3" />
+                      <span className="text-xs font-semibold">Validated</span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning/10 border border-warning/20">
-                      <AlertCircle className="h-3 w-3 text-warning" />
-                      <span className="text-[9px] font-black text-warning uppercase tracking-widest">REVIEW REQUIRED</span>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-warning/10 text-warning">
+                      <AlertCircle className="h-3 w-3" />
+                      <span className="text-xs font-semibold">Review</span>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="text-[10px] font-black tracking-[0.2em] text-muted-foreground/50 uppercase">{section.title}</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground">{section.title}</h3>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-black tracking-tighter text-foreground">{section.count}</span>
-                    <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">Active nodes</span>
+                    <span className="text-3xl font-bold text-foreground">{section.count}</span>
+                    <span className="text-xs font-medium text-muted-foreground">Active nodes</span>
                   </div>
                 </div>
 
-                <p className="text-[11px] font-medium text-muted-foreground/60 mt-4 leading-relaxed">{section.details}</p>
+                <p className="text-sm font-medium text-muted-foreground/60 mt-4 leading-relaxed">{section.details}</p>
               </div>
             </div>
           );
@@ -127,25 +127,21 @@ export function WizardStepReview() {
 
       {/* Warning Panel */}
       {warnings.length > 0 && (
-        <div className="glass-card rounded-[2.5rem] border-warning/20 bg-warning/5 p-8 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-8 opacity-5">
-            <AlertCircle className="h-32 w-32 text-warning" />
-          </div>
-
-          <div className="flex items-start gap-6 relative z-10">
-            <div className="w-14 h-14 rounded-2xl bg-warning/10 border border-warning/20 flex items-center justify-center text-warning shrink-0">
-              <AlertCircle className="h-7 w-7" />
+        <div className="bg-warning/5 rounded-xl border border-warning/20 p-6 relative overflow-hidden">
+          <div className="flex items-start gap-4 relative z-10">
+            <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center text-warning shrink-0 mt-1">
+              <AlertCircle className="h-5 w-5" />
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 flex-1">
               <div>
-                <h4 className="text-xl font-black tracking-tight text-warning/90">Configuration Vulnerabilities</h4>
-                <p className="text-sm font-medium text-warning/60 mt-1">We've identified potential gaps in your operational architecture.</p>
+                <h4 className="text-base font-semibold text-warning">Configuration Vulnerabilities</h4>
+                <p className="text-sm text-warning/80 mt-1">We've identified potential gaps in your operational architecture.</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {warnings.map(w => (
-                  <div key={w.title} className="flex items-center gap-3 bg-white/40 p-3 rounded-xl border border-warning/10">
+                  <div key={w.title} className="flex items-center gap-3 bg-background/50 p-2.5 rounded-lg border border-warning/10 text-sm font-medium text-warning/90">
                     <div className="w-1.5 h-1.5 rounded-full bg-warning" />
-                    <span className="text-xs font-bold text-warning/80 truncate">{w.details}</span>
+                    <span className="truncate">{w.details}</span>
                   </div>
                 ))}
               </div>
@@ -155,32 +151,32 @@ export function WizardStepReview() {
       )}
 
       {/* Action Command Center */}
-      <div className="glass-card rounded-[2.5rem] p-8 border-primary/20 bg-primary/5 shadow-2xl shadow-primary/5 flex items-center justify-between mt-6">
-        <div className="flex items-center gap-6">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-            <Rocket className="h-7 w-7" />
+      <div className="bg-muted/20 rounded-xl p-6 border flex items-center justify-between mt-6">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+            <Rocket className="h-6 w-6" />
           </div>
           <div className="space-y-1">
-            <h4 className="text-xl font-black tracking-tight text-foreground">Ready for Deployment</h4>
-            <p className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">System Engine v4.2 • Autonomous Mode Enabled</p>
+            <h4 className="text-lg font-semibold text-foreground">Ready for Deployment</h4>
+            <p className="text-sm text-muted-foreground">System Engine v4.2 &bull; Autonomous Mode Enabled</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" className="h-14 px-8 rounded-2xl text-muted-foreground hover:bg-muted/50 font-black text-xs tracking-widest uppercase transition-all" onClick={() => {
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="h-10 px-6 font-medium" onClick={() => {
             toast.success('Configuration cataloged as draft');
           }}>
-            <Save className="h-5 w-5 mr-3" />
-            SAVE DRAFT
+            <Save className="h-4 w-4 mr-2" />
+            Save Draft
           </Button>
-          <Button className="h-14 px-10 rounded-2xl bg-primary hover:bg-primary/90 shadow-2xl shadow-primary/30 font-black text-xs tracking-widest uppercase transition-all group overflow-hidden relative" onClick={() => {
+          <Button className="h-10 px-8 bg-primary hover:bg-primary/90 font-medium transition-all group overflow-hidden relative" onClick={() => {
             toast.success('Enterprise Configuration Published', {
               description: 'The operational environment has been recalibrated.',
             });
           }}>
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
-            <Rocket className="h-5 w-5 mr-3 relative z-10" />
-            <span className="relative z-10">PUBLISH ARCHITECTURE</span>
+            <Rocket className="h-4 w-4 mr-2 relative z-10" />
+            <span className="relative z-10">Publish Architecture</span>
           </Button>
         </div>
       </div>

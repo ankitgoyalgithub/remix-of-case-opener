@@ -77,6 +77,8 @@ export function mapBackendRequestChecklistToChecklistItem(rc: any): ChecklistIte
         apiConfig: rc.api_config,
         isThirdPartyApi: rc.is_third_party_api,
         result: rc.result,
+        handlerName: rc.handler_name,
+        configPayload: rc.config_payload,
     };
 }
 

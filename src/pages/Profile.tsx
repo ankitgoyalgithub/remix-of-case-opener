@@ -54,7 +54,7 @@ export default function Profile() {
                     <div className="space-y-1">
                         <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
                             {user?.first_name ? `${user.first_name} ${user.last_name}` : user?.username || 'System Admin'}
-                            <Badge className="bg-success/10 text-success border-success/20 font-bold uppercase tracking-widest text-[10px] px-2 py-0.5">Verified</Badge>
+                            <Badge className="bg-success/10 text-success border-success/20 font-bold uppercase tracking-widest text-xs px-2 py-0.5">Verified</Badge>
                         </h1>
                         <p className="text-muted-foreground font-medium flex items-center gap-2">
                             <Briefcase className="h-4 w-4" />
@@ -86,29 +86,29 @@ export default function Profile() {
                         </CardHeader>
                         <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <Label htmlFor="firstName" className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/70 ml-1">First Name</Label>
+                                <Label htmlFor="firstName" className="text-sm font-black uppercase tracking-widest text-muted-foreground/70 ml-1">First Name</Label>
                                 <Input id="firstName" defaultValue={user?.first_name || 'Ankit'} className="bg-background/50 border-border/50 rounded-xl font-bold py-6 focus:ring-primary/20" />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="lastName" className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/70 ml-1">Last Name</Label>
+                                <Label htmlFor="lastName" className="text-sm font-black uppercase tracking-widest text-muted-foreground/70 ml-1">Last Name</Label>
                                 <Input id="lastName" defaultValue={user?.last_name || 'Sharma'} className="bg-background/50 border-border/50 rounded-xl font-bold py-6 focus:ring-primary/20" />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="email" className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/70 ml-1">Email Address</Label>
+                                <Label htmlFor="email" className="text-sm font-black uppercase tracking-widest text-muted-foreground/70 ml-1">Email Address</Label>
                                 <div className="relative">
                                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input id="email" defaultValue={user?.email || 'ankit@stratiq.com'} className="pl-11 bg-background/50 border-border/50 rounded-xl font-bold py-6 focus:ring-primary/20" />
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="location" className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/70 ml-1">Location</Label>
+                                <Label htmlFor="location" className="text-sm font-black uppercase tracking-widest text-muted-foreground/70 ml-1">Location</Label>
                                 <div className="relative">
                                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input id="location" defaultValue="Dubai, UAE" className="pl-11 bg-background/50 border-border/50 rounded-xl font-bold py-6 focus:ring-primary/20" />
                                 </div>
                             </div>
                             <div className="md:col-span-2 space-y-2">
-                                <Label htmlFor="bio" className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/70 ml-1">Professional Bio</Label>
+                                <Label htmlFor="bio" className="text-sm font-black uppercase tracking-widest text-muted-foreground/70 ml-1">Professional Bio</Label>
                                 <textarea
                                     id="bio"
                                     className="w-full min-h-[120px] p-4 bg-background/50 border border-border/50 rounded-xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all leading-relaxed"
@@ -134,10 +134,10 @@ export default function Profile() {
                                     </div>
                                     <div>
                                         <h4 className="text-sm font-bold">Two-Factor Authentication</h4>
-                                        <p className="text-[11px] text-muted-foreground">Add an extra layer of security to your account.</p>
+                                        <p className="text-sm text-muted-foreground">Add an extra layer of security to your account.</p>
                                     </div>
                                 </div>
-                                <Badge className="bg-success text-white font-bold uppercase text-[9px]">Active</Badge>
+                                <Badge className="bg-success text-white font-bold uppercase text-[11px]">Active</Badge>
                             </div>
 
                             <div className="flex items-center justify-between p-4 bg-background/50 rounded-2xl border border-border/40 group hover:border-indigo-500/30 transition-all opacity-60">
@@ -147,10 +147,10 @@ export default function Profile() {
                                     </div>
                                     <div>
                                         <h4 className="text-sm font-bold">Authorized Devices</h4>
-                                        <p className="text-[11px] text-muted-foreground">Manage devices currently logged into your account.</p>
+                                        <p className="text-sm text-muted-foreground">Manage devices currently logged into your account.</p>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-wider">Review</Button>
+                                <Button variant="ghost" size="sm" className="text-xs font-black uppercase tracking-wider">Review</Button>
                             </div>
                         </CardContent>
                     </Card>
@@ -172,7 +172,7 @@ export default function Profile() {
                                     <div className="h-full w-[92%] bg-gradient-to-r from-primary to-primary-foreground/30 rounded-full shadow-[0_0_10px_rgba(var(--primary),0.3)]"></div>
                                 </div>
                             </div>
-                            <p className="text-[11px] font-medium text-muted-foreground leading-relaxed italic">
+                            <p className="text-sm font-medium text-muted-foreground leading-relaxed italic">
                                 You've processed 1,240 requests this month with 99.8% accuracy. Keep it up!
                             </p>
                         </CardContent>
@@ -184,15 +184,15 @@ export default function Profile() {
                         </CardHeader>
                         <CardContent className="px-6 pb-6 space-y-4">
                             <div className="flex justify-between items-center py-2 border-b border-border/40">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">Timezone</span>
+                                <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground/60">Timezone</span>
                                 <span className="text-xs font-black tracking-tight">(GMT+04:00) Dubai</span>
                             </div>
                             <div className="flex justify-between items-center py-2 border-b border-border/40">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">Language</span>
+                                <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground/60">Language</span>
                                 <span className="text-xs font-black tracking-tight">English (International)</span>
                             </div>
                             <div className="flex justify-between items-center py-2">
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60">Currency</span>
+                                <span className="text-sm font-bold uppercase tracking-wider text-muted-foreground/60">Currency</span>
                                 <span className="text-xs font-black tracking-tight">AED (Dirham)</span>
                             </div>
                         </CardContent>

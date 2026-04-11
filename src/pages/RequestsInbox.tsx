@@ -380,7 +380,7 @@ export default function RequestsInbox() {
                       <TableCell className="font-medium">
                         <div className="flex flex-col">
                            <span>{request.companyName}</span>
-                           <span className="text-[10px] text-muted-foreground lg:hidden">
+                           <span className="text-xs text-muted-foreground lg:hidden">
                              {request.brokerName}
                            </span>
                         </div>
@@ -392,7 +392,7 @@ export default function RequestsInbox() {
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           {getStatusBadge(request.status)}
-                          <span className="text-[10px] text-muted-foreground md:hidden">
+                          <span className="text-xs text-muted-foreground md:hidden">
                             {request.currentStage}
                           </span>
                         </div>

@@ -23,7 +23,8 @@ import {
   calculateSlaRemaining,
   getSlaStatus,
   DocumentType,
-  CaseData
+  CaseData,
+  DocDef
 } from '@/types/case';
 import { FileText, Database, Send, FileCheck, ShieldCheck, Loader2, ListTodo, Hourglass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -58,7 +59,7 @@ export default function RequestDetail() {
 
       const listItem = mapBackendRequestToListItem(req);
 
-      const dynamicDocDefs = studioDocsRes.map((d: any) => ({
+      const dynamicDocDefs: DocDef[] = studioDocsRes.map((d: any) => ({
         id: d.id,
         name: d.name,
         type: d.doc_type,
@@ -70,7 +71,10 @@ export default function RequestDetail() {
 
       // collect all checklists from all stages
       const requestChecklist = (req.request_stages || []).flatMap((rs: any) =>
-        (rs.checklists || []).map(mapBackendRequestChecklistToChecklistItem)
+        (rs.checklists || []).map((c: any) => ({
+          ...mapBackendRequestChecklistToChecklistItem(c),
+          stageId: rs.stage
+        }))
       );
 
       const requestStages = (req.request_stages || []).map(mapBackendStageToStage);
@@ -283,7 +287,7 @@ export default function RequestDetail() {
       workforceMismatch: { ...prev.workforceMismatch, accepted: true, acceptReason: reason },
       timeline: [...prev.timeline, newTimeline],
       stages: prev.stages.map(s =>
-        s.id === 3 ? { ...s, status: 'complete' as const } : s
+        s.id === 1 ? { ...s, status: 'complete' as const } : s
       ),
     }));
   };
@@ -304,6 +308,17 @@ export default function RequestDetail() {
     } catch (err) {
       console.error('Failed to toggle checklist', err);
       toast.error('Failed to update checklist item');
+    }
+  };
+
+  const handleRunValidation = async (itemId: string) => {
+    try {
+      await api.workflow.runChecklistValidation(itemId);
+      toast.success('Validation logic executed');
+      fetchRequestDetails();
+    } catch (err) {
+      console.error('Failed to run validation', err);
+      toast.error('Automated check failed to execute');
     }
   };
 
@@ -528,15 +543,14 @@ export default function RequestDetail() {
         timelineDrawer={<TimelineDrawer events={requestData.timeline} />}
       />
 
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Stages Sidebar - Top on mobile, Left on desktop */}
-        <div className="w-full lg:w-60 border-b lg:border-b-0 lg:border-r border-border bg-card overflow-y-auto flex flex-col shrink-0">
-          {/* Stage Stepper */}
-          <div className="p-4 lg:border-b border-border">
-            <h3 className="text-[10px] lg:text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Stages Bar - Top */}
+        <div className="w-full border-b border-border bg-card flex py-3 px-4 shrink-0 items-center justify-between gap-4">
+          <div className="flex items-center gap-6 flex-1 min-w-0 overflow-hidden">
+            <h3 className="text-xs lg:text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">
               Issuance Stages
             </h3>
-            <div className="flex lg:block overflow-x-auto lg:overflow-x-visible pb-2 lg:pb-0 gap-4">
+            <div className="flex overflow-x-auto gap-4 flex-1 items-center pb-1 sm:pb-0">
               <CaseStepper
                 stages={requestData.stages}
                 currentStage={activeViewStage}
@@ -545,9 +559,9 @@ export default function RequestDetail() {
             </div>
           </div>
 
-          <div className="hidden lg:flex mt-auto p-4 border-t border-border">
-            <Link to="/evidence-pack" className="w-full">
-              <Button variant="outline" size="sm" className="w-full gap-2">
+          <div className="hidden lg:flex shrink-0">
+            <Link to="/evidence-pack">
+              <Button variant="outline" size="sm" className="gap-2">
                 <FileCheck className="h-4 w-4" />
                 Evidence Pack
               </Button>
@@ -555,7 +569,7 @@ export default function RequestDetail() {
           </div>
         </div>
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-h-0 overflow-auto">
           <OperationsWorkbench
             requestData={requestData}
             activeViewStage={activeViewStage}
@@ -564,9 +578,13 @@ export default function RequestDetail() {
             onSelectChecklistItem={handleChecklistSelect}
             onStageComplete={handleMarkStageComplete}
             onChecklistToggle={handleChecklistToggle}
+            onRunValidation={handleRunValidation}
             onUploadDocument={handleUploadDocument}
             onReextract={handleReextract}
-            onSelectDocument={setSelectedDocument}
+            onSelectDocument={(doc) => {
+              setSelectedDocument(doc);
+              if (doc) setSelectedChecklistItemId(null);
+            }}
             onExport={handleExport}
             onMarkIssued={handleMarkIssued}
           />

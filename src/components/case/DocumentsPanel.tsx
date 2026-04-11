@@ -74,20 +74,20 @@ export function DocumentsPanel({
     switch (status) {
       case 'extracted':
         return (
-          <Badge className="bg-success/10 text-success border-success/20 text-[10px] font-bold px-1.5 py-0">
+          <Badge className="bg-success/10 text-success border-success/20 text-xs font-bold px-1.5 py-0">
             READY
           </Badge>
         );
       case 'processing':
         return (
-          <Badge className="bg-primary/10 text-primary border-primary/20 text-[10px] font-bold px-1.5 py-0">
+          <Badge className="bg-primary/10 text-primary border-primary/20 text-xs font-bold px-1.5 py-0">
             <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" />
             AI RUNNING
           </Badge>
         );
       default:
         return (
-          <Badge variant="outline" className="text-[10px] font-bold px-1.5 py-0 opacity-50">
+          <Badge variant="outline" className="text-xs font-bold px-1.5 py-0 opacity-50">
             NEW
           </Badge>
         );
@@ -107,7 +107,7 @@ export function DocumentsPanel({
       />
 
       <div className="flex items-center justify-between pb-3 border-b border-border/50">
-        <h3 className="text-[11px] font-black tracking-widest text-muted-foreground uppercase flex items-center gap-2">
+        <h3 className="text-sm font-black tracking-widest text-muted-foreground uppercase flex items-center gap-2">
           <Eye className="h-3.5 w-3.5" />
           Stage Evidence ({filteredDocuments.length})
         </h3>
@@ -124,7 +124,7 @@ export function DocumentsPanel({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 px-3 text-[10px] font-bold uppercase tracking-wider rounded-lg border-primary/20 hover:bg-primary/5"
+              className="h-7 px-3 text-xs font-bold uppercase tracking-wider rounded-lg border-primary/20 hover:bg-primary/5"
               disabled={isUploading}
               onClick={() => fileInputRef.current?.click()}
             >
@@ -166,7 +166,7 @@ export function DocumentsPanel({
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       {getStatusBadge(doc.status)}
-                      <span className="text-[10px] font-medium text-muted-foreground/60 tabular-nums">
+                      <span className="text-xs font-medium text-muted-foreground/60 tabular-nums">
                         {formatDistanceToNow(new Date(doc.uploadedAt), { addSuffix: true })}
                       </span>
                     </div>
@@ -206,8 +206,8 @@ export function DocumentsPanel({
             <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3">
               <FileText className="h-5 w-5 text-muted-foreground/40" />
             </div>
-            <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">No stage evidence</p>
-            <p className="text-[10px] font-medium text-muted-foreground/60 mt-1 max-w-[150px]">Upload associated documents to this stage</p>
+            <p className="text-sm font-black uppercase tracking-widest text-muted-foreground">No stage evidence</p>
+            <p className="text-xs font-medium text-muted-foreground/60 mt-1 max-w-[150px]">Upload associated documents to this stage</p>
           </div>
         )}
       </div>

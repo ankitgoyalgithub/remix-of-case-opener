@@ -106,17 +106,17 @@ export function WizardStepWorkflow() {
   const stageToDelete = stages.find(s => s.id === deleteConfirm);
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex items-end justify-between">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-black tracking-tight text-foreground">Workflow Stages</h2>
-          <p className="text-sm font-medium text-muted-foreground/70">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex items-center justify-between border-b pb-4">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground">Workflow Stages</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             Define the architectural backbone of your insurance processing pipeline.
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2 rounded-xl border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary font-bold text-[11px] tracking-wider" onClick={() => setAddDialogOpen(true)}>
-          <Plus className="h-4 w-4" />
-          ADD STAGE
+        <Button size="sm" onClick={() => setAddDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Stage
         </Button>
       </div>
 
@@ -140,19 +140,19 @@ export function WizardStepWorkflow() {
             )}
 
             <div className={cn(
-              "glass-card rounded-3xl border-border/40 overflow-hidden transition-all duration-300",
-              editingId === stage.id ? "bg-primary/5 ring-1 ring-primary/20 shadow-2xl shadow-primary/5" : "hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5",
-              "p-5"
+              "bg-card rounded-lg border overflow-hidden transition-all duration-200",
+              editingId === stage.id ? "ring-2 ring-primary/20 border-primary" : "hover:border-primary/40 shadow-sm",
+              "p-4"
             )}>
               <div className="flex items-start gap-4">
                 <div
-                  className="cursor-move text-muted-foreground/30 hover:text-primary transition-colors mt-2"
+                  className="cursor-move text-muted-foreground/40 hover:text-foreground transition-colors mt-1.5"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   <GripVertical className="h-5 w-5" />
                 </div>
 
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/10 flex items-center justify-center text-sm font-black text-primary shrink-0 shadow-sm">
+                <div className="w-8 h-8 rounded-md bg-muted border flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0 mt-0.5">
                   {stage.order}
                 </div>
 
@@ -161,91 +161,87 @@ export function WizardStepWorkflow() {
                     <div className="space-y-5 py-2">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                          <Label className="text-[10px] font-bold uppercase tracking-widest text-primary/60 px-1">Stage Name</Label>
+                          <Label className="text-xs font-medium">Stage Name</Label>
                           <Input
                             value={editForm.name || ''}
                             onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                            className="h-11 rounded-xl bg-background/50 border-border/50 focus:ring-primary/20"
+                            className="h-9"
                             maxLength={100}
                           />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label className="text-[10px] font-bold uppercase tracking-widest text-primary/60 px-1">SLA (HOURS)</Label>
+                            <Label className="text-xs font-medium">SLA (Hours)</Label>
                             <Input
                               type="number"
                               value={editForm.slaHours || ''}
                               onChange={(e) => setEditForm(prev => ({ ...prev, slaHours: parseInt(e.target.value) || undefined }))}
-                              className="h-11 rounded-xl bg-background/50 border-border/50"
+                              className="h-9"
                               placeholder="Optional"
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label className="text-[10px] font-bold uppercase tracking-widest text-primary/60 px-1">ASSIGNED QUEUE</Label>
+                            <Label className="text-xs font-medium">Assigned Queue</Label>
                             <Select defaultValue="standard">
-                              <SelectTrigger className="h-11 rounded-xl bg-background/50 border-border/50">
+                              <SelectTrigger className="h-9">
                                 <SelectValue placeholder="Select queue" />
                               </SelectTrigger>
-                              <SelectContent className="rounded-xl border-border/50 shadow-2xl">
-                                <SelectItem value="standard" className="rounded-lg">Standard Ops</SelectItem>
-                                <SelectItem value="senior" className="rounded-lg">Senior Ops</SelectItem>
+                              <SelectContent>
+                                <SelectItem value="standard">Standard Ops</SelectItem>
+                                <SelectItem value="senior">Senior Ops</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 pt-2">
-                        <Button size="sm" onClick={handleSaveEdit} className="gap-2 h-10 px-6 rounded-xl bg-primary hover:bg-primary/90 font-bold text-[11px] tracking-wider">
-                          <Check className="h-4 w-4" />
-                          SAVE CHANGES
+                      <div className="flex items-center gap-2 pt-2">
+                        <Button size="sm" onClick={handleSaveEdit} className="h-8">
+                          Save Changes
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="gap-2 h-10 px-6 rounded-xl text-muted-foreground hover:bg-muted/50 font-bold text-[11px] tracking-wider">
-                          <X className="h-4 w-4" />
-                          CANCEL
+                        <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="h-8 text-muted-foreground">
+                          Cancel
                         </Button>
                       </div>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-1 py-1">
-                      <div className="flex items-center gap-3">
-                        <h4 className="text-base font-bold tracking-tight text-foreground">{stage.name}</h4>
-                        <div className="flex items-center gap-2">
-                          {stage.mandatory && (
-                            <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest border-primary/20 bg-primary/5 text-primary rounded-md px-1.5 py-0">MANDATORY</Badge>
-                          )}
-                          {stage.slaHours && (
-                            <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest bg-muted border-border/50 text-muted-foreground rounded-md px-1.5 py-0 gap-1">
-                              <Clock className="h-3 w-3" />
-                              {stage.slaHours}H SLA
-                            </Badge>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-semibold text-foreground">{stage.name}</h4>
+                        {stage.mandatory && (
+                          <Badge variant="secondary" className="text-xs font-medium rounded-sm px-1.5 py-0 h-4">Required</Badge>
+                        )}
+                        {stage.slaHours && (
+                          <Badge variant="outline" className="text-xs font-medium rounded-sm px-1.5 py-0 h-4 gap-1">
+                            <Clock className="h-3 w-3" />
+                            {stage.slaHours}h SLA
+                          </Badge>
+                        )}
                       </div>
-                      <p className="text-xs font-medium text-muted-foreground/80 leading-relaxed max-w-2xl">{stage.description}</p>
+                      <p className="text-sm text-muted-foreground">{stage.description}</p>
                     </div>
                   )}
                 </div>
 
                 {editingId !== stage.id && (
                   <div className="flex items-center gap-3 ml-4">
-                    <div className="flex flex-col items-center gap-1.5 px-3 border-x border-border/30">
-                      <Label className="text-[9px] font-black tracking-tighter text-muted-foreground/40 uppercase">Lock</Label>
+                    <div className="flex flex-col items-center gap-1 px-3 border-x border-border/50">
+                      <Label className="text-xs font-medium text-muted-foreground">Required</Label>
                       <Switch
                         checked={stage.mandatory}
                         onCheckedChange={(checked) => updateStage(stage.id, { mandatory: checked })}
-                        className="scale-90 data-[state=checked]:bg-primary"
+                        className="scale-75"
                       />
                     </div>
 
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(stage)} className="h-9 w-9 rounded-lg hover:bg-primary/5 hover:text-primary transition-all">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(stage)} className="h-8 w-8 text-muted-foreground hover:text-foreground">
                         <Edit2 className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 rounded-lg text-destructive hover:bg-destructive/5 hover:text-destructive transition-all"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                         onClick={() => setDeleteConfirm(stage.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -259,20 +255,20 @@ export function WizardStepWorkflow() {
         ))}
       </div>
 
-      <div className="flex items-center justify-center py-6 border-2 border-dashed border-border/40 rounded-[2rem] bg-muted/5 transition-colors hover:bg-muted/10 group cursor-pointer" onClick={() => setAddDialogOpen(true)}>
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-background border border-border/50 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-            <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+      <div className="flex items-center justify-center py-8 border-2 border-dashed border-border/60 rounded-xl bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer group" onClick={() => setAddDialogOpen(true)}>
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-background border flex items-center justify-center shadow-sm group-hover:border-primary/50 transition-colors">
+            <Plus className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
           </div>
-          <div className="flex flex-col items-center">
-            <span className="text-xs font-bold text-muted-foreground group-hover:text-foreground transition-colors uppercase tracking-widest">Add Operations Phase</span>
-            <span className="text-[10px] text-muted-foreground/60">Configure validation logic for a new process stage.</span>
+          <div className="flex flex-col items-center text-center">
+            <span className="text-sm font-medium text-foreground">Add Stage</span>
+            <span className="text-xs text-muted-foreground">Configure validation logic for a new process stage.</span>
           </div>
         </div>
       </div>
 
       <div className="flex items-center justify-center pt-2 gap-4">
-        <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground/60">
           <GripVertical className="h-3 w-3" />
           Drag handle to reorder architecture
         </div>

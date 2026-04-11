@@ -155,8 +155,8 @@ export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocu
               <div className="flex flex-col items-start gap-1">
                 <SheetTitle className="text-left">{docDef.name}</SheetTitle>
                 <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px]">{docDef.category}</Badge>
-                    {docDef.mandatory && <Badge className="bg-destructive/10 text-destructive border-0 text-[10px]">Required</Badge>}
+                    <Badge variant="outline" className="text-xs">{docDef.category}</Badge>
+                    {docDef.mandatory && <Badge className="bg-destructive/10 text-destructive border-0 text-xs">Required</Badge>}
                 </div>
               </div>
             </div>
@@ -169,19 +169,19 @@ export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocu
 
         <Tabs defaultValue="fields" className="mt-2">
           <TabsList className="w-full grid grid-cols-4">
-            <TabsTrigger value="fields" className="text-[11px] gap-1.5 px-1 focus:outline-none">
+            <TabsTrigger value="fields" className="text-sm gap-1.5 px-1 focus:outline-none">
               <Database className="h-3.5 w-3.5" />
               Fields
             </TabsTrigger>
-            <TabsTrigger value="cross-val" className="text-[11px] gap-1.5 px-1 focus:outline-none text-orange-600 data-[state=active]:text-orange-600">
+            <TabsTrigger value="cross-val" className="text-sm gap-1.5 px-1 focus:outline-none text-orange-600 data-[state=active]:text-orange-600">
               <Network className="h-3 w-3" />
               Cross Val
             </TabsTrigger>
-            <TabsTrigger value="ai-notes" className="text-[11px] gap-1.5 px-1 focus:outline-none">
+            <TabsTrigger value="ai-notes" className="text-sm gap-1.5 px-1 focus:outline-none">
               <Brain className="h-3.5 w-3.5" />
               AI Notes
             </TabsTrigger>
-            <TabsTrigger value="settings" className="text-[11px] gap-1.5 px-1 focus:outline-none">
+            <TabsTrigger value="settings" className="text-sm gap-1.5 px-1 focus:outline-none">
               <Settings className="h-3.5 w-3.5" />
               Settings
             </TabsTrigger>
@@ -285,7 +285,7 @@ export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocu
               {crossValRules.map((rule, idx) => (
                 <div key={idx} className="p-3 rounded-lg border border-orange-500/20 bg-background space-y-3 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
-                    <Badge variant="outline" className="text-[10px] uppercase border-orange-500/20 text-orange-600">{rule.comparison_type.replace(/_/g, ' ')}</Badge>
+                    <Badge variant="outline" className="text-xs uppercase border-orange-500/20 text-orange-600">{rule.comparison_type.replace(/_/g, ' ')}</Badge>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -297,14 +297,14 @@ export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocu
                   </div>
                   <div className="flex items-center gap-3 bg-muted/30 p-2.5 rounded border border-border/50">
                     <div className="flex-1 min-w-0">
-                      <Label className="text-[9px] uppercase text-muted-foreground font-bold tracking-wider">Source Field</Label>
+                      <Label className="text-[11px] uppercase text-muted-foreground font-bold tracking-wider">Source Field</Label>
                       <p className="text-xs font-semibold mt-0.5 truncate">{rule.source_field}</p>
                     </div>
                     <div className="w-4 h-4 rounded-full bg-orange-500/10 flex items-center justify-center shrink-0">
                       <Network className="h-2.5 w-2.5 text-orange-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <Label className="text-[9px] uppercase text-orange-600/70 font-bold tracking-wider">{rule.target_document_type}</Label>
+                      <Label className="text-[11px] uppercase text-orange-600/70 font-bold tracking-wider">{rule.target_document_type}</Label>
                       <p className="text-xs font-semibold mt-0.5 truncate text-orange-600">{rule.target_field}</p>
                     </div>
                   </div>
@@ -368,11 +368,11 @@ export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocu
                   </Select>
                 </div>
                 <div className="flex gap-2 pt-1">
-                  <Button size="sm" onClick={handleAddRule} disabled={!newRuleSourceField || !newRuleTargetDoc || !newRuleTargetField} className="gap-1.5 h-7 text-[10px] bg-orange-500 hover:bg-orange-600 text-white shadow-sm">
+                  <Button size="sm" onClick={handleAddRule} disabled={!newRuleSourceField || !newRuleTargetDoc || !newRuleTargetField} className="gap-1.5 h-7 text-xs bg-orange-500 hover:bg-orange-600 text-white shadow-sm">
                     <Check className="h-3 w-3" />
                     Add Rule
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setAddingRule(false); }} className="gap-1.5 h-7 text-[10px] hover:bg-orange-500/10 hover:text-orange-600">
+                  <Button size="sm" variant="ghost" onClick={() => { setAddingRule(false); }} className="gap-1.5 h-7 text-xs hover:bg-orange-500/10 hover:text-orange-600">
                     <X className="h-3 w-3" />
                     Cancel
                   </Button>

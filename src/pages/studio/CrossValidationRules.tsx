@@ -205,12 +205,12 @@ export default function CrossValidationRules() {
             <CardContent className="pt-4">
               <div className="flex items-center gap-6 mb-6 px-2">
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Source Document</span>
+                  <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Source Document</span>
                   <Badge className="py-1 px-3 bg-blue-500/10 text-blue-600 border-blue-500/20">{DOCUMENT_TYPE_LABELS[rule.source_doc_type as DocumentType] || rule.source_doc_type}</Badge>
                 </div>
                 <ArrowRight className="h-4 w-4 text-muted-foreground mt-4" />
                 <div className="flex flex-col gap-1">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Target Document</span>
+                  <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Target Document</span>
                   <Badge className="py-1 px-3 bg-purple-500/10 text-purple-600 border-purple-500/20">{DOCUMENT_TYPE_LABELS[rule.target_doc_type as DocumentType] || rule.target_doc_type}</Badge>
                 </div>
               </div>
@@ -221,7 +221,7 @@ export default function CrossValidationRules() {
                     <Settings2 className="h-3 w-3" />
                     Field Match Conditions
                   </h4>
-                  <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1 px-2" onClick={() => {
+                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1 px-2" onClick={() => {
                     setSelectedRule(rule);
                     setIsFieldDialogOpen(true);
                   }}>
@@ -238,9 +238,9 @@ export default function CrossValidationRules() {
                         <span className="font-mono text-xs bg-muted p-1 px-2 rounded border">{field.target_field}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-[10px] uppercase font-bold px-1.5 h-5">{field.comparison_type}</Badge>
+                        <Badge variant="secondary" className="text-xs uppercase font-bold px-1.5 h-5">{field.comparison_type}</Badge>
                         {field.comparison_type === 'numeric' && field.tolerance_percentage !== undefined && (
-                          <Badge variant="outline" className="text-[10px] h-5">±{field.tolerance_percentage}%</Badge>
+                          <Badge variant="outline" className="text-xs h-5">±{field.tolerance_percentage}%</Badge>
                         )}
                         <Button 
                           variant="ghost" 

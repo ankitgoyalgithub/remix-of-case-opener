@@ -106,8 +106,8 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
     return (
       <div key={doc.id} className="group relative">
         <div className={cn(
-          "glass-card rounded-2xl border-border/40 p-4 transition-all duration-300",
-          "hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5"
+          "bg-card rounded-lg border p-4 transition-all duration-200",
+          "hover:border-primary/40 shadow-sm hover:shadow"
         )}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -117,9 +117,9 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-bold tracking-tight text-foreground">{doc.name}</span>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[9px] font-black tracking-widest border-border/60 bg-muted/50 text-muted-foreground/80 px-1.5 py-0">{doc.category.toUpperCase()}</Badge>
+                  <Badge variant="outline" className="text-[11px] font-black tracking-widest border-border/60 bg-muted/50 text-muted-foreground/80 px-1.5 py-0">{doc.category.toUpperCase()}</Badge>
                   {doc.mandatory && (
-                    <Badge className="bg-destructive/10 text-destructive border-0 text-[9px] font-black tracking-widest px-1.5 py-0">REQUIRED</Badge>
+                    <Badge className="bg-destructive/10 text-destructive border-0 text-[11px] font-black tracking-widest px-1.5 py-0">REQUIRED</Badge>
                   )}
                 </div>
               </div>
@@ -129,16 +129,16 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 rounded-lg gap-2 text-[10px] font-bold tracking-wider hover:bg-primary/5 hover:text-primary transition-all"
+                className="h-8 rounded-md gap-2 text-xs font-medium hover:bg-primary/10 hover:text-primary transition-all"
                 onClick={() => onConfigureDocument(doc)}
               >
                 <Settings2 className="h-3.5 w-3.5" />
-                CONFIG
+                Config
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-lg text-destructive hover:bg-destructive/10 transition-all"
+                className="h-8 w-8 rounded-md text-destructive hover:bg-destructive/10 transition-all"
                 onClick={() => setDetachConfirm(doc.type)}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -151,10 +151,10 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 h-full flex flex-col">
+    <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col">
       <div className="space-y-1">
-        <h2 className="text-2xl font-black tracking-tight text-foreground">Evidence Library</h2>
-        <p className="text-sm font-medium text-muted-foreground/70">
+        <h2 className="text-xl font-semibold text-foreground">Evidence Library</h2>
+        <p className="text-sm text-muted-foreground mt-1">
           Map required document types to specific operational stages.
         </p>
       </div>
@@ -163,7 +163,7 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
         {/* Left: Stage Navigation Rail */}
         <div className="w-64 shrink-0 flex flex-col gap-4">
           <div className="flex items-center justify-between px-2">
-            <Label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em]">Contextual Phases</Label>
+            <Label className="text-xs font-black text-primary/40 uppercase tracking-[0.2em]">Contextual Phases</Label>
           </div>
           <div className="flex-1 overflow-auto pr-2 space-y-1.5 custom-scrollbar">
             {stages.map(stage => {
@@ -174,32 +174,24 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
                   key={stage.id}
                   onClick={() => setSelectedStageId(stage.id)}
                   className={cn(
-                    "w-full group text-left px-4 py-3.5 rounded-2xl transition-all duration-300 relative overflow-hidden active:scale-95",
+                    "w-full group text-left px-3 py-2.5 rounded-md transition-all duration-200 relative",
                     isSelected
-                      ? "bg-primary text-white shadow-lg shadow-primary/20 border-t border-white/20"
-                      : "hover:bg-primary/5 text-muted-foreground border border-transparent"
+                      ? "bg-muted text-foreground font-medium"
+                      : "hover:bg-muted/50 text-muted-foreground"
                   )}
                 >
-                  {/* Subtle BG Glow for selected */}
-                  {isSelected && (
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8" />
-                  )}
-
                   <div className="flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-3">
                       <div className={cn(
-                        "w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black transition-all",
-                        isSelected ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
+                        "w-6 h-6 rounded flex items-center justify-center text-xs font-semibold transition-all",
+                        isSelected ? "bg-background border text-foreground" : "bg-muted border text-muted-foreground"
                       )}>
                         {stage.order}
                       </div>
-                      <span className="text-xs font-bold tracking-tight truncate">{stage.name}</span>
+                      <span className="text-sm truncate">{stage.name}</span>
                     </div>
                     {count > 0 && (
-                      <Badge variant="secondary" className={cn(
-                        "text-[9px] font-black h-5 min-w-[20px] rounded-full flex items-center justify-center transition-colors",
-                        isSelected ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
-                      )}>
+                      <Badge variant="secondary" className="px-1.5 py-0 h-5 min-w-[20px] rounded-full flex items-center justify-center">
                         {count}
                       </Badge>
                     )}
@@ -213,20 +205,20 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
         {/* Right: Bento Grid of Documents */}
         <div className="flex-1 flex flex-col gap-6">
           {/* Command Bar */}
-          <div className="flex items-center gap-4 glass p-2 rounded-2xl border-border/40">
+          <div className="flex items-center gap-4 bg-muted/20 p-2 rounded-lg border">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
               <Input
                 placeholder="Search archive..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-11 h-11 rounded-xl bg-transparent border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm font-medium"
+                className="pl-9 h-9 bg-background border-border/50 text-sm"
               />
             </div>
             <Separator orientation="vertical" className="h-6" />
-            <Button size="sm" className="gap-2 h-10 px-6 rounded-xl bg-primary hover:bg-primary/90 font-bold text-[11px] tracking-wider shadow-lg shadow-primary/20" onClick={() => setAddDialogOpen(true)}>
-              <Plus className="h-4 w-4" />
-              ADD DOCUMENT TYPE
+            <Button size="sm" className="h-9 px-4" onClick={() => setAddDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Document
             </Button>
           </div>
 
@@ -239,7 +231,7 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 px-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                        <Label className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em]">Mandatory Requirements</Label>
+                        <Label className="text-xs font-black text-muted-foreground/40 uppercase tracking-[0.2em]">Mandatory Requirements</Label>
                       </div>
                       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                         {requiredDocs.map(renderDocCard)}
@@ -251,7 +243,7 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 px-1">
                         <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30" />
-                        <Label className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em]">Supporting Evidence</Label>
+                        <Label className="text-xs font-black text-muted-foreground/40 uppercase tracking-[0.2em]">Supporting Evidence</Label>
                       </div>
                       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                         {optionalDocs.map(doc => (
@@ -264,16 +256,16 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
                   )}
                 </>
               ) : (
-                <div className="h-[400px] flex flex-col items-center justify-center glass-card rounded-[3rem] border-dashed border-border/40 gap-4">
-                  <div className="w-16 h-16 rounded-[2rem] bg-muted/20 flex items-center justify-center">
-                    <FileText className="h-8 w-8 text-muted-foreground/30" />
+                <div className="h-[300px] flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/10 gap-4">
+                  <div className="w-12 h-12 rounded-full bg-muted/40 flex items-center justify-center">
+                    <FileText className="h-6 w-6 text-muted-foreground/60" />
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-bold text-muted-foreground/80 tracking-tight">Stage Library Empty</p>
-                    <p className="text-[11px] text-muted-foreground/50 mt-1 max-w-[200px]">Link documented evidence to this phase to continue.</p>
+                    <p className="text-sm font-medium text-foreground">Stage Library Empty</p>
+                    <p className="text-sm text-muted-foreground mt-1 px-4 max-w-sm">Link documented evidence to this phase to continue.</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setAddDialogOpen(true)} className="mt-2 rounded-xl text-[10px] font-bold border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all">
-                    PROTO-ADD DOCUMENT
+                  <Button variant="secondary" size="sm" onClick={() => setAddDialogOpen(true)} className="mt-2 text-xs">
+                    Add Document
                   </Button>
                 </div>
               )}

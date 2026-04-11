@@ -37,7 +37,7 @@ export function DocumentHighlightsPanel({ document, docDef, onClose }: DocumentH
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold truncate max-w-[200px]">{document.name}</h3>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+            <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">
               {document.type.replace(/-/g, ' ')}
             </p>
           </div>
@@ -48,7 +48,7 @@ export function DocumentHighlightsPanel({ document, docDef, onClose }: DocumentH
             <Button
               variant={view === 'preview' ? 'secondary' : 'ghost'}
               size="sm"
-              className="h-7 px-2 text-[10px] gap-1.5"
+              className="h-7 px-2 text-xs gap-1.5"
               onClick={() => setView('preview')}
             >
               <Eye className="h-3.5 w-3.5" />
@@ -58,7 +58,7 @@ export function DocumentHighlightsPanel({ document, docDef, onClose }: DocumentH
               <Button
                 variant={view === 'rules' ? 'secondary' : 'ghost'}
                 size="sm"
-                className="h-7 px-2 text-[10px] gap-1.5 text-orange-500 hover:text-orange-600 hover:bg-orange-500/10"
+                className="h-7 px-2 text-xs gap-1.5 text-orange-500 hover:text-orange-600 hover:bg-orange-500/10"
                 onClick={() => setView('rules')}
               >
                 <Database className="h-3.5 w-3.5" />
@@ -115,7 +115,7 @@ export function DocumentHighlightsPanel({ document, docDef, onClose }: DocumentH
           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-orange-500/5">
             <div className="space-y-4">
               <div className="flex flex-col mb-4">
-                <p className="text-[11px] font-bold text-orange-500 uppercase tracking-widest flex items-center gap-2">
+                <p className="text-sm font-bold text-orange-500 uppercase tracking-widest flex items-center gap-2">
                   <Database className="h-3 w-3 text-orange-500" />
                   Cross Validation Configuration
                 </p>
@@ -127,18 +127,18 @@ export function DocumentHighlightsPanel({ document, docDef, onClose }: DocumentH
               {docDef.cross_validation_rules.map((rule, index) => (
                 <div key={index} className="flex flex-col gap-2 p-4 bg-background border border-orange-500/20 rounded-xl hover:border-orange-500/40 transition-all shadow-sm">
                   <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-none text-[10px] uppercase font-black tracking-wider px-2 py-0">
+                    <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-none text-xs uppercase font-black tracking-wider px-2 py-0">
                       {rule.comparison_type.replace(/_/g, ' ')}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between gap-3 bg-muted/30 p-3 rounded-lg border border-border/50">
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Source Field</p>
+                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Source Field</p>
                       <p className="text-sm font-semibold truncate text-primary">{rule.source_field.replace(/_/g, ' ')}</p>
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Target Field ({rule.target_document_type})</p>
+                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Target Field ({rule.target_document_type})</p>
                       <p className="text-sm font-semibold truncate text-orange-600 group-hover:text-orange-500">{rule.target_field.replace(/_/g, ' ')}</p>
                     </div>
                   </div>

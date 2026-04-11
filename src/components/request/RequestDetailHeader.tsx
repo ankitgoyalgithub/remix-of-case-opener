@@ -137,24 +137,7 @@ export function RequestDetailHeader({
               <UserPlus className="h-4 w-4" />
               Assign
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className={cn(
-                "gap-2 h-9 transition-colors",
-                hasMissingDocuments
-                  ? "border-warning/50 text-warning hover:bg-warning/10 hover:border-warning"
-                  : "border-border/60 hover:bg-secondary"
-              )}
-              onClick={onRequestMissingInfo}
-            >
-              <AlertCircle className="h-4 w-4" />
-              Missing Info
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2 h-9 border-destructive/20 text-destructive hover:bg-destructive/10 hover:border-destructive/40" onClick={onEscalate}>
-              <ArrowUpRight className="h-4 w-4" />
-              Escalate
-            </Button>
+
             <Button 
                 variant="outline" 
                 size="sm" 

@@ -25,7 +25,8 @@ import {
     ListTodo,
     Database,
     RefreshCw,
-    BrainCircuit
+    BrainCircuit,
+    AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,7 @@ interface OperationsWorkbenchProps {
     onSelectChecklistItem: (itemId: string) => void;
     onStageComplete: (stageId: number) => void;
     onChecklistToggle: (itemId: string) => void;
+    onRunValidation?: (itemId: string) => Promise<void>;
     onUploadDocument: (file: File, type: DocumentType, checklistId?: string) => Promise<void>;
     onSelectDocument: (doc: Document | null) => void;
     onReextract?: (docId: string, additionalPrompt?: string) => Promise<void>;
@@ -77,6 +79,7 @@ export function OperationsWorkbench({
     onSelectChecklistItem,
     onStageComplete,
     onChecklistToggle,
+    onRunValidation,
     onUploadDocument,
     onReextract,
     onSelectDocument,
@@ -97,9 +100,9 @@ export function OperationsWorkbench({
             .map(d => d.type) as DocumentType[];
     }, [requestData.docDefs]);
 
-    const activeDocDef = React.useMemo(() => 
+    const activeDocDef = React.useMemo(() =>
         requestData.docDefs?.find(d => d.type === selectedDocument?.type),
-    [requestData.docDefs, selectedDocument]);
+        [requestData.docDefs, selectedDocument]);
 
     const missingDocs = React.useMemo(() => {
         if (!requestData.docDefs) return [];
@@ -128,7 +131,7 @@ export function OperationsWorkbench({
         // Find keys from database-driven docDefs first
         const docDef = requestData.docDefs?.find(d => d.type === selectedDocument.type);
         const standardKeys = docDef?.extraction_keys || [];
-        
+
         // Fallback for untracked types
         const finalKeys = standardKeys.length > 0 ? standardKeys : ['Document Reference', 'Note'];
         const extraction = selectedDocument.extraction?.data || {};
@@ -154,39 +157,14 @@ export function OperationsWorkbench({
     };
 
     return (
-        <div className="flex-1 flex flex-col overflow-hidden bg-background/50 p-4 gap-4">
-            {/* Top Bar: Context & Adjudication Summary */}
-            <div className="flex items-center justify-between glass-card rounded-2xl p-3 px-6 shrink-0 border-primary/5">
-                <div className="flex items-center gap-4">
-                    <div className="flex flex-col">
-                        <h2 className="text-base font-bold text-foreground leading-tight flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                            {currentStageData?.name}
-                        </h2>
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Operational Context</span>
-                    </div>
-                </div>
+        <div className="flex-1 flex flex-col overflow-hidden bg-background p-4 gap-4">
 
-                <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" className="h-9 px-4 rounded-xl border-primary/20 hover:bg-primary/5 text-xs font-bold gap-2">
-                        <Activity className="h-4 w-4" />
-                        Real-time Health
-                    </Button>
-                    <Button
-                        onClick={() => onStageComplete(activeViewStage)}
-                        disabled={requestData.status === 'Issued' || currentStageData?.status === 'complete'}
-                        className="h-9 px-6 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 text-xs font-bold border-t border-white/20"
-                    >
-                        Advance Stage
-                    </Button>
-                </div>
-            </div>
 
             <div className="flex-1 flex flex-col xl:flex-row gap-4 min-h-0 overflow-auto xl:overflow-hidden">
                 {/* Left Column: Input & Tasks */}
                 <div className="w-full xl:w-[420px] flex flex-col gap-4 shrink-0">
                     {/* Required Documents Section */}
-                    <div className="h-[320px] lg:h-[380px] xl:h-[320px] glass-card rounded-3xl flex flex-col overflow-hidden bg-card/40 border-primary/10">
+                    <div className="h-[320px] lg:h-[380px] xl:h-[320px] bg-card rounded-lg border flex flex-col overflow-hidden">
                         <RequiredDocumentsPanel
                             documents={requestData.documents}
                             requiredDocTypes={caseRequiredDocTypes}
@@ -197,15 +175,15 @@ export function OperationsWorkbench({
                     </div>
 
                     {/* Operational Checklist Section */}
-                    <div className="h-[400px] xl:flex-1 glass-card rounded-3xl flex flex-col overflow-hidden border-indigo-500/10">
+                    <div className="h-[400px] xl:flex-1 bg-card rounded-lg border flex flex-col overflow-hidden">
                         <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center justify-between shrink-0">
                             <div className="flex items-center gap-2">
                                 <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
                                     <CheckSquare className="h-4 w-4 text-indigo-500" />
                                 </div>
-                                <h3 className="text-xs font-bold uppercase tracking-wider">Operational Workflow</h3>
+                                <h3 className="text-xs font-bold uppercase tracking-wider">Checklist</h3>
                             </div>
-                            <Badge variant="outline" className="text-[10px] font-bold py-0 bg-primary/5 border-primary/20">
+                            <Badge variant="outline" className="text-xs font-bold py-0 bg-primary/5 border-primary/20">
                                 {currentStageData?.status === 'complete' ? 'COMPLETED' : 'IN PROGRESS'}
                             </Badge>
                         </div>
@@ -223,6 +201,7 @@ export function OperationsWorkbench({
                                         onMarkStageComplete={onStageComplete}
                                         selectedItemId={selectedChecklistItemId}
                                         onSelectItem={onSelectChecklistItem}
+                                        onRunValidation={onRunValidation}
                                     />
                                 )}
                             </div>
@@ -232,35 +211,61 @@ export function OperationsWorkbench({
 
                 {/* Right Column: Intelligence & Evidence */}
                 <div className="flex-1 flex flex-col gap-4 min-w-0">
-                    <div className="flex-1 grid grid-cols-1 2xl:grid-cols-[500px_1fr] gap-4 min-h-0">
+                    <div className="flex-1 flex flex-col min-h-0">
                         {/* Data Bento Card / Traffic Light Report */}
-                        <div className="glass-card rounded-3xl flex flex-col overflow-hidden bg-card/30 border-blue-500/10 min-h-[400px] 2xl:min-h-0">
+                        <div className="bg-card rounded-lg border flex flex-col overflow-hidden min-h-[400px] 2xl:min-h-0">
                             <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center justify-between shrink-0">
                                 <div className="flex items-center gap-2">
                                     <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
                                         <Database className="h-4 w-4 text-blue-500" />
                                     </div>
                                     <h4 className="text-xs font-bold uppercase tracking-wider">
-                                        {activeViewStage === 5 
-                                          ? 'Adjudication Report' 
-                                          : selectedItem 
-                                            ? 'Checklist Details' 
-                                            : 'Field Extractions'}
+                                        {activeViewStage === 1
+                                            ? 'Adjudication Report'
+                                            : selectedItem
+                                                ? 'Checklist Details'
+                                                : 'Field Extractions'}
                                     </h4>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    {(selectedDocument || (selectedItem?.documentType && selectedItem.documentType.length > 0)) && activeViewStage !== 5 && (
+                                    {/* Action Hub - Contextual Buttons */}
+                                    {selectedItem && (
+                                        (selectedItem.handlerName && selectedItem.handlerName !== 'manual') || 
+                                        selectedItem.itemType === 'cross-validation' || 
+                                        selectedItem.verifications?.some(v => v.type !== 'manual')
+                                    ) && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 text-xs font-black tracking-widest gap-1.5 hover:bg-primary/5 text-primary border border-primary/20 hover:border-primary/40 uppercase"
+                                            onClick={async () => {
+                                                const loadingToast = toast.loading('Executing Validation Logic...');
+                                                try {
+                                                    if (onRunValidation) {
+                                                        await onRunValidation(selectedItem.id);
+                                                    }
+                                                } catch (err) {
+                                                    toast.error('Validation failed');
+                                                } finally {
+                                                    toast.dismiss(loadingToast);
+                                                }
+                                            }}
+                                        >
+                                            <RefreshCw className="h-3.5 w-3.5" />
+                                            Re-Run Analysis
+                                        </Button>
+                                    )}
+
+                                    {selectedDocument && !selectedItem && (
                                         <Dialog open={isReextractDialogOpen} onOpenChange={setIsReextractDialogOpen}>
                                             <DialogTrigger asChild>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="h-7 text-[10px] font-bold gap-1.5 hover:bg-primary/5 text-primary border border-primary/20 hover:border-primary/40"
-                                                    disabled={!selectedDocument}
+                                                    className="h-7 text-xs font-black tracking-widest gap-1.5 hover:bg-primary/5 text-primary border border-primary/20 hover:border-primary/40 uppercase"
                                                 >
                                                     <BrainCircuit className="h-3.5 w-3.5" />
-                                                    <span className="hidden sm:inline">RE-EXTRACT</span>
-                                                    <span className="sm:hidden">FIX</span>
+                                                    Re-Extract
                                                 </Button>
                                             </DialogTrigger>
                                             <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden border-none shadow-2xl">
@@ -283,7 +288,7 @@ export function OperationsWorkbench({
 
                                                     <div className="space-y-6">
                                                         <div className="space-y-3">
-                                                            <Label htmlFor="prompt" className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] ml-0.5">
+                                                            <Label htmlFor="prompt" className="text-xs font-bold text-muted-foreground uppercase tracking-[0.15em] ml-0.5">
                                                                 Additional AI Instruction
                                                             </Label>
                                                             <div className="relative group">
@@ -300,7 +305,7 @@ export function OperationsWorkbench({
                                                         </div>
 
                                                         <div className="space-y-3">
-                                                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] ml-0.5">
+                                                            <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.15em] ml-0.5">
                                                                 Quick Hints
                                                             </p>
                                                             <div className="flex flex-wrap gap-2">
@@ -308,7 +313,7 @@ export function OperationsWorkbench({
                                                                     <button
                                                                         key={hint}
                                                                         onClick={() => setReextractPrompt(prev => prev ? `${prev}, ${hint}` : hint)}
-                                                                        className="text-[10px] font-medium bg-muted/50 hover:bg-primary/10 hover:text-primary border border-border hover:border-primary/30 py-1.5 px-3 rounded-full transition-all"
+                                                                        className="text-xs font-medium bg-muted/50 hover:bg-primary/10 hover:text-primary border border-border hover:border-primary/30 py-1.5 px-3 rounded-full transition-all"
                                                                     >
                                                                         + {hint}
                                                                     </button>
@@ -343,29 +348,24 @@ export function OperationsWorkbench({
                                             </DialogContent>
                                         </Dialog>
                                     )}
-                                    {selectedItem?.documentType && selectedItem.documentType.length > 0 && activeViewStage !== 5 && (
-                                        <div className="flex gap-1.5 flex-wrap justify-end hidden md:flex">
-                                            {selectedItem.documentType.map((dt, i) => (
-                                                <Badge key={i} className="text-[10px] bg-blue-500/10 text-blue-500 border-none px-2">{dt}</Badge>
-                                            ))}
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                             <ScrollArea className="flex-1">
-                                <div className="p-4 md:p-5">
+                                <div className="p-4 lg:p-10">
+
                                     {/* If a checklist item is selected, show its detail panel instead of extraction */}
-                                    {selectedItem && activeViewStage !== 5 ? (
+                                    {selectedItem ? (
                                         <ChecklistDetailPanel
                                             item={selectedItem}
                                             onValidationComplete={(updated) => {
                                                 // Parent refresh handled via toast; result is updated in local state inside panel
                                             }}
+                                            onRunValidation={onRunValidation}
                                         />
-                                    ) : activeViewStage === 5 ? (
+                                    ) : activeViewStage === 1 ? (
                                         <div className="space-y-6">
-                                            <div className="bg-primary/5 rounded-2xl p-4 border border-primary/10">
-                                                <h5 className="text-[11px] font-black uppercase tracking-widest text-primary mb-3">Traffic Light Summary</h5>
+                                            <div className="bg-muted/10 rounded-lg p-4 border border-border/50">
+                                                <h5 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">Traffic Light Summary</h5>
                                                 <div className="space-y-3">
                                                     {[
                                                         { label: 'Entity Status', status: 'verified', source: 'NER', color: 'text-success' },
@@ -373,7 +373,7 @@ export function OperationsWorkbench({
                                                         { label: 'UBO Check', status: '1 PEP detected', source: 'Manual Review Required', color: 'text-amber-500' },
                                                         { label: 'Expiry Alert', status: 'License expires in 12 days', source: 'Hard Stop Imminent', color: 'text-destructive' },
                                                     ].map((item, idx) => (
-                                                        <div key={idx} className="flex items-center justify-between p-3 bg-background/50 rounded-xl border border-border/50">
+                                                        <div key={idx} className="flex items-center justify-between p-3 bg-background rounded-md border border-border/50 shadow-sm">
                                                             <div className="flex items-center gap-3">
                                                                 <div className={cn(
                                                                     "w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.1)]",
@@ -382,18 +382,39 @@ export function OperationsWorkbench({
                                                                 <span className="text-xs font-bold text-foreground/80">{item.label}</span>
                                                             </div>
                                                             <div className="text-right">
-                                                                <div className={cn("text-[11px] font-black uppercase", item.color)}>{item.status}</div>
-                                                                <div className="text-[9px] text-muted-foreground font-medium group-hover:text-primary transition-colors hidden xs:block">Source: {item.source}</div>
+                                                                <div className={cn("text-sm font-black uppercase", item.color)}>{item.status}</div>
+                                                                <div className="text-[11px] text-muted-foreground font-medium group-hover:text-primary transition-colors hidden xs:block">Source: {item.source}</div>
                                                             </div>
                                                         </div>
                                                     ))}
                                                 </div>
                                             </div>
 
-                                            <div className="p-4 bg-muted/20 rounded-2xl border border-border/50">
-                                                <p className="text-[10px] font-medium text-muted-foreground leading-relaxed">
+                                            <div className="p-4 bg-muted/10 rounded-lg border border-border/50">
+                                                <p className="text-xs font-medium text-muted-foreground leading-relaxed">
                                                     The data is ready to be pushed to the core policy system. Review the yellow and red flags before final approval.
                                                 </p>
+                                            </div>
+                                        </div>
+                                    ) : (selectedDocument && selectedDocument.status === 'failed') ? (
+                                        <div className="h-full flex flex-col items-center justify-center py-12 md:py-24 text-center px-8">
+                                            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-6 border border-destructive/20 border-dashed">
+                                                <AlertCircle className="h-8 w-8 text-destructive/60" />
+                                            </div>
+                                            <h4 className="text-sm font-black text-destructive uppercase tracking-widest">Extraction Failed</h4>
+                                            <p className="text-sm font-medium text-muted-foreground mt-2 max-w-[280px] leading-relaxed">
+                                                The AI could not confidently isolate data from this document. This usually occurs with poor scan quality or complex layouts.
+                                            </p>
+                                            
+                                            <div className="mt-8 flex flex-col gap-2 w-full max-w-[280px]">
+                                                <div className="p-3 bg-muted/30 rounded-lg border border-border/50 text-xs text-left text-foreground/70 leading-tight flex gap-3 items-start">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1" />
+                                                    <p>Use **Re-Extract** with manual pointers to help the AI locate specific fields.</p>
+                                                </div>
+                                                <div className="p-3 bg-muted/30 rounded-lg border border-border/50 text-xs text-left text-foreground/70 leading-tight flex gap-3 items-start">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1" />
+                                                    <p>Capture the required data points manually in the verification tasks.</p>
+                                                </div>
                                             </div>
                                         </div>
                                     ) : filteredExtractedData.length > 0 ? (
@@ -406,65 +427,15 @@ export function OperationsWorkbench({
                                             <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mb-4 border border-border border-dashed">
                                                 <Database className="h-6 w-6 text-muted-foreground/40" />
                                             </div>
-                                            <p className="text-sm font-bold text-foreground">Operational Signal Missing</p>
-                                            <p className="text-[11px] text-muted-foreground mt-1 px-6 md:px-12 leading-relaxed text-balance">Select a verification task or document to stream AI-extracted data points.</p>
+                                            <p className="text-sm font-bold text-foreground">Checklist Signal Missing</p>
+                                            <p className="text-sm text-muted-foreground mt-1 px-6 md:px-12 leading-relaxed text-balance">Select a verification task or document to stream AI-extracted data points.</p>
                                         </div>
                                     )}
                                 </div>
                             </ScrollArea>
                         </div>
 
-                        {/* Evidence Bento Card */}
-                        <div className="glass-card rounded-3xl flex flex-col overflow-hidden bg-card/20 border-indigo-500/10 min-h-[400px] 2xl:min-h-0">
-                            <div className="p-4 border-b border-border/50 bg-muted/20 flex items-center justify-between shrink-0">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-                                        <FileText className="h-4 w-4 text-indigo-500" />
-                                    </div>
-                                    <h4 className="text-xs font-bold uppercase tracking-wider">Evidence Library</h4>
-                                </div>
-                                {selectedDocument && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 text-[10px] font-bold gap-1.5 hover:bg-primary/5 text-primary"
-                                        onClick={() => onSelectDocument(null)}
-                                    >
-                                        <ArrowRightLeft className="h-3.5 w-3.5" />
-                                        <span className="hidden sm:inline">SWITCH SOURCE</span>
-                                        <span className="sm:hidden">SWITCH</span>
-                                    </Button>
-                                )}
-                            </div>
-                            <div className="flex-1 p-4 md:p-5 overflow-hidden flex flex-col min-h-0">
-                                {selectedDocument ? (
-                                    <div className="bg-card/50 rounded-2xl border border-border flex flex-col shadow-inner h-full overflow-hidden">
-                                        <DocumentHighlightsPanel
-                                            document={selectedDocument}
-                                            docDef={requestData.docDefs?.find(d => d.type === selectedDocument.type)}
-                                            onClose={() => onSelectDocument(null)}
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="flex-1 flex flex-col min-h-0 bg-muted/30 rounded-2xl border border-dashed border-border/60 overflow-hidden">
-                                        <ScrollArea className="flex-1">
-                                            <div className="p-4">
-                                                <DocumentsPanel
-                                                    documents={requestData.documents}
-                                                    selectedDocument={selectedDocument}
-                                                    onSelectDocument={onSelectDocument}
-                                                    activeStage={activeViewStage}
-                                                    docDefs={requestData.docDefs}
-                                                    onUpload={undefined}
-                                                    onReupload={handleReupload}
-                                                    onPreview={handlePreview}
-                                                />
-                                            </div>
-                                        </ScrollArea>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+
                     </div>
                 </div>
             </div>

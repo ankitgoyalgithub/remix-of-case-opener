@@ -176,7 +176,7 @@ export default function ExtractionSchema() {
                     placeholder="Enter specific instructions for the AI vision agent (e.g. 'Look closely at the bottom right corner for the expiry date')"
                     className="min-h-[100px] text-sm"
                   />
-                  <p className="text-[10px] text-muted-foreground">These instructions are injected directly into the LLM prompt during extraction.</p>
+                  <p className="text-xs text-muted-foreground">These instructions are injected directly into the LLM prompt during extraction.</p>
                 </div>
 
                 {/* Extraction Keys Section */}
@@ -225,7 +225,7 @@ export default function ExtractionSchema() {
                     placeholder="Comma separated hints (e.g. Registration No, Expiry Date)"
                     className="text-sm"
                   />
-                  <p className="text-[10px] text-muted-foreground">These hints are displayed to the ops user when reviewing the document in the workbench.</p>
+                  <p className="text-xs text-muted-foreground">These hints are displayed to the ops user when reviewing the document in the workbench.</p>
                 </div>
 
               </TabsContent>

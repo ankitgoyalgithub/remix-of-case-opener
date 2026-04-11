@@ -84,7 +84,7 @@ export default function AIStudioLayout() {
               <Link to="/requests">
                 <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl px-2 md:px-4 py-2 transition-all">
                   <ArrowLeft className="h-4 w-4" />
-                  <span className="text-[10px] md:text-xs font-bold tracking-tight">EXIT</span>
+                  <span className="text-xs md:text-xs font-bold tracking-tight">EXIT</span>
                 </Button>
               </Link>
 
@@ -93,18 +93,18 @@ export default function AIStudioLayout() {
               {/* Mode Control Group */}
               <div className="flex items-center gap-2 md:gap-6 glass-card px-2 md:px-4 py-1.5 rounded-2xl border-primary/10 overflow-hidden">
                 <div className="flex items-center gap-2 md:gap-3">
-                  <span className={cn("text-[8px] md:text-[10px] font-bold tracking-wider transition-colors hidden xs:block", !isAdvanced ? "text-primary" : "text-muted-foreground")}>STANDARD</span>
+                  <span className={cn("text-[10px] md:text-xs font-bold tracking-wider transition-colors hidden xs:block", !isAdvanced ? "text-primary" : "text-muted-foreground")}>STANDARD</span>
                   <Switch
                     checked={isAdvanced}
                     onCheckedChange={setIsAdvanced}
                     className="data-[state=checked]:bg-primary h-5 w-9 md:h-6 md:w-11"
                   />
-                  <span className={cn("text-[8px] md:text-[10px] font-bold tracking-wider transition-colors hidden xs:block", isAdvanced ? "text-primary" : "text-muted-foreground")}>ADVANCED</span>
+                  <span className={cn("text-[10px] md:text-xs font-bold tracking-wider transition-colors hidden xs:block", isAdvanced ? "text-primary" : "text-muted-foreground")}>ADVANCED</span>
                 </div>
 
                 <Separator orientation="vertical" className="h-4 bg-border/50 hidden sm:block" />
 
-                <Badge variant="outline" className="gap-2 py-0.5 md:py-1 px-2 md:px-3 bg-success/5 border-success/20 text-success text-[8px] md:text-[10px] font-bold rounded-lg group hover:bg-success/10 transition-colors whitespace-nowrap">
+                <Badge variant="outline" className="gap-2 py-0.5 md:py-1 px-2 md:px-3 bg-success/5 border-success/20 text-success text-[10px] md:text-xs font-bold rounded-lg group hover:bg-success/10 transition-colors whitespace-nowrap">
                   <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-success animate-pulse" />
                   <span className="hidden xs:inline">SYSTEM LIVE</span>
                   <span className="xs:hidden">LIVE</span>
@@ -160,7 +160,7 @@ function StudioSidebar({ isAdvanced }: { isAdvanced: boolean }) {
                   <h2 className="text-lg font-extrabold tracking-tight text-foreground leading-none">
                     INSURE<span className="text-primary italic">STUDIO</span>
                   </h2>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-2 opacity-60">Engine v4.2</p>
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em] mt-2 opacity-60">Engine v4.2</p>
                 </div>
               )}
             </div>
@@ -172,8 +172,8 @@ function StudioSidebar({ isAdvanced }: { isAdvanced: boolean }) {
                   <Shield className="h-4 w-4 text-primary" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[11px] font-bold text-foreground leading-tight">Admin Master</span>
-                  <span className="text-[9px] font-bold text-primary uppercase tracking-wider mt-0.5">Full Sovereignty</span>
+                  <span className="text-sm font-bold text-foreground leading-tight">Admin Master</span>
+                  <span className="text-[11px] font-bold text-primary uppercase tracking-wider mt-0.5">Full Sovereignty</span>
                 </div>
               </div>
             )}
@@ -182,7 +182,7 @@ function StudioSidebar({ isAdvanced }: { isAdvanced: boolean }) {
 
         <SidebarGroup className="mt-6 px-4">
           {!collapsed && (
-            <SidebarGroupLabel className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/50 px-3 mb-4 flex items-center gap-2">
+            <SidebarGroupLabel className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground/50 px-3 mb-4 flex items-center gap-2">
               <div className="w-1 h-1 rounded-full bg-primary/40" />
               {isAdvanced ? 'Advanced Engine' : 'Baseline Config'}
             </SidebarGroupLabel>
@@ -209,7 +209,7 @@ function StudioSidebar({ isAdvanced }: { isAdvanced: boolean }) {
                           <div className="flex-1 min-w-0 flex flex-col justify-center">
                             <span className="block truncate leading-tight tracking-tight">{item.title}</span>
                             <span className={cn(
-                              "block truncate text-[10px] font-medium leading-none mt-1.5 transition-colors tracking-normal",
+                              "block truncate text-xs font-medium leading-none mt-1.5 transition-colors tracking-normal",
                               isActive ? "text-white/70" : "text-muted-foreground/60 group-hover:text-muted-foreground/90"
                             )}>
                               {item.description}

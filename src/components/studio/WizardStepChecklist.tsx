@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,26 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,20 +45,32 @@ import {
   Trash2,
   Check,
   X,
+  Settings2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { ChecklistDefinition } from '@/data/mockStudioData';
 import { DOCUMENT_TYPE_LABELS } from '@/types/case';
-import { useStudioChecklist, useStudioStages } from '@/hooks/useStudioStore';
+import { useStudioChecklist, useStudioStages, useStudioDocuments } from '@/hooks/useStudioStore';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export function WizardStepChecklist() {
   const { items, addItem, removeItem, updateItem } = useStudioChecklist();
   const { stages } = useStudioStages();
-  const [selectedStage, setSelectedStage] = useState<string | number>(stages[0]?.id ?? 1);
+  const { documents } = useStudioDocuments();
+  const [selectedStage, setSelectedStage] = useState<string | number>(stages[0]?.id || 1);
   const [addingItem, setAddingItem] = useState(false);
   const [newItemName, setNewItemName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [configuringItem, setConfiguringItem] = useState<string | null>(null);
+
+  // Sync selectedStage once stages are loaded from API
+  useEffect(() => {
+    if (stages.length > 0 && (!selectedStage || selectedStage === 1)) {
+      setSelectedStage(stages[0].id);
+    }
+  }, [stages, selectedStage]);
 
   const filteredItems = items.filter(item => item.stageId === selectedStage);
   const itemToDelete = items.find(i => i.id === deleteConfirm);
@@ -53,6 +85,9 @@ export function WizardStepChecklist() {
       linkedDocuments: [],
       autoCheckRule: 'manual',
       manualOverrideAllowed: true,
+      itemType: 'manual',
+      handlerName: 'manual',
+      configPayload: {}
     });
     setNewItemName('');
     setAddingItem(false);
@@ -66,74 +101,59 @@ export function WizardStepChecklist() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 h-full flex flex-col">
+    <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col">
       <div className="space-y-1">
-        <h2 className="text-2xl font-black tracking-tight text-foreground">Validation Guardrails</h2>
-        <p className="text-sm font-medium text-muted-foreground/70">
+        <h2 className="text-xl font-semibold text-foreground">Validation Guardrails</h2>
+        <p className="text-sm text-muted-foreground mt-1">
           Define precise verification checkpoints for each operational phase.
         </p>
       </div>
 
-      <div className="flex-1 flex gap-8 min-h-0">
-        {/* Left: Stage Navigation Rail */}
-        <div className="w-64 shrink-0 flex flex-col gap-4">
-          <div className="flex items-center justify-between px-2">
-            <Label className="text-[10px] font-black text-primary/40 uppercase tracking-[0.2em]">Operational Phases</Label>
-          </div>
-          <div className="flex-1 overflow-auto pr-2 space-y-1.5 custom-scrollbar">
-            {stages.map(stage => {
-              const count = items.filter(i => i.stageId === stage.id).length;
-              const isSelected = selectedStage === stage.id;
-              return (
-                <button
-                  key={stage.id}
-                  onClick={() => setSelectedStage(stage.id)}
-                  className={cn(
-                    "w-full group text-left px-4 py-3.5 rounded-2xl transition-all duration-300 relative overflow-hidden active:scale-95",
-                    isSelected
-                      ? "bg-primary text-white shadow-lg shadow-primary/20 border-t border-white/20"
-                      : "hover:bg-primary/5 text-muted-foreground border border-transparent"
-                  )}
-                >
-                  {/* Subtle BG Glow for selected */}
-                  {isSelected && (
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8" />
-                  )}
+      {/* Top: Horizontal Stage Navigation Strip */}
+      <div className="w-full flex items-center gap-2 overflow-x-auto pb-4 custom-scrollbar shrink-0">
+        {stages.map(stage => {
+          const count = items.filter(i => i.stageId === stage.id).length;
+          const isSelected = selectedStage === stage.id;
+          return (
+            <button
+              key={stage.id}
+              onClick={() => setSelectedStage(stage.id)}
+              className={cn(
+                "group flex items-center gap-3 whitespace-nowrap px-4 py-2.5 rounded-full transition-all duration-200 border",
+                isSelected
+                  ? "bg-foreground border-foreground text-background font-semibold shadow-md"
+                  : "bg-background border-border text-foreground hover:bg-muted"
+              )}
+            >
+              <div className={cn(
+                "w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                isSelected ? "bg-background/20" : "bg-muted text-muted-foreground"
+              )}>
+                {stage.order}
+              </div>
+              <span className="text-sm truncate max-w-[150px]">{stage.name}</span>
+              {count > 0 && (
+                <Badge variant="secondary" className={cn(
+                  "ml-1 text-[11px] font-black h-5 min-w-[20px] rounded-full flex items-center justify-center transition-colors",
+                  isSelected ? "bg-background/20 text-background" : "bg-muted text-muted-foreground"
+                )}>
+                  {count}
+                </Badge>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
-                  <div className="flex items-center justify-between relative z-10">
-                    <div className="flex items-center gap-3 min-w-0 pr-2">
-                      <div className={cn(
-                        "w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black transition-all",
-                        isSelected ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
-                      )}>
-                        {stage.order}
-                      </div>
-                      <span className="text-xs font-bold tracking-tight truncate">{stage.name}</span>
-                    </div>
-                    {count > 0 && (
-                      <Badge variant="secondary" className={cn(
-                        "text-[9px] font-black h-5 min-w-[20px] rounded-full flex items-center justify-center transition-colors",
-                        isSelected ? "bg-white/20 text-white" : "bg-muted text-muted-foreground"
-                      )}>
-                        {count}
-                      </Badge>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right: Checklist Items */}
-        <div className="flex-1 flex flex-col gap-6">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0">
+        {/* Main Workspace: Checklist Items */}
           <div className="flex-1 overflow-auto pr-2 custom-scrollbar">
             <div className="space-y-4 pb-10">
               {filteredItems.map(item => (
                 <div key={item.id} className="group relative">
                   <div className={cn(
-                    "glass-card rounded-2xl border-border/40 p-4 transition-all duration-300",
-                    "hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
+                    "bg-card rounded-lg border p-4 transition-all duration-200",
+                    "hover:border-primary/40 shadow-sm hover:shadow"
                   )}>
                     <div className="flex items-center gap-4">
                       <GripVertical className="h-4 w-4 text-muted-foreground/30 hover:text-primary transition-colors cursor-move shrink-0" />
@@ -151,57 +171,412 @@ export function WizardStepChecklist() {
                           maxLength={200}
                         />
                         <div className="flex items-center gap-4 mt-2">
-                          {item.autoCheckRule !== 'manual' ? (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-warning/10 border border-warning/20">
-                              <Zap className="h-3 w-3 text-warning" />
-                              <span className="text-[9px] font-black text-warning uppercase tracking-widest">AUTO: {item.autoCheckRule === 'document-present' ? 'ENVELOPE DETECTED' : 'FIELD VALIDATED'}</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted border border-border/50">
-                              <Hand className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest">MANUAL ATTESTATION</span>
-                            </div>
-                          )}
+                          {(() => {
+                            const hasAuto = item.verifications?.some(v => v.type === 'document_verification' || v.type === 'cross_validation' || v.type === 'external_api');
+                            return hasAuto ? (
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-warning/10 border border-warning/20">
+                                <Zap className="h-3 w-3 text-warning" />
+                                <span className="text-[11px] font-black text-warning uppercase tracking-widest">AUTO CHECKS ENABLED</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted border border-border/50">
+                                <Hand className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">MANUAL ONLY</span>
+                              </div>
+                            );
+                          })()}
 
-                          {item.linkedDocuments.length > 0 && (
+                          {(item.linkedDocuments?.length || 0) > 0 && (
                             <div className="flex items-center gap-1.5 text-muted-foreground/60">
                               <Link2 className="h-3 w-3" />
-                              <span className="text-[10px] font-medium truncate max-w-[200px]">
-                                {item.linkedDocuments.map(d => DOCUMENT_TYPE_LABELS[d] || d).join(', ')}
+                              <span className="text-xs font-medium truncate max-w-[200px]">
+                                {item.linkedDocuments?.map(d => DOCUMENT_TYPE_LABELS[d as keyof typeof DOCUMENT_TYPE_LABELS] || d).join(', ')}
                               </span>
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-6 ml-4">
-                        <div className="flex flex-col items-center gap-1.5 px-3 border-x border-border/30">
-                          <Label className="text-[9px] font-black tracking-tighter text-muted-foreground/40 uppercase">Mandatory</Label>
+                      <div className="flex items-center gap-4 ml-4 shrink-0">
+                        <div className="flex flex-col items-end gap-1">
+                          <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Verifications</Label>
+                          <div className="flex items-center gap-1.5 px-3 h-8 rounded-md bg-muted/50 border border-border/50">
+                            <span className="text-sm font-bold text-foreground">
+                              {item.verifications?.length || 0} checks
+                            </span>
+                          </div>
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "h-8 w-8 rounded-md transition-all",
+                            configuringItem === item.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"
+                          )}
+                          onClick={() => setConfiguringItem(configuringItem === item.id ? null : item.id)}
+                        >
+                          <Settings2 className="h-4 w-4" />
+                        </Button>
+
+                        <div className="flex flex-col items-center gap-1 px-3 border-l border-border/30">
+                          <Label className="text-xs font-medium text-muted-foreground">Req.</Label>
                           <Switch
                             checked={item.required}
                             onCheckedChange={(checked) => updateItem(item.id, { required: checked })}
-                            className="scale-90 data-[state=checked]:bg-primary"
+                            className="scale-75"
                           />
                         </div>
 
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-9 w-9 rounded-lg text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100"
+                          className="h-8 w-8 rounded-md text-destructive hover:bg-destructive/10 transition-all opacity-0 group-hover:opacity-100"
                           onClick={() => setDeleteConfirm(item.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
+
+                    {/* Configuration Expander */}
+                    {configuringItem === item.id && (
+                      <div className="mt-4 pt-6 border-t border-dashed border-border/60 animate-in slide-in-from-top-2 duration-300">
+                        <div className="flex flex-col w-full gap-8">
+                          
+                          {/* Top Section: Target Docs */}
+                          <div className="w-full space-y-3 pb-6 border-b border-dashed border-border/40">
+                            <Label className="text-xs font-black uppercase tracking-widest text-primary">Item-Level Target Documents</Label>
+                            <div className="flex flex-col md:flex-row md:items-center gap-4">
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button 
+                                    variant="outline" 
+                                    className="w-full md:w-[320px] justify-between h-10 text-xs font-medium bg-muted/30 border-dashed"
+                                  >
+                                    <div className="flex items-center gap-2 truncate">
+                                      <Link2 className="h-4 w-4 text-muted-foreground" />
+                                      {item.linkedDocuments?.length ? (
+                                        `${item.linkedDocuments.length} Documents Selected`
+                                      ) : (
+                                        "Select documents..."
+                                      )}
+                                    </div>
+                                    <ChevronDown className="h-4 w-4 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[350px] p-0 shadow-2xl" align="start">
+                                  <Command>
+                                    <CommandInput placeholder="Search documents..." className="h-9 text-sm" />
+                                    <CommandList>
+                                      <CommandEmpty>No document found.</CommandEmpty>
+                                      <CommandGroup>
+                                        {documents.map(doc => {
+                                          const isSelected = item.linkedDocuments?.includes(doc.type);
+                                          return (
+                                            <CommandItem
+                                              key={doc.id}
+                                              onSelect={() => {
+                                                const currentDocs = item.linkedDocuments || [];
+                                                const newDocs = isSelected
+                                                  ? currentDocs.filter(d => d !== doc.type)
+                                                  : [...currentDocs, doc.type];
+                                                updateItem(item.id, { linkedDocuments: newDocs });
+                                              }}
+                                              className="text-sm"
+                                            >
+                                              <div className={cn(
+                                                "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                                isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible"
+                                              )}>
+                                                <Check className="h-3 w-3" />
+                                              </div>
+                                              {doc.name}
+                                            </CommandItem>
+                                          );
+                                        })}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                              
+                              <div className="flex flex-wrap gap-1.5 min-h-[1.5rem]">
+                                {item.linkedDocuments?.map(docType => {
+                                  const doc = documents.find(d => d.type === docType);
+                                  return (
+                                    <Badge key={docType} variant="secondary" className="text-[10px] h-5 px-1.5 font-bold uppercase tracking-tight py-0 bg-primary/5 text-primary border-primary/10">
+                                      {doc?.name || docType}
+                                    </Badge>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="w-full space-y-4">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs font-black uppercase tracking-widest text-primary">Verification Pipeline</Label>
+                              <Button 
+                                size="sm" variant="outline" className="h-8 text-xs font-bold border-primary/30 text-primary hover:bg-primary/5"
+                                onClick={() => {
+                                  const newVerif = { id: Math.random().toString(36).substr(2, 9), type: 'manual', config: {} };
+                                  updateItem(item.id, { verifications: [...(item.verifications || []), newVerif] });
+                                }}
+                              >
+                                <Plus className="h-3.5 w-3.5 mr-1.5" /> Add New Check
+                              </Button>
+                            </div>
+                            
+                            <div className="space-y-4">
+                              {item.verifications?.map((verif, vIndex) => (
+                                <div key={verif.id} className="w-full p-6 rounded-xl bg-muted/5 border border-border/60 relative group/verif shadow-sm">
+                                  <Button 
+                                    variant="ghost" size="icon" 
+                                    className="absolute top-4 right-4 h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover/verif:opacity-100 transition-opacity"
+                                    onClick={() => {
+                                      const next = [...(item.verifications || [])];
+                                      next.splice(vIndex, 1);
+                                      updateItem(item.id, { verifications: next });
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                  
+                                  <div className="flex flex-col w-full gap-8">
+                                    <div className="w-full md:w-[280px] space-y-2 shrink-0">
+                                      <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground/80">Check Type</Label>
+                                      <Select
+                                        value={verif.type}
+                                        onValueChange={(val: any) => {
+                                          const next = [...(item.verifications || [])];
+                                          let prompt = '';
+                                          if (val === 'document_verification') prompt = 'Verify that this document is valid, not expired, and all mandatory fields are correctly filled.';
+                                          if (val === 'cross_validation') prompt = 'Compare the following fields across the selected documents and ensure they are semantically consistent. Highlight any discrepancies.';
+                                          
+                                          next[vIndex] = { ...next[vIndex], type: val, config: { prompt } };
+                                          updateItem(item.id, { verifications: next });
+                                        }}
+                                      >
+                                        <SelectTrigger className="h-10 text-sm font-bold bg-background shadow-inner">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="manual">Manual Attestation</SelectItem>
+                                          <SelectItem value="document_verification">Document Verification</SelectItem>
+                                          <SelectItem value="cross_validation">Cross-Validation</SelectItem>
+                                          <SelectItem value="external_api">External API</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    
+                                    <div className="w-full space-y-4 pt-6 border-t border-dashed border-border/40">
+                                      {verif.type !== 'manual' && (
+                                        <Label className="text-xs font-black uppercase tracking-[0.15em] text-primary/80">Agent Instructions & Parameterization</Label>
+                                      )}
+                                      
+                                      {verif.type === 'manual' && (
+                                        <div className="w-full space-y-2">
+                                          <Label className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-widest">Instructions for Operator</Label>
+                                          <textarea
+                                            className="flex min-h-[100px] w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner"
+                                            placeholder="Describe what the operator needs to check manually..."
+                                            value={verif.config.taskDescription || ''}
+                                            onChange={(e) => {
+                                              const next = [...(item.verifications || [])];
+                                              next[vIndex].config.taskDescription = e.target.value;
+                                              updateItem(item.id, { verifications: next });
+                                            }}
+                                          />
+                                        </div>
+                                      )}
+
+                                      {verif.type === 'document_verification' && (
+                                        <div className="flex flex-col lg:flex-row gap-8 w-full">
+                                          <div className="w-full lg:w-[320px] space-y-2 shrink-0">
+                                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Target Document</Label>
+                                            <Select
+                                              value={verif.config.target_document || ''}
+                                              onValueChange={(val) => {
+                                                const next = [...(item.verifications || [])];
+                                                next[vIndex].config.target_document = val;
+                                                updateItem(item.id, { verifications: next });
+                                              }}
+                                            >
+                                              <SelectTrigger className="h-10 text-sm font-semibold bg-background shadow-inner">
+                                                <SelectValue placeholder="Select reference..." />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                {documents.map(doc => (
+                                                  <SelectItem key={doc.type} value={doc.type}>{doc.name}</SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
+                                          
+                                          <div className="flex-1 space-y-2">
+                                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Agent Instruction / Prompt</Label>
+                                            <textarea
+                                              className="flex min-h-[120px] w-full rounded-xl border border-input bg-background px-4 py-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner leading-relaxed"
+                                              placeholder="Instructions for the AI agent..."
+                                              value={verif.config.prompt || ''}
+                                              onChange={(e) => {
+                                                const next = [...(item.verifications || [])];
+                                                next[vIndex].config.prompt = e.target.value;
+                                                updateItem(item.id, { verifications: next });
+                                              }}
+                                            />
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {verif.type === 'cross_validation' && (
+                                        <div className="flex flex-col lg:flex-row gap-8 w-full">
+                                          <div className="w-full lg:w-[380px] space-y-6 shrink-0">
+                                            <div className="space-y-2">
+                                              <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Documents to Compare</Label>
+                                              <Popover>
+                                                <PopoverTrigger asChild>
+                                                  <Button 
+                                                    variant="outline" 
+                                                    className="w-full justify-between h-10 text-sm font-medium bg-background shadow-inner border-dashed"
+                                                  >
+                                                    <div className="flex items-center gap-2 truncate">
+                                                      <Link2 className="h-4 w-4 text-muted-foreground" />
+                                                      {(verif.config.target_documents?.length || 0) > 0 ? (
+                                                        `${verif.config.target_documents.length} Selected`
+                                                      ) : (
+                                                        "Select documents..."
+                                                      )}
+                                                    </div>
+                                                    <ChevronDown className="h-4 w-4 opacity-50" />
+                                                  </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-[350px] p-0 shadow-2xl" align="start">
+                                                  <Command>
+                                                    <CommandInput placeholder="Search documents..." className="h-9 text-sm" />
+                                                    <CommandList>
+                                                      <CommandEmpty>No document found.</CommandEmpty>
+                                                      <CommandGroup>
+                                                        {documents.map(doc => {
+                                                          const isSelected = (verif.config.target_documents || []).includes(doc.type);
+                                                          return (
+                                                            <CommandItem
+                                                              key={doc.type}
+                                                              onSelect={() => {
+                                                                const current = verif.config.target_documents || [];
+                                                                const nextDocs = isSelected 
+                                                                  ? current.filter((d: string) => d !== doc.type) 
+                                                                  : [...current, doc.type];
+                                                                const next = [...(item.verifications || [])];
+                                                                next[vIndex].config.target_documents = nextDocs;
+                                                                updateItem(item.id, { verifications: next });
+                                                              }}
+                                                              className="text-sm"
+                                                            >
+                                                              <div className={cn(
+                                                                "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                                                isSelected ? "bg-primary text-primary-foreground" : "opacity-50 [&_svg]:invisible"
+                                                              )}>
+                                                                <Check className="h-3 w-3" />
+                                                              </div>
+                                                              {doc.name}
+                                                            </CommandItem>
+                                                          );
+                                                        })}
+                                                      </CommandGroup>
+                                                    </CommandList>
+                                                  </Command>
+                                                </PopoverContent>
+                                              </Popover>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                              <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Semantic Pivot Fields</Label>
+                                              <Input 
+                                                className="h-10 text-sm bg-background shadow-inner" 
+                                                placeholder="e.g. Company Name, Expiry Date"
+                                                value={verif.config.fields || ''}
+                                                onChange={(e) => {
+                                                  const next = [...(item.verifications || [])];
+                                                  next[vIndex].config.fields = e.target.value;
+                                                  updateItem(item.id, { verifications: next });
+                                                }}
+                                              />
+                                            </div>
+                                          </div>
+                                          
+                                          <div className="flex-1 space-y-2">
+                                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Agent Cross-Validation Instruction</Label>
+                                            <textarea
+                                              className="flex min-h-[180px] w-full rounded-xl border border-input bg-background px-4 py-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner leading-relaxed"
+                                              placeholder="Detailed comparison rules for the AI agent..."
+                                              value={verif.config.prompt || ''}
+                                              onChange={(e) => {
+                                                const next = [...(item.verifications || [])];
+                                                next[vIndex].config.prompt = e.target.value;
+                                                updateItem(item.id, { verifications: next });
+                                              }}
+                                            />
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {verif.type === 'external_api' && (
+                                        <div className="flex flex-col lg:flex-row gap-8 w-full">
+                                          <div className="w-full lg:w-[320px] space-y-2 shrink-0">
+                                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Endpoint URI</Label>
+                                            <Input 
+                                              className="h-10 text-sm bg-background shadow-inner" 
+                                              placeholder="https://api..."
+                                              value={verif.config.endpoint || ''}
+                                              onChange={(e) => {
+                                                const next = [...(item.verifications || [])];
+                                                next[vIndex].config.endpoint = e.target.value;
+                                                next[vIndex].handler = 'external_generic_api';
+                                                updateItem(item.id, { verifications: next });
+                                              }}
+                                            />
+                                          </div>
+                                          
+                                          <div className="flex-1 space-y-2">
+                                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Response Agent Instruction</Label>
+                                            <textarea
+                                              className="flex min-h-[120px] w-full rounded-xl border border-input bg-background px-4 py-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner leading-relaxed"
+                                              placeholder="Instructions for processing API response..."
+                                              value={verif.config.prompt || ''}
+                                              onChange={(e) => {
+                                                const next = [...(item.verifications || [])];
+                                                next[vIndex].config.prompt = e.target.value;
+                                                updateItem(item.id, { verifications: next });
+                                              }}
+                                            />
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                              
+                              {(!item.verifications || item.verifications.length === 0) && (
+                                <div className="text-center py-12 border border-dashed rounded-xl bg-muted/5 text-sm text-muted-foreground">
+                                  No active verifications defined. Start by adding a check to the pipeline.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
 
               {filteredItems.length === 0 && !addingItem && (
-                <div className="h-[200px] flex flex-col items-center justify-center glass-card rounded-[2rem] border-dashed border-border/40 gap-3">
+                <div className="h-[200px] flex flex-col items-center justify-center rounded-xl border border-dashed bg-muted/10 gap-3">
                   <div className="text-center">
-                    <p className="text-xs font-bold text-muted-foreground/60 tracking-widest uppercase">No Guardrails Defined</p>
+                    <p className="text-sm font-medium text-muted-foreground">No Guardrails Defined</p>
                   </div>
                 </div>
               )}
@@ -209,33 +584,33 @@ export function WizardStepChecklist() {
               {/* Inline Add Interaction */}
               <div className="pt-2">
                 {addingItem ? (
-                  <div className="glass-card rounded-2xl border-primary/30 bg-primary/5 p-4 animate-in zoom-in-95 duration-200">
+                  <div className="border rounded-lg bg-card p-4 animate-in zoom-in-95 duration-200">
                     <div className="flex items-center gap-4">
                       <Input
                         value={newItemName}
                         onChange={(e) => setNewItemName(e.target.value)}
                         placeholder="Specify checking requirement..."
-                        className="flex-1 h-10 rounded-xl bg-background border-border/50 text-sm font-medium"
+                        className="flex-1 h-9 rounded-md bg-background text-sm"
                         maxLength={200}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
                         autoFocus
                       />
                       <div className="flex items-center gap-2">
-                        <Button size="sm" onClick={handleAddItem} disabled={!newItemName.trim()} className="h-10 px-5 rounded-xl bg-primary hover:bg-primary/90 font-bold text-[10px] tracking-widest">
+                        <Button size="sm" onClick={handleAddItem} disabled={!newItemName.trim()} className="h-9 px-4">
                           <Check className="h-4 w-4 mr-2" />
-                          ADD TASK
+                          Add Task
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => { setAddingItem(false); setNewItemName(''); }} className="h-10 w-10 rounded-xl text-muted-foreground">
+                        <Button size="icon" variant="ghost" onClick={() => { setAddingItem(false); setNewItemName(''); }} className="h-9 w-9 text-muted-foreground">
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <Button variant="outline" className="w-full h-14 rounded-2xl border-dashed border-border hover:border-primary/50 hover:bg-primary/5 group transition-all" onClick={() => setAddingItem(true)}>
-                    <div className="flex items-center gap-3">
-                      <Plus className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                      <span className="text-[11px] font-black text-muted-foreground group-hover:text-primary tracking-widest uppercase transition-colors">Add Manual Attestation Task</span>
+                  <Button variant="outline" className="w-full h-12 border-dashed font-medium text-muted-foreground hover:text-foreground" onClick={() => setAddingItem(true)}>
+                    <div className="flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      <span>Add Manual Attestation Task</span>
                     </div>
                   </Button>
                 )}
@@ -243,7 +618,6 @@ export function WizardStepChecklist() {
             </div>
           </div>
         </div>
-      </div>
 
       <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
         <AlertDialogContent className="rounded-3xl border-border/50 shadow-2xl">

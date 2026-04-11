@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChecklistItem, ChecklistRuleResult } from '@/types/case';
+import { ChecklistItem, ChecklistRuleResult, DOCUMENT_TYPE_LABELS } from '@/types/case';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
@@ -234,28 +234,34 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                             )}
                           </td>
                           <td className="px-4 py-3 align-top">
-                            {rule.source_value !== null ? (
-                              <div>
+                            <div className="flex flex-col">
+                              {rule.source_value != null ? (
                                 <div className="font-semibold text-foreground">{String(rule.source_value)}</div>
-                                <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">
-                                  {rule.source_doc_type || 'Source'}
-                                </div>
+                              ) : (
+                                <span className="text-muted-foreground/40 italic font-medium">-</span>
+                              )}
+                              <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mt-1 opacity-70">
+                                {rule.source_doc_type ? (DOCUMENT_TYPE_LABELS[rule.source_doc_type as keyof typeof DOCUMENT_TYPE_LABELS] || rule.source_field || 'Source') : 'Source'}
                               </div>
-                            ) : (
-                              <span className="text-muted-foreground/40 italic font-medium">-</span>
-                            )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 align-top">
-                            {rule.target_value !== null || rule.target_field ? (
-                              <div>
-                                <div className="font-semibold text-foreground">{rule.target_value !== null ? String(rule.target_value) : <span className="text-muted-foreground/40 italic font-medium">Not detected</span>}</div>
-                                <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">
-                                  {rule.target_doc_type || 'Target'}
+                            <div className="flex flex-col">
+                              {rule.target_value != null || rule.target_field ? (
+                                <div className="font-semibold text-foreground">
+                                  {rule.target_value != null ? String(rule.target_value) : (rule.target_field ? rule.target_field.replace(/_/g, ' ') : <span className="text-muted-foreground/40 italic font-medium">Not detected</span>)}
                                 </div>
+                              ) : (
+                                <span className="text-muted-foreground/40 italic font-medium">-</span>
+                              )}
+                              <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mt-1 opacity-70">
+                                {rule.target_doc_type ? (
+                                  rule.target_doc_type.includes(',') 
+                                    ? rule.target_doc_type.split(',').map(s => DOCUMENT_TYPE_LABELS[s.trim() as keyof typeof DOCUMENT_TYPE_LABELS] || s.trim()).join(', ')
+                                    : (DOCUMENT_TYPE_LABELS[rule.target_doc_type as keyof typeof DOCUMENT_TYPE_LABELS] || rule.target_doc_type || 'Target')
+                                ) : (rule.target_field ? 'Mapped Field' : 'Target')}
                               </div>
-                            ) : (
-                              <span className="text-muted-foreground/40 italic font-medium">-</span>
-                            )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 align-top text-right">
                             <Badge variant="outline" className={cn("text-xs font-bold uppercase ml-auto inline-flex items-center", 

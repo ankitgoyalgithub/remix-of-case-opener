@@ -260,15 +260,22 @@ export function useStudioChecklist() {
   useEffect(() => {
     import('@/lib/api').then(({ api }) => {
       api.studio.checklists.list().then((data: any[]) => {
-        setItemsState(data.map(d => ({
-          ...d,
-          stageId: d.stage,
-          linkedDocuments: d.linked_documents,
-          autoCheckRule: d.auto_check_rule,
-          manualOverrideAllowed: d.manual_override_allowed,
-          handlerName: d.handler_name,
-          configPayload: d.config_payload
-        })));
+        setItemsState(data.map(d => {
+          const config = d.config_payload || {};
+          return {
+            ...d,
+            stageId: d.stage,
+            linkedDocuments: d.linked_documents,
+            autoCheckRule: d.auto_check_rule,
+            manualOverrideAllowed: d.manual_override_allowed,
+            handlerName: d.handler_name,
+            configPayload: config,
+            verifications: (config.verifications || []).map((v: any) => ({
+              ...v,
+              config: v.config || {}
+            }))
+          };
+        }));
       });
     });
   }, []);
@@ -283,6 +290,7 @@ export function useStudioChecklist() {
     setItemsState(prev => [...prev, newItem as ChecklistDefinition]);
 
     import('@/lib/api').then(({ api }) => {
+      const configPayload = { ...(item.configPayload || {}), verifications: item.verifications || [] };
       api.studio.checklists.create({
         stage: item.stageId,
         name: item.name,
@@ -291,17 +299,22 @@ export function useStudioChecklist() {
         auto_check_rule: item.autoCheckRule,
         manual_override_allowed: item.manualOverrideAllowed,
         handler_name: item.handlerName,
-        config_payload: item.configPayload
+        config_payload: configPayload
       }).then(saved => {
-        setItemsState(current => current.map(i => i.id === tempId ? {
-          ...saved,
-          stageId: saved.stage,
-          linkedDocuments: saved.linked_documents,
-          autoCheckRule: saved.auto_check_rule,
-          manualOverrideAllowed: saved.manual_override_allowed,
-          handlerName: saved.handler_name,
-          configPayload: saved.config_payload
-        } : i));
+        setItemsState(current => current.map(i => {
+          if (i.id !== tempId) return i;
+          const config = saved.config_payload || {};
+          return {
+            ...saved,
+            stageId: saved.stage,
+            linkedDocuments: saved.linked_documents,
+            autoCheckRule: saved.auto_check_rule,
+            manualOverrideAllowed: saved.manual_override_allowed,
+            handlerName: saved.handler_name,
+            configPayload: config,
+            verifications: config.verifications || []
+          };
+        }));
       });
     });
   }, []);
@@ -317,12 +330,24 @@ export function useStudioChecklist() {
     setItemsState(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
     if (!id.toString().startsWith('temp-')) {
       const payload: any = { ...updates };
+      
+      // If updating verifications, we MUST merge them into config_payload
+      if (updates.verifications !== undefined) {
+        const item = items.find(i => i.id === id);
+        payload.config_payload = { 
+          ...(item?.configPayload || {}), 
+          verifications: updates.verifications 
+        };
+        delete payload.verifications; 
+      } else if (updates.configPayload !== undefined) {
+        payload.config_payload = updates.configPayload;
+      }
+
       if (updates.stageId !== undefined) payload.stage = updates.stageId;
       if (updates.linkedDocuments !== undefined) payload.linked_documents = updates.linkedDocuments;
       if (updates.autoCheckRule !== undefined) payload.auto_check_rule = updates.autoCheckRule;
       if (updates.manualOverrideAllowed !== undefined) payload.manual_override_allowed = updates.manualOverrideAllowed;
       if (updates.handlerName !== undefined) payload.handler_name = updates.handlerName;
-      if (updates.configPayload !== undefined) payload.config_payload = updates.configPayload;
 
       import('@/lib/api').then(({ api }) => api.studio.checklists.update(id, payload));
     }

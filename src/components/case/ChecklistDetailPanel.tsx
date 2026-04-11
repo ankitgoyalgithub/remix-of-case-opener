@@ -114,6 +114,59 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
             <p className="text-sm text-foreground/80 leading-relaxed">{item.taskDetails}</p>
           </div>
         )}
+        
+        {item.verifications && item.verifications.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Verification Pipeline</p>
+              <Badge variant="outline" className="text-[10px] font-bold tracking-tighter uppercase opacity-60">Definition</Badge>
+            </div>
+            <div className="rounded-lg border border-border/40 overflow-hidden bg-card/30">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/50 text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
+                  <tr>
+                    <th className="px-4 py-2.5">Check Type</th>
+                    <th className="px-4 py-2.5">Protocol / Target</th>
+                    <th className="px-4 py-2.5 text-right">Methodology</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/20">
+                  {item.verifications.map((v, idx) => {
+                    const iconConfig = TYPE_CONFIG[v.type as keyof typeof TYPE_CONFIG] || TYPE_CONFIG['manual'];
+                    const Icon = iconConfig.icon;
+                    return (
+                      <tr key={v.id || idx} className="hover:bg-muted/5 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className={cn("p-1 rounded bg-muted border", iconConfig.color)}>
+                              <Icon className="h-3.5 w-3.5" />
+                            </div>
+                            <span className="font-semibold text-foreground">{iconConfig.label}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="text-muted-foreground truncate max-w-[200px]">
+                            {v.config?.taskDescription || v.config?.target_document || (v.config?.target_documents?.join(', ')) || 'Standard Logic'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded text-[10px] font-bold border uppercase transition-colors shadow-sm",
+                            v.type === 'manual' 
+                              ? "bg-muted text-muted-foreground border-border" 
+                              : "bg-primary/10 text-primary border-primary/20 shadow-primary/5"
+                          )}>
+                            {v.type === 'manual' ? 'Manual Check' : 'Automated Check'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {localResult ? (
           <div className="space-y-6 pt-6 border-t">
@@ -221,26 +274,12 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
             )}
           </div>
         ) : (item.verifications?.some(v => v.type !== 'manual') || (item.handlerName && item.handlerName !== 'manual') || item.itemType === 'cross-validation') ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center relative group">
-            <div className="absolute inset-0 bg-primary/5 rounded-2xl border border-dashed border-primary/20 -z-10 group-hover:bg-primary/10 transition-all"></div>
-            <Play className="h-12 w-12 text-primary/30 mb-6" />
-            <h4 className="text-lg font-black text-primary font-headline">Verification Pending</h4>
-            <p className="font-label text-sm text-muted-foreground mt-2 max-w-xs mb-8">This check can be executed automatically using the system logic.</p>
-            <Button 
-              onClick={async () => {
-                setIsRunning(true);
-                try {
-                  if (onRunValidation) await onRunValidation(item.id);
-                } finally {
-                  setIsRunning(false);
-                }
-              }}
-              disabled={isRunning}
-              className="rounded-xl px-10 h-12 font-bold gap-3 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-all"
-            >
-              {isRunning ? <Loader2 className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5 fill-current" />}
-              {isRunning ? 'EXECUTIVE AGENT RUNNING...' : 'TRIGGER AUTOMATED CHECK'}
-            </Button>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-12 h-12 rounded-full bg-primary/5 flex items-center justify-center mb-4">
+              <Play className="h-5 w-5 text-primary/40 ml-0.5" />
+            </div>
+            <h4 className="text-sm font-bold text-foreground">Awaiting Automated Execution</h4>
+            <p className="text-xs text-muted-foreground mt-1 px-8">Trigger this check using the play icon in the checklist sidebar to begin AI verification.</p>
           </div>
         ) : null}
       </div>

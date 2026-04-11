@@ -3,7 +3,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { Check, AlertCircle, Lock, AlertTriangle, CheckCircle2, FileText, Sparkles, ShieldCheck, ListTodo, RefreshCw, Loader2 } from 'lucide-react';
+import { Check, AlertCircle, Lock, AlertTriangle, CheckCircle2, FileText, Sparkles, ShieldCheck, ListTodo, RefreshCw, Loader2, Play } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { getDocumentsForStage } from '@/lib/stageDocumentMapping';
@@ -204,7 +204,10 @@ export function ActiveStagePanel({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-primary hover:bg-primary/10 shrink-0"
+                      className={cn(
+                        "h-8 w-8 shrink-0 transition-all",
+                        item.result ? "text-muted-foreground hover:text-primary hover:bg-primary/10" : "text-primary bg-primary/10 hover:bg-primary/20 shadow-sm shadow-primary/10"
+                      )}
                       onClick={async (e) => {
                         e.stopPropagation();
                         setRunningItems(prev => ({...prev, [item.id]: true}));
@@ -215,9 +218,15 @@ export function ActiveStagePanel({
                         }
                       }}
                       disabled={runningItems[item.id]}
-                      title="Run Validation Logic"
+                      title={item.result ? "Re-run Validation" : "Run Automated Validation"}
                     >
-                      {runningItems[item.id] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                      {runningItems[item.id] ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : item.result ? (
+                        <RefreshCw className="h-4 w-4" />
+                      ) : (
+                        <Play className="h-4 w-4 fill-current" />
+                      )}
                     </Button>
                   )}
                   {!isChecked && item.required && (

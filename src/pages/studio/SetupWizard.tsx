@@ -10,6 +10,7 @@ import { DocumentConfigDrawer } from '@/components/studio/DocumentConfigDrawer';
 import { DocumentDefinition } from '@/data/mockStudioData';
 import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const wizardSteps: WizardStep[] = [
   { id: 1, label: 'Workflow Stages' },
@@ -43,6 +44,17 @@ export default function SetupWizard() {
     setDrawerOpen(true);
   };
 
+  const handleComplete = () => {
+    toast.success('Enterprise Configuration Published', {
+      description: 'The operational environment has been recalibrated and deployed.',
+    });
+    // Reset to first step or redirect in a real app
+    setTimeout(() => {
+      setCurrentStep(1);
+      setCompletedSteps([]);
+    }, 2000);
+  };
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
@@ -54,7 +66,7 @@ export default function SetupWizard() {
       case 4:
         return <WizardStepEmails />;
       case 5:
-        return <WizardStepReview />;
+        return <WizardStepReview onPublish={handleComplete} />;
       default:
         return null;
     }
@@ -110,8 +122,8 @@ export default function SetupWizard() {
               </Button>
             ) : (
               <Button
-                onClick={() => {}}
-                className="px-6 h-10 font-medium bg-primary hover:bg-primary/90"
+                onClick={handleComplete}
+                className="px-6 h-10 font-medium bg-gradient-to-r from-primary to-primary/80 hover:scale-[1.02] shadow-lg shadow-primary/20 transition-all"
               >
                 Complete Setup
                 <ArrowRight className="ml-2 h-4 w-4" />

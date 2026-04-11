@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import {
   Workflow,
   FileText,
@@ -16,8 +17,6 @@ import {
   Save,
 } from 'lucide-react';
 import { useStudioStages, useStudioDocuments, useStudioFields, useStudioInstructions, useStudioChecklist, useStudioEmails } from '@/hooks/useStudioStore';
-import { toast } from 'sonner';
-
 interface ReviewSection {
   icon: React.ElementType;
   title: string;
@@ -26,7 +25,11 @@ interface ReviewSection {
   details: string;
 }
 
-export function WizardStepReview() {
+interface WizardStepReviewProps {
+  onPublish?: () => void;
+}
+
+export function WizardStepReview({ onPublish }: WizardStepReviewProps) {
   const { stages } = useStudioStages();
   const { documents } = useStudioDocuments();
   const { fields } = useStudioFields();
@@ -170,9 +173,13 @@ export function WizardStepReview() {
             Save Draft
           </Button>
           <Button className="h-10 px-8 bg-primary hover:bg-primary/90 font-medium transition-all group overflow-hidden relative" onClick={() => {
-            toast.success('Enterprise Configuration Published', {
-              description: 'The operational environment has been recalibrated.',
-            });
+            if (onPublish) {
+              onPublish();
+            } else {
+              toast.success('Enterprise Configuration Published', {
+                description: 'The operational environment has been recalibrated.',
+              });
+            }
           }}>
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
             <Rocket className="h-4 w-4 mr-2 relative z-10" />

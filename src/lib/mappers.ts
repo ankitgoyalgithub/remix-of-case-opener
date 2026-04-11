@@ -79,6 +79,7 @@ export function mapBackendRequestChecklistToChecklistItem(rc: any): ChecklistIte
         result: rc.result,
         handlerName: rc.handler_name,
         configPayload: rc.config_payload,
+        verifications: rc.config_payload?.verifications || [],
     };
 }
 

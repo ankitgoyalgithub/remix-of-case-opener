@@ -47,8 +47,9 @@ export interface AIInstruction {
 
 export interface VerificationConfig {
   id: string;
-  type: 'manual' | 'document_verification' | 'cross_validation';
+  type: 'manual' | 'document_verification' | 'cross_validation' | 'external_api';
   config: Record<string, any>;
+  handler?: string;
 }
 
 export interface ChecklistDefinition {
@@ -61,6 +62,8 @@ export interface ChecklistDefinition {
   autoCheckRule: 'document-present' | 'field-extracted' | 'cross-validation' | 'manual';
   manualOverrideAllowed: boolean;
   verifications?: VerificationConfig[];
+  handlerName?: string;
+  configPayload?: any;
 }
 
 export interface EmailTemplate {

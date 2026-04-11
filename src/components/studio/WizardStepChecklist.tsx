@@ -14,6 +14,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -48,8 +54,11 @@ import {
   Settings2,
   ChevronDown,
   ChevronUp,
+  GitCompare,
+  User,
+  Globe
 } from 'lucide-react';
-import { ChecklistDefinition } from '@/data/mockStudioData';
+import { ChecklistDefinition, VerificationConfig, DocumentDefinition } from '@/data/mockStudioData';
 import { DOCUMENT_TYPE_LABELS } from '@/types/case';
 import { useStudioChecklist, useStudioStages, useStudioDocuments } from '@/hooks/useStudioStore';
 import { cn } from '@/lib/utils';
@@ -317,15 +326,39 @@ export function WizardStepChecklist() {
                           <div className="w-full space-y-4">
                             <div className="flex items-center justify-between">
                               <Label className="text-xs font-black uppercase tracking-widest text-primary">Verification Pipeline</Label>
-                              <Button 
-                                size="sm" variant="outline" className="h-8 text-xs font-bold border-primary/30 text-primary hover:bg-primary/5"
-                                onClick={() => {
-                                  const newVerif = { id: Math.random().toString(36).substr(2, 9), type: 'manual', config: {} };
-                                  updateItem(item.id, { verifications: [...(item.verifications || []), newVerif] });
-                                }}
-                              >
-                                <Plus className="h-3.5 w-3.5 mr-1.5" /> Add New Check
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="sm" variant="outline" className="h-8 text-xs font-bold border-primary/30 text-primary hover:bg-primary/5 uppercase gap-2">
+                                    <Plus className="h-3.5 w-3.5" /> Provision New Check
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-56">
+                                  <DropdownMenuItem className="text-xs font-bold gap-2 cursor-pointer" onClick={() => {
+                                    const next = [...(item.verifications || [])];
+                                    next.push({ id: Math.random().toString(36).substr(2, 9), type: 'manual', config: {} });
+                                    updateItem(item.id, { verifications: next });
+                                  }}>
+                                    <User className="h-3.5 w-3.5 text-blue-500" />
+                                    Manual Attestation
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-xs font-bold gap-2 cursor-pointer" onClick={() => {
+                                    const next = [...(item.verifications || [])];
+                                    next.push({ id: Math.random().toString(36).substr(2, 9), type: 'document_verification', config: { prompt: 'Verify that this document is valid, not expired, and all mandatory fields are correctly filled.' } });
+                                    updateItem(item.id, { verifications: next });
+                                  }}>
+                                    <Zap className="h-3.5 w-3.5 text-indigo-500" />
+                                    AI Document Verification
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-xs font-bold gap-2 cursor-pointer" onClick={() => {
+                                    const next = [...(item.verifications || [])];
+                                    next.push({ id: Math.random().toString(36).substr(2, 9), type: 'cross_validation', config: { prompt: 'Compare the following fields across the selected documents and ensure they are semantically consistent. Highlight any discrepancies.' } });
+                                    updateItem(item.id, { verifications: next });
+                                  }}>
+                                    <GitCompare className="h-3.5 w-3.5 text-purple-500" />
+                                    Intelligent Cross-Validation
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                             
                             <div className="space-y-4">
@@ -381,7 +414,7 @@ export function WizardStepChecklist() {
                                           <textarea
                                             className="flex min-h-[100px] w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner"
                                             placeholder="Describe what the operator needs to check manually..."
-                                            value={verif.config.taskDescription || ''}
+                                            value={verif.config?.taskDescription || ''}
                                             onChange={(e) => {
                                               const next = [...(item.verifications || [])];
                                               next[vIndex].config.taskDescription = e.target.value;
@@ -396,7 +429,7 @@ export function WizardStepChecklist() {
                                           <div className="w-full lg:w-[320px] space-y-2 shrink-0">
                                             <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Target Document</Label>
                                             <Select
-                                              value={verif.config.target_document || ''}
+                                              value={verif.config?.target_document || ''}
                                               onValueChange={(val) => {
                                                 const next = [...(item.verifications || [])];
                                                 next[vIndex].config.target_document = val;
@@ -419,7 +452,7 @@ export function WizardStepChecklist() {
                                             <textarea
                                               className="flex min-h-[120px] w-full rounded-xl border border-input bg-background px-4 py-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner leading-relaxed"
                                               placeholder="Instructions for the AI agent..."
-                                              value={verif.config.prompt || ''}
+                                              value={verif.config?.prompt || ''}
                                               onChange={(e) => {
                                                 const next = [...(item.verifications || [])];
                                                 next[vIndex].config.prompt = e.target.value;
@@ -443,7 +476,7 @@ export function WizardStepChecklist() {
                                                   >
                                                     <div className="flex items-center gap-2 truncate">
                                                       <Link2 className="h-4 w-4 text-muted-foreground" />
-                                                      {(verif.config.target_documents?.length || 0) > 0 ? (
+                                                      {(verif.config?.target_documents?.length || 0) > 0 ? (
                                                         `${verif.config.target_documents.length} Selected`
                                                       ) : (
                                                         "Select documents..."
@@ -459,12 +492,12 @@ export function WizardStepChecklist() {
                                                       <CommandEmpty>No document found.</CommandEmpty>
                                                       <CommandGroup>
                                                         {documents.map(doc => {
-                                                          const isSelected = (verif.config.target_documents || []).includes(doc.type);
+                                                          const isSelected = (verif.config?.target_documents || []).includes(doc.type);
                                                           return (
                                                             <CommandItem
                                                               key={doc.type}
                                                               onSelect={() => {
-                                                                const current = verif.config.target_documents || [];
+                                                                const current = verif.config?.target_documents || [];
                                                                 const nextDocs = isSelected 
                                                                   ? current.filter((d: string) => d !== doc.type) 
                                                                   : [...current, doc.type];
@@ -490,20 +523,6 @@ export function WizardStepChecklist() {
                                                 </PopoverContent>
                                               </Popover>
                                             </div>
-
-                                            <div className="space-y-2">
-                                              <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Semantic Pivot Fields</Label>
-                                              <Input 
-                                                className="h-10 text-sm bg-background shadow-inner" 
-                                                placeholder="e.g. Company Name, Expiry Date"
-                                                value={verif.config.fields || ''}
-                                                onChange={(e) => {
-                                                  const next = [...(item.verifications || [])];
-                                                  next[vIndex].config.fields = e.target.value;
-                                                  updateItem(item.id, { verifications: next });
-                                                }}
-                                              />
-                                            </div>
                                           </div>
                                           
                                           <div className="flex-1 space-y-2">
@@ -511,7 +530,7 @@ export function WizardStepChecklist() {
                                             <textarea
                                               className="flex min-h-[180px] w-full rounded-xl border border-input bg-background px-4 py-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner leading-relaxed"
                                               placeholder="Detailed comparison rules for the AI agent..."
-                                              value={verif.config.prompt || ''}
+                                              value={verif.config?.prompt || ''}
                                               onChange={(e) => {
                                                 const next = [...(item.verifications || [])];
                                                 next[vIndex].config.prompt = e.target.value;
@@ -529,7 +548,7 @@ export function WizardStepChecklist() {
                                             <Input 
                                               className="h-10 text-sm bg-background shadow-inner" 
                                               placeholder="https://api..."
-                                              value={verif.config.endpoint || ''}
+                                              value={verif.config?.endpoint || ''}
                                               onChange={(e) => {
                                                 const next = [...(item.verifications || [])];
                                                 next[vIndex].config.endpoint = e.target.value;
@@ -544,7 +563,7 @@ export function WizardStepChecklist() {
                                             <textarea
                                               className="flex min-h-[120px] w-full rounded-xl border border-input bg-background px-4 py-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner leading-relaxed"
                                               placeholder="Instructions for processing API response..."
-                                              value={verif.config.prompt || ''}
+                                              value={verif.config?.prompt || ''}
                                               onChange={(e) => {
                                                 const next = [...(item.verifications || [])];
                                                 next[vIndex].config.prompt = e.target.value;

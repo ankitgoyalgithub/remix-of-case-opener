@@ -57,20 +57,20 @@ export default function AIInstructions() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Brain className="h-6 w-6 text-primary" />
-            AI Instructions
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Configure extraction instructions for AI agents (hidden from ops users)
-          </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 p-2 rounded-lg bg-primary/10 border border-primary/20 shrink-0">
+            <Brain className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">AI Instructions</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Configure extraction instructions for AI agents — not visible to ops users</p>
+          </div>
         </div>
-        <Button onClick={handleSave} disabled={!hasChanges} className="gap-2">
-          <Save className="h-4 w-4" />
+        <Button onClick={handleSave} disabled={!hasChanges} size="sm" className="gap-2 shrink-0">
+          <Save className="h-3.5 w-3.5" />
           Save Instructions
         </Button>
       </div>
@@ -87,7 +87,7 @@ export default function AIInstructions() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Instructions by Document Type</CardTitle>
+            <CardTitle className="text-sm font-semibold">Instructions by Document Type</CardTitle>
             <div className="flex items-center gap-2">
               <Button 
                 variant="outline" 
@@ -193,7 +193,7 @@ Example:
       {/* Best Practices */}
       <Card className="mt-6">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
             Best Practices
           </CardTitle>

@@ -148,26 +148,26 @@ export default function CrossValidationRules() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Link2 className="h-6 w-6 text-primary" />
-            Cross-Validation Rules
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Define mandatory matching rules between different document types.
-          </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 p-2 rounded-lg bg-primary/10 border border-primary/20 shrink-0">
+            <Link2 className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">Cross-Validation Rules</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Define field matching rules between different document types</p>
+          </div>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add New Rule
+        <Button onClick={() => setIsCreateDialogOpen(true)} size="sm" className="gap-2 shrink-0">
+          <Plus className="h-3.5 w-3.5" />
+          Add Rule
         </Button>
       </div>
 
       {/* Filters & Search */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -190,7 +190,7 @@ export default function CrossValidationRules() {
                     <ShieldCheck className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <CardTitle className="text-base font-bold">{rule.name}</CardTitle>
+                    <CardTitle className="text-sm font-semibold">{rule.name}</CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">{rule.description || 'No description provided'}</p>
                   </div>
                 </div>

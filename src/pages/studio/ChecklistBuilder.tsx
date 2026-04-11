@@ -61,20 +61,20 @@ export default function ChecklistBuilder() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ClipboardCheck className="h-6 w-6 text-primary" />
-            Checklist Builder
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Configure checklist items per stage with auto-check rules
-          </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 p-2 rounded-lg bg-primary/10 border border-primary/20 shrink-0">
+            <ClipboardCheck className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">Checklist Builder</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Configure checklist items per stage with auto-check rules</p>
+          </div>
         </div>
-        <Button onClick={handleSave} disabled={!hasChanges} className="gap-2">
-          <Save className="h-4 w-4" />
+        <Button onClick={handleSave} disabled={!hasChanges} size="sm" className="gap-2 shrink-0">
+          <Save className="h-3.5 w-3.5" />
           Save Checklists
         </Button>
       </div>
@@ -107,7 +107,7 @@ export default function ChecklistBuilder() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">
+            <CardTitle className="text-sm font-semibold text-foreground">
               Stage {selectedStage}: {stageName}
             </CardTitle>
             <Button variant="outline" size="sm" className="gap-1.5">
@@ -221,9 +221,9 @@ export default function ChecklistBuilder() {
       </Card>
 
       {/* Legend */}
-      <Card className="mt-6">
+      <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Auto-Check Rules</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground">Auto-Check Rules</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4 text-sm">

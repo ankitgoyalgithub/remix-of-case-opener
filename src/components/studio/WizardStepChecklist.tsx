@@ -343,7 +343,7 @@ export function WizardStepChecklist() {
                                   </DropdownMenuItem>
                                   <DropdownMenuItem className="text-xs font-bold gap-2 cursor-pointer" onClick={() => {
                                     const next = [...(item.verifications || [])];
-                                    next.push({ id: Math.random().toString(36).substr(2, 9), type: 'document_verification', config: { prompt: 'Verify that this document is valid, not expired, and all mandatory fields are correctly filled.' } });
+                                    next.push({ id: Math.random().toString(36).substr(2, 9), type: 'document_verification', config: { prompt: 'Verify that this document is valid, authentic, and not expired. Do not flag missing fields that are unrelated to the core document validity (like tax details) unless explicitly required.' } });
                                     updateItem(item.id, { verifications: next });
                                   }}>
                                     <Zap className="h-3.5 w-3.5 text-indigo-500" />

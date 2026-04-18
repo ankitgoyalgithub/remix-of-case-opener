@@ -1,9 +1,15 @@
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building2, Hash, Clock, User, ArrowLeft, UserPlus, AlertCircle, ArrowUpRight, Users, Trash2 } from 'lucide-react';
+import { ArrowLeft, UserPlus, Mail, Trash2, MoreHorizontal, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface RequestDetailHeaderProps {
   requestId: string;
@@ -25,133 +31,121 @@ interface RequestDetailHeaderProps {
   timelineDrawer?: ReactNode;
 }
 
+const STATUS_STYLES: Record<string, string> = {
+  'New': 'bg-muted text-foreground',
+  'In Review': 'bg-info/10 text-info',
+  'Missing Info': 'bg-warning/10 text-warning',
+  'Ready for Export': 'bg-success/10 text-success',
+  'Issued': 'bg-primary/10 text-primary',
+};
+
 export function RequestDetailHeader({
   requestId,
   companyName,
   brokerName,
   priority,
   slaRemaining,
-  slaTargetHours,
   slaStatus,
   currentStage,
   status,
   owner,
   queue,
-  hasMissingDocuments,
   onAssignOwner,
   onRequestMissingInfo,
-  onEscalate,
   onDelete,
   timelineDrawer,
 }: RequestDetailHeaderProps) {
   const navigate = useNavigate();
 
-  const getSlaDisplay = () => {
-    if (slaRemaining > 0) return `${slaRemaining}h remaining`;
-    if (slaRemaining === 0) return 'Due now';
-    return `${Math.abs(slaRemaining)}h overdue`;
-  };
+  const slaText = slaRemaining > 0
+    ? `${slaRemaining}h left`
+    : slaRemaining === 0
+    ? 'Due now'
+    : `${Math.abs(slaRemaining)}h overdue`;
 
-  const getSlaColorClass = () => {
-    switch (slaStatus) {
-      case 'green': return 'bg-success/15 text-success border-success/30';
-      case 'amber': return 'bg-warning/15 text-warning border-warning/30';
-      case 'red': return 'bg-destructive/15 text-destructive border-destructive/30';
-    }
-  };
+  const slaDotColor =
+    slaStatus === 'red' ? 'bg-destructive' : slaStatus === 'amber' ? 'bg-warning' : 'bg-success';
+  const slaTextColor =
+    slaStatus === 'red' ? 'text-destructive font-medium' : slaStatus === 'amber' ? 'text-warning' : 'text-muted-foreground';
 
-  const getPriorityBadge = () => {
-    if (priority === 'Urgent') {
-      return <Badge className="bg-destructive/15 text-destructive border-destructive/30 hover:bg-destructive/20 transition-colors">Urgent</Badge>;
-    }
-    return <Badge variant="secondary" className="bg-secondary/50 border-border/50 text-secondary-foreground hover:bg-secondary/80 transition-colors">Normal</Badge>;
-  };
-
-  const getStatusBadge = () => {
-    switch (status) {
-      case 'Missing Info':
-        return <Badge className="bg-warning/15 text-warning border-warning/30">{status}</Badge>;
-      case 'Ready for Export':
-        return <Badge className="bg-success/15 text-success border-success/30">{status}</Badge>;
-      case 'Issued':
-        return <Badge className="bg-primary/15 text-primary border-primary/30">{status}</Badge>;
-      default:
-        return <Badge className="bg-info/15 text-info border-info/30">{status}</Badge>;
-    }
-  };
+  const shortId = requestId?.startsWith('REQ-') ? requestId : requestId.split('-')[0];
 
   return (
-    <div className="bg-card border-b border-border px-6 py-5 shadow-sm relative z-10">
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 shrink-0 hover:bg-secondary rounded-full"
-            onClick={() => navigate('/requests')}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-3 mb-1.5">
-              <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20 shadow-sm">
-                <Building2 className="h-5 w-5 text-primary" />
-              </div>
-              <h1 className="text-2xl font-semibold tracking-tight">{companyName}</h1>
-              {getPriorityBadge()}
-            </div>
+    <div className="bg-background border-b border-border px-6 py-3 shrink-0">
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 -ml-2"
+          onClick={() => navigate('/requests')}
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
 
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground ml-14">
-              <span className="flex items-center gap-1.5 text-foreground/80 font-medium">
-                <Hash className="h-3.5 w-3.5 opacity-70" />
-                {requestId.startsWith('REQ-') ? requestId : requestId.split('-')[0] + '...'}
+        {/* Primary info */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-lg font-semibold text-foreground truncate">{companyName}</h1>
+            {priority === 'Urgent' && (
+              <span className="inline-flex items-center gap-1 px-1.5 h-5 rounded text-[11px] font-medium bg-destructive/10 text-destructive">
+                <AlertTriangle className="h-3 w-3" />
+                Urgent
               </span>
-              <span className="flex items-center gap-1.5">
-                Broker: <span className="text-foreground/80 font-medium">{brokerName}</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5 opacity-70" />
-                {queue}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <User className="h-3.5 w-3.5 opacity-70" />
-                {owner || 'Unassigned'}
-              </span>
-            </div>
+            )}
+            <span className={cn('inline-flex items-center px-2 h-5 rounded text-[11px] font-medium', STATUS_STYLES[status] || 'bg-muted text-foreground')}>
+              {status}
+            </span>
+          </div>
+          <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mt-0.5 text-xs text-muted-foreground">
+            <span className="font-mono">{shortId}</span>
+            <span>·</span>
+            <span>{brokerName}</span>
+            <span>·</span>
+            <span>{queue}</span>
+            <span>·</span>
+            <span className={owner === 'Unassigned' ? 'italic' : ''}>{owner || 'Unassigned'}</span>
+            <span>·</span>
+            <span className="flex items-center gap-1.5">
+              <span className={cn('inline-block w-1.5 h-1.5 rounded-full', slaDotColor)} />
+              <span className={slaTextColor}>{slaText}</span>
+            </span>
+            <span>·</span>
+            <span>{currentStage}</span>
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-4">
-          <div className="flex items-center gap-2">
-            <Badge className={cn("px-2.5 py-0.5", getSlaColorClass())}>
-              <Clock className="h-3.5 w-3.5 mr-1.5" />
-              {getSlaDisplay()}
-            </Badge>
-            <Badge variant="outline" className="px-2.5 py-0.5 bg-background border-border/60 text-foreground/80 shadow-sm">{currentStage}</Badge>
-            {getStatusBadge()}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {timelineDrawer}
-            <Button variant="outline" size="sm" className="gap-2 h-9 border-border/60 hover:bg-secondary" onClick={onAssignOwner}>
-              <UserPlus className="h-4 w-4" />
-              Assign
-            </Button>
-
-            <Button 
-                variant="outline" 
-                size="sm" 
-                className="gap-2 h-9 border-destructive/40 text-destructive hover:bg-destructive/20 hover:border-destructive"
+        {/* Actions */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {timelineDrawer}
+          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onAssignOwner}>
+            <UserPlus className="h-3.5 w-3.5" />
+            Assign
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={onRequestMissingInfo}>
+            <Mail className="h-3.5 w-3.5" />
+            Request Info
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive text-sm"
                 onClick={() => {
-                    if (window.confirm('Are you sure you want to delete this request? This will permanently remove all associated data and documents.')) {
-                        onDelete?.();
-                    }
+                  if (window.confirm('Delete this request? This cannot be undone.')) {
+                    onDelete?.();
+                  }
                 }}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete
-            </Button>
-          </div>
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-2" />
+                Delete request
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>

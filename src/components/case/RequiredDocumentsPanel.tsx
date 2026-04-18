@@ -1,9 +1,7 @@
 import React from 'react';
 import { Document, DocumentType, DOCUMENT_TYPE_LABELS } from '@/types/case';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Circle, FileText, Upload, Clock, AlertCircle, Eye } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import { CheckCircle2, Circle, Upload, Loader2, Eye } from 'lucide-react';
 
 interface RequiredDocumentsPanelProps {
     documents: Document[];
@@ -23,7 +21,6 @@ export function RequiredDocumentsPanel({
     const uploadedDocsMap = React.useMemo(() => {
         const map: Record<string, Document> = {};
         documents.forEach(doc => {
-            // Keep the most recent or already processed one
             if (!map[doc.type] || doc.status === 'extracted') {
                 map[doc.type] = doc;
             }
@@ -34,32 +31,19 @@ export function RequiredDocumentsPanel({
     const stats = React.useMemo(() => {
         const total = requiredDocTypes.length;
         const uploaded = requiredDocTypes.filter(type => uploadedDocsMap[type]).length;
-        const percentage = total > 0 ? (uploaded / total) * 100 : 0;
-        return { total, uploaded, percentage };
+        return { total, uploaded };
     }, [requiredDocTypes, uploadedDocsMap]);
 
     return (
-        <div className="flex flex-col h-full">
-            <div className="p-4 border-b border-border/50 bg-muted/10">
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Required Documents
-                    </h3>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">
-                        {stats.uploaded} / {stats.total}
-                    </span>
-                </div>
-                <div className="space-y-1.5">
-                    <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase">
-                        <span>Overall Completion</span>
-                        <span>{Math.round(stats.percentage)}%</span>
-                    </div>
-                    <Progress value={stats.percentage} className="h-1.5 bg-primary/10" />
-                </div>
+        <div className="flex flex-col h-full bg-background">
+            <div className="px-4 py-2.5 border-b border-border flex items-center justify-between shrink-0">
+                <h3 className="text-sm font-semibold text-foreground">Documents</h3>
+                <span className="text-xs text-muted-foreground">
+                    {stats.uploaded} of {stats.total}
+                </span>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            <div className="flex-1 overflow-y-auto">
                 {requiredDocTypes.map(type => {
                     const doc = uploadedDocsMap[type];
                     const isUploaded = !!doc;
@@ -71,52 +55,51 @@ export function RequiredDocumentsPanel({
                             key={type}
                             onClick={() => doc && onSelectDocument(doc)}
                             className={cn(
-                                "group relative flex items-center justify-between p-2 rounded-xl transition-all border cursor-default",
-                                isUploaded ? "bg-card border-border/40 hover:border-primary/30" : "bg-muted/30 border-dashed border-border/60 hover:bg-muted/50",
-                                isSelected && "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20",
-                                doc && "cursor-pointer"
+                                'group flex items-center justify-between px-4 py-2.5 border-b border-border/60 transition-colors',
+                                isUploaded && 'cursor-pointer hover:bg-muted/50',
+                                isSelected && 'bg-primary/5 border-l-2 border-l-primary'
                             )}
                         >
-                            <div className="flex items-center gap-3 min-w-0">
-                                <div className={cn(
-                                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border",
-                                    isUploaded ? (isProcessing ? "bg-amber-500/10 border-amber-500/30" : "bg-success/10 border-success/30") : "bg-muted/50 border-border/50"
-                                )}>
-                                    {isUploaded ? (
-                                        isProcessing ? (
-                                            <Clock className="h-4 w-4 text-amber-500" />
-                                        ) : (
-                                            <CheckCircle2 className="h-4 w-4 text-success" />
-                                        )
+                            <div className="flex items-center gap-2.5 min-w-0">
+                                {isUploaded ? (
+                                    isProcessing ? (
+                                        <Loader2 className="h-4 w-4 text-warning animate-spin shrink-0" />
                                     ) : (
-                                        <Circle className="h-4 w-4 text-muted-foreground/30" />
-                                    )}
-                                </div>
+                                        <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
+                                    )
+                                ) : (
+                                    <Circle className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                                )}
 
-                                <div className="flex flex-col min-w-0">
-                                    <span className={cn(
-                                        "text-sm font-bold leading-tight truncate",
-                                        isUploaded ? "text-foreground" : "text-muted-foreground"
+                                <div className="min-w-0">
+                                    <p className={cn(
+                                        'text-sm truncate',
+                                        isUploaded ? 'text-foreground font-medium' : 'text-muted-foreground'
                                     )}>
                                         {DOCUMENT_TYPE_LABELS[type] || type}
-                                    </span>
-                                    <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-tight">
-                                        {isUploaded ? (isProcessing ? 'Processing...' : 'Available') : 'Missing'}
-                                    </span>
+                                    </p>
+                                    {isProcessing && (
+                                        <p className="text-[11px] text-warning">Processing…</p>
+                                    )}
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-1 transition-opacity">
+                            <div className="flex items-center gap-1 shrink-0">
                                 {isUploaded && doc?.url && (
-                                    <button 
+                                    <button
                                         type="button"
                                         onClick={(e) => { e.stopPropagation(); window.open(doc.url, "_blank"); }}
-                                        className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors"
+                                        className="h-7 w-7 rounded inline-flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
+                                        aria-label="Preview"
                                     >
                                         <Eye className="h-3.5 w-3.5" />
                                     </button>
                                 )}
-                                <label className="cursor-pointer h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors">
+                                <label
+                                    className="h-7 w-7 rounded inline-flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 cursor-pointer"
+                                    aria-label={isUploaded ? 'Replace' : 'Upload'}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
                                     <Upload className="h-3.5 w-3.5" />
                                     <input
                                         type="file"
@@ -134,6 +117,11 @@ export function RequiredDocumentsPanel({
                         </div>
                     );
                 })}
+                {requiredDocTypes.length === 0 && (
+                    <p className="text-xs text-muted-foreground px-4 py-6 text-center">
+                        No required documents configured for this stage.
+                    </p>
+                )}
             </div>
         </div>
     );

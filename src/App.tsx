@@ -45,7 +45,8 @@ const App = () => (
           <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
             <Route path="/requests" element={<RequestsInbox />} />
             <Route path="/request/:requestId" element={<RequestDetail />} />
-            <Route path="/evidence-pack" element={<EvidencePack />} />
+            <Route path="/request/:requestId/evidence-pack" element={<EvidencePack />} />
+            <Route path="/evidence-pack" element={<Navigate to="/requests" replace />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
 

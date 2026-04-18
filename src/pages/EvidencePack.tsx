@@ -1,25 +1,19 @@
+import { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { mockCaseData } from '@/data/mockCaseData';
-import { 
-  ArrowLeft, 
-  Download, 
-  Building2, 
-  FileText,
-  ClipboardCheck,
-  Database,
-  Clock,
-  Check,
-  AlertCircle,
-  Shield,
-  AlertTriangle,
-  User
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
+import { ArrowLeft, Download, Check, AlertCircle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
+import {
+  mapBackendRequestToListItem,
+  mapBackendStageToStage,
+  mapBackendRequestChecklistToChecklistItem,
+  mapBackendDocumentToDocument,
+  groupExtractionsBySection,
+} from '@/lib/mappers';
+import { CaseData, Document } from '@/types/case';
 import { EvidencePackSummary } from '@/components/evidence/EvidencePackSummary';
 import { EvidencePackChecklist } from '@/components/evidence/EvidencePackChecklist';
 import { EvidencePackExtractedData } from '@/components/evidence/EvidencePackExtractedData';
@@ -28,89 +22,166 @@ import { EvidencePackTimeline } from '@/components/evidence/EvidencePackTimeline
 import { EvidencePackDocuments } from '@/components/evidence/EvidencePackDocuments';
 
 export default function EvidencePack() {
+  const { requestId } = useParams();
+  const [caseData, setCaseData] = useState<CaseData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!requestId) return;
+    (async () => {
+      try {
+        setLoading(true);
+        const [req, docsRes, studioDocsRes] = await Promise.all([
+          api.requests.get(requestId),
+          api.documents.list(),
+          api.studio.documents.list(),
+        ]);
+        const listItem = mapBackendRequestToListItem(req);
+        const requestStages = (req.request_stages || []).map(mapBackendStageToStage);
+        const requestChecklist = (req.request_stages || []).flatMap((rs: any) =>
+          (rs.checklists || []).map((c: any) => ({
+            ...mapBackendRequestChecklistToChecklistItem(c),
+            stageId: rs.stage,
+          }))
+        );
+        const requestDocuments: Document[] = docsRes
+          .filter((d: any) => d.request === requestId)
+          .map(mapBackendDocumentToDocument)
+          .sort((a: Document, b: Document) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
+        const extractionRecords = requestDocuments
+          .filter(d => d.extraction)
+          .map(d => ({ document: d.id, data: d.extraction.data }));
+
+        const data: CaseData = {
+          id: listItem.id,
+          smartId: listItem.smartId,
+          companyName: listItem.companyName,
+          status: listItem.status,
+          owner: listItem.owner,
+          queue: listItem.queue,
+          brokerEmail: listItem.brokerEmail,
+          currentStage: parseInt(listItem.currentStageId?.toString()) || requestStages[0]?.id || 1,
+          priority: listItem.priority,
+          slaTargetHours: listItem.slaTargetHours,
+          createdAt: listItem.createdAt,
+          stages: requestStages,
+          documents: requestDocuments,
+          extractedData: groupExtractionsBySection(extractionRecords),
+          timeline: [],
+          checklist: requestChecklist,
+          workforceMismatch: { detected: false, molCount: 0, censusCount: 0, accepted: false },
+          docDefs: studioDocsRes.map((d: any) => ({
+            id: d.id,
+            name: d.name,
+            type: d.doc_type,
+            mandatory: d.mandatory,
+            extraction_keys: d.extraction_keys,
+            aiInstructions: d.ai_instructions,
+            hints: d.hints,
+          })),
+          isExported: false,
+          isIssued: listItem.status === 'Issued',
+        };
+        setCaseData(data);
+      } catch (err) {
+        console.error('Failed to load evidence pack data', err);
+        toast.error('Failed to load evidence pack');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [requestId]);
+
   const handleExportPdf = () => {
-    toast.success('Evidence Pack PDF downloaded', {
-      description: 'The evidence pack has been exported successfully',
-    });
+    window.print();
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!caseData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <p className="text-sm text-muted-foreground mb-3">Evidence pack unavailable for this request.</p>
+          <Link to="/requests">
+            <Button variant="outline" size="sm">Back to requests</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-card border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link to="/requests">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
+      {/* Header — hidden in print */}
+      <div className="bg-background border-b border-border px-6 py-3 print:hidden">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link to={`/request/${requestId}`}>
+              <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2">
+                <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
             <div>
-              <h1 className="text-xl font-semibold">Evidence Pack</h1>
-              <p className="text-sm text-muted-foreground">{mockCaseData.id} • Audit-Ready Export</p>
+              <h1 className="text-lg font-semibold">Evidence Pack</h1>
+              <p className="text-xs text-muted-foreground">
+                {caseData.companyName} · {caseData.smartId || caseData.id.slice(0, 8)}
+              </p>
             </div>
           </div>
-          <Button onClick={handleExportPdf} className="gap-2">
-            <Download className="h-4 w-4" />
-            Export Evidence Pack (PDF)
+          <Button onClick={handleExportPdf} size="sm" className="h-8 gap-1.5">
+            <Download className="h-3.5 w-3.5" />
+            Export PDF
           </Button>
         </div>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-73px)]">
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
-          {/* Request Summary */}
-          <EvidencePackSummary caseData={mockCaseData} />
+      <ScrollArea className="h-[calc(100vh-56px)] print:h-auto">
+        <div className="max-w-4xl mx-auto p-6 space-y-8 print:p-0 print:space-y-6">
+          <EvidencePackSummary caseData={caseData} />
 
-          {/* Stage Completion Snapshot */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-primary" />
-                Stage Completion Snapshot
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {mockCaseData.stages.map(stage => (
-                  <div key={stage.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium w-8">S{stage.id}</span>
-                      <span className="text-sm">{stage.name}</span>
-                    </div>
-                    <Badge 
-                      className={
-                        stage.status === 'complete' 
-                          ? 'bg-success/20 text-success border-0' 
-                          : stage.status === 'needs-review'
-                          ? 'bg-warning/20 text-warning-foreground border-0'
-                          : 'bg-muted text-muted-foreground border-0'
-                      }
-                    >
-                      {stage.status === 'complete' && <Check className="h-3 w-3 mr-1" />}
-                      {stage.status === 'needs-review' && <AlertCircle className="h-3 w-3 mr-1" />}
-                      {stage.status.replace('-', ' ')}
-                    </Badge>
+          {/* Stage Completion */}
+          <section>
+            <h2 className="text-sm font-semibold text-foreground mb-3">Stage completion</h2>
+            <div className="border border-border rounded-md overflow-hidden">
+              {caseData.stages.map((stage, idx) => (
+                <div
+                  key={stage.id}
+                  className={cn(
+                    'flex items-center justify-between px-4 py-2.5',
+                    idx !== caseData.stages.length - 1 && 'border-b border-border'
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-muted-foreground w-8">S{stage.id}</span>
+                    <span className="text-sm text-foreground">{stage.name}</span>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  <span className={cn(
+                    'inline-flex items-center gap-1 px-2 h-5 rounded text-[11px] font-medium',
+                    stage.status === 'complete' && 'bg-success/10 text-success',
+                    stage.status === 'needs-review' && 'bg-warning/10 text-warning',
+                    stage.status !== 'complete' && stage.status !== 'needs-review' && 'bg-muted text-muted-foreground'
+                  )}>
+                    {stage.status === 'complete' && <Check className="h-3 w-3" />}
+                    {stage.status === 'needs-review' && <AlertCircle className="h-3 w-3" />}
+                    {stage.status.replace('-', ' ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
 
-          {/* Checklist Snapshot */}
-          <EvidencePackChecklist stages={mockCaseData.stages} checklist={mockCaseData.checklist} />
-
-          {/* Extracted Data Snapshot with Verification Status */}
-          <EvidencePackExtractedData extractedData={mockCaseData.extractedData} />
-
-          {/* Override Reasons */}
-          <EvidencePackOverrides workforceMismatch={mockCaseData.workforceMismatch} />
-
-          {/* Timeline */}
-          <EvidencePackTimeline timeline={mockCaseData.timeline} />
-
-          {/* Documents List */}
-          <EvidencePackDocuments documents={mockCaseData.documents} />
+          <EvidencePackChecklist stages={caseData.stages} checklist={caseData.checklist} />
+          <EvidencePackExtractedData extractedData={caseData.extractedData} />
+          <EvidencePackOverrides workforceMismatch={caseData.workforceMismatch} />
+          <EvidencePackTimeline timeline={caseData.timeline} />
+          <EvidencePackDocuments documents={caseData.documents} />
         </div>
       </ScrollArea>
     </div>

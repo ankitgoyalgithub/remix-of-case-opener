@@ -2,18 +2,10 @@ import { useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { CaseStepper } from '@/components/case/CaseStepper';
 import { RequestDetailHeader } from '@/components/request/RequestDetailHeader';
-import { ExtractedDataPanel } from '@/components/case/ExtractedDataPanel';
-import { DocumentsPanel } from '@/components/case/DocumentsPanel';
-import { DocumentHighlightsPanel } from '@/components/case/DocumentHighlightsPanel';
-import { WorkforceMismatchBanner } from '@/components/case/WorkforceMismatchBanner';
-import { ActiveStagePanel } from '@/components/case/ActiveStagePanel';
 import { TimelineDrawer } from '@/components/case/TimelineDrawer';
-import { ExportPanel } from '@/components/case/ExportPanel';
 import { MissingInfoEmailModal } from '@/components/request/MissingInfoEmailModal';
 import { AssignOwnerModal } from '@/components/request/AssignOwnerModal';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { OperationsWorkbench } from '@/components/workbench/OperationsWorkbench';
-import { mockExportPayload, mockChecklist } from '@/data/mockCaseData';
 import { api } from '@/lib/api';
 import { mapBackendRequestToListItem, mapBackendStageToStage, mapBackendRequestChecklistToChecklistItem, mapBackendDocumentToDocument, groupExtractionsBySection } from '@/lib/mappers';
 import {
@@ -26,7 +18,7 @@ import {
   CaseData,
   DocDef
 } from '@/types/case';
-import { FileText, Database, Send, FileCheck, ShieldCheck, Loader2, ListTodo, Hourglass } from 'lucide-react';
+import { FileCheck, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -503,24 +495,11 @@ export default function RequestDetail() {
 
   return (
     <div className="h-full flex flex-col bg-background relative">
-      {/* Upload Sandclock Overlay */}
+      {/* Upload indicator */}
       {isUploading && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-5 p-8 rounded-3xl bg-card/90 border border-border/50 shadow-2xl">
-            <div className="relative w-16 h-16">
-              <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping" />
-              <div className="relative z-10 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center border border-primary/30">
-                <Hourglass className="h-8 w-8 text-primary animate-spin" style={{ animationDuration: '2s' }} />
-              </div>
-            </div>
-            <div className="text-center space-y-1">
-              <p className="text-sm font-bold text-foreground tracking-tight">Uploading Document</p>
-              <p className="text-xs text-muted-foreground">Please wait while we securely upload your file...</p>
-            </div>
-            <div className="w-48 h-1 bg-muted/30 rounded-full overflow-hidden">
-              <div className="h-full bg-primary rounded-full animate-[upload-progress_2s_ease-in-out_infinite]" style={{ width: '60%', animation: 'pulse 1.5s ease-in-out infinite' }} />
-            </div>
-          </div>
+        <div className="fixed top-16 right-6 z-50 flex items-center gap-2 px-3 py-2 rounded-md bg-background border border-border shadow-md">
+          <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
+          <span className="text-sm text-foreground">Uploading document…</span>
         </div>
       )}
       <RequestDetailHeader
@@ -544,13 +523,13 @@ export default function RequestDetail() {
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Stages Bar - Top */}
-        <div className="w-full border-b border-border bg-card flex py-3 px-4 shrink-0 items-center justify-between gap-4">
-          <div className="flex items-center gap-6 flex-1 min-w-0 overflow-hidden">
-            <h3 className="text-xs lg:text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">
-              Issuance Stages
-            </h3>
-            <div className="flex overflow-x-auto gap-4 flex-1 items-center pb-1 sm:pb-0">
+        {/* Stage progress rail */}
+        <div className="w-full border-b border-border bg-background flex py-2 px-6 shrink-0 items-center justify-between gap-4">
+          <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
+            <span className="text-xs font-medium text-muted-foreground shrink-0">
+              {requestData.stages.filter(s => s.status === 'complete').length} of {requestData.stages.length} stages done
+            </span>
+            <div className="flex overflow-x-auto flex-1 items-center">
               <CaseStepper
                 stages={requestData.stages}
                 currentStage={activeViewStage}
@@ -560,9 +539,9 @@ export default function RequestDetail() {
           </div>
 
           <div className="hidden lg:flex shrink-0">
-            <Link to="/evidence-pack">
-              <Button variant="outline" size="sm" className="gap-2">
-                <FileCheck className="h-4 w-4" />
+            <Link to={`/request/${requestData.id}/evidence-pack`}>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                <FileCheck className="h-3.5 w-3.5" />
                 Evidence Pack
               </Button>
             </Link>

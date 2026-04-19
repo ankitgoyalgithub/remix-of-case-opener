@@ -160,11 +160,38 @@ export interface StageRequirements {
 }
 
 
+export interface DecisionTrail {
+  outcome: 'Approved' | 'Rejected';
+  at: Date;
+  by: string;
+  comment: string;
+}
+
+export interface PublicationTrail {
+  at: Date;
+  by: string;
+}
+
+export interface RiskFlagSummary {
+  id: number;
+  title: string;
+  severity: string;
+  resolved: boolean;
+  resolvedAt?: Date;
+  resolvedBy?: string;
+  resolutionNote?: string;
+  createdAt?: Date;
+  description?: string;
+}
+
 export interface CaseData {
   id: string;
   smartId?: string;
   companyName: string;
-  status: 'New' | 'In Review' | 'Missing Info' | 'Ready for Export' | 'Issued';
+  status: 'New' | 'In Review' | 'Missing Info' | 'Ready for Export' | 'Issued' | 'Approved' | 'Rejected' | 'Published';
+  decision?: DecisionTrail;
+  publication?: PublicationTrail;
+  riskFlags?: RiskFlagSummary[];
   currentStage: number;
   priority: 'Urgent' | 'Normal';
   slaTargetHours: number;

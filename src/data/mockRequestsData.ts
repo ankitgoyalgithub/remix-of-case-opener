@@ -12,7 +12,7 @@ export interface RequestListItem {
   slaTargetHours: number;
   currentStage: string;
   currentStageId: number;
-  status: 'New' | 'In Review' | 'Missing Info' | 'Ready for Export' | 'Issued';
+  status: 'New' | 'In Review' | 'Missing Info' | 'Ready for Export' | 'Issued' | 'Approved' | 'Rejected' | 'Published';
   owner: string;
   priority: 'Urgent' | 'Normal';
   queue: 'Senior Ops Queue' | 'Standard Ops Queue';

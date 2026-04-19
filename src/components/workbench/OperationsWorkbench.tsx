@@ -15,6 +15,8 @@ import {
     AlertCircle,
     Database,
     Sparkles,
+    ChevronDown,
+    ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -71,6 +73,8 @@ export function OperationsWorkbench({
 }: OperationsWorkbenchProps) {
     const [reextractPrompt, setReextractPrompt] = React.useState('');
     const [isReextractDialogOpen, setIsReextractDialogOpen] = React.useState(false);
+    const [documentsCollapsed, setDocumentsCollapsed] = React.useState(false);
+    const [checklistCollapsed, setChecklistCollapsed] = React.useState(false);
 
     const currentStageData = requestData.stages.find(s => s.id === activeViewStage);
     const selectedItem = requestData.checklist.find(i => i.id === selectedChecklistItemId);
@@ -111,18 +115,31 @@ export function OperationsWorkbench({
 
         const docDef = requestData.docDefs?.find(d => d.type === selectedDocument.type);
         const standardKeys = docDef?.extraction_keys || [];
-        const finalKeys = standardKeys.length > 0 ? standardKeys : ['Document Reference', 'Note'];
         const extraction = selectedDocument.extraction?.data || {};
+
+        // When a schema is configured, render those keys in order.
+        // When no schema is configured, render every key the agent extracted.
+        const keys: string[] = standardKeys.length > 0
+            ? standardKeys
+            : Object.keys(extraction);
 
         return [{
             title: docDef?.name || selectedDocument.type.replace(/-/g, ' '),
-            fields: finalKeys.map(key => ({
-                label: key,
-                value: extraction[key]?.value || null,
-                confidence: (extraction[key]?.confidence || 0) * 100,
-                status: (extraction[key]?.value ? 'needs-review' : 'pending') as "verified" | "pending" | "needs-review",
-                documentId: selectedDocument.id
-            }))
+            fields: keys.map(key => {
+                const entry = extraction[key];
+                // Entries may be {value, confidence} OR a plain value (free-form mode).
+                const isWrapped = entry && typeof entry === 'object' && !Array.isArray(entry) && 'value' in (entry as any);
+                const rawValue = isWrapped ? (entry as any).value : entry;
+                const confidence = isWrapped ? ((entry as any).confidence || 0) : (rawValue ? 90 : 0);
+                const hasValue = rawValue !== null && rawValue !== undefined && !(typeof rawValue === 'string' && rawValue.trim() === '');
+                return {
+                    label: key,
+                    value: rawValue ?? null,
+                    confidence: confidence > 1 ? confidence : confidence * 100,
+                    status: (hasValue ? 'needs-review' : 'pending') as "verified" | "pending" | "needs-review",
+                    documentId: selectedDocument.id,
+                };
+            }),
         }];
     }, [selectedDocument, requestData.docDefs]);
 
@@ -142,19 +159,46 @@ export function OperationsWorkbench({
         <div className="flex-1 flex overflow-hidden bg-background">
             {/* Left column: documents + checklist */}
             <div className="w-full lg:w-[380px] xl:w-[420px] shrink-0 border-r border-border flex flex-col overflow-hidden">
-                <div className="h-[320px] border-b border-border flex flex-col overflow-hidden shrink-0">
+                <div
+                    className={cn(
+                        'border-b border-border flex flex-col overflow-hidden shrink-0',
+                        documentsCollapsed
+                            ? 'h-auto'
+                            : checklistCollapsed
+                            ? 'flex-1 min-h-0'
+                            : 'h-[320px]',
+                    )}
+                >
                     <RequiredDocumentsPanel
                         documents={requestData.documents}
                         requiredDocTypes={caseRequiredDocTypes}
                         onUpload={onUploadDocument}
                         onSelectDocument={onSelectDocument}
                         selectedDocumentId={selectedDocument?.id}
+                        collapsed={documentsCollapsed}
+                        onToggleCollapsed={() => setDocumentsCollapsed(v => !v)}
                     />
                 </div>
 
-                <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-                    <div className="px-4 py-2.5 border-b border-border flex items-center justify-between shrink-0 bg-background">
-                        <h3 className="text-sm font-semibold text-foreground">Checklist</h3>
+                <div
+                    className={cn(
+                        'flex flex-col overflow-hidden min-h-0',
+                        checklistCollapsed ? 'h-auto' : 'flex-1',
+                    )}
+                >
+                    <button
+                        type="button"
+                        onClick={() => setChecklistCollapsed(v => !v)}
+                        className="px-4 py-2.5 border-b border-border flex items-center justify-between shrink-0 bg-background hover:bg-muted/40 transition-colors text-left"
+                    >
+                        <div className="flex items-center gap-1.5">
+                            {checklistCollapsed ? (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            <h3 className="text-sm font-semibold text-foreground">Checklist</h3>
+                        </div>
                         <span className={cn(
                             'text-[11px] px-2 h-5 inline-flex items-center rounded font-medium',
                             currentStageData?.status === 'complete'
@@ -163,25 +207,27 @@ export function OperationsWorkbench({
                         )}>
                             {currentStageData?.status === 'complete' ? 'Completed' : 'In progress'}
                         </span>
-                    </div>
-                    <ScrollArea className="flex-1">
-                        <div className="px-4 py-3">
-                            {currentStageData && (
-                                <ActiveStagePanel
-                                    stage={currentStageData}
-                                    checklist={requestData.checklist}
-                                    documents={requestData.documents}
-                                    missingDocs={missingDocs}
-                                    docDefs={requestData.docDefs || []}
-                                    onToggle={onChecklistToggle}
-                                    onMarkStageComplete={onStageComplete}
-                                    selectedItemId={selectedChecklistItemId}
-                                    onSelectItem={onSelectChecklistItem}
-                                    onRunValidation={onRunValidation}
-                                />
-                            )}
-                        </div>
-                    </ScrollArea>
+                    </button>
+                    {!checklistCollapsed && (
+                        <ScrollArea className="flex-1">
+                            <div className="px-4 py-3">
+                                {currentStageData && (
+                                    <ActiveStagePanel
+                                        stage={currentStageData}
+                                        checklist={requestData.checklist}
+                                        documents={requestData.documents}
+                                        missingDocs={missingDocs}
+                                        docDefs={requestData.docDefs || []}
+                                        onToggle={onChecklistToggle}
+                                        onMarkStageComplete={onStageComplete}
+                                        selectedItemId={selectedChecklistItemId}
+                                        onSelectItem={onSelectChecklistItem}
+                                        onRunValidation={onRunValidation}
+                                    />
+                                )}
+                            </div>
+                        </ScrollArea>
+                    )}
                 </div>
             </div>
 

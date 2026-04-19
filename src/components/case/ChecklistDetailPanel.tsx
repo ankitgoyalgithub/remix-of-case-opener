@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { EntityScreeningReport } from './EntityScreeningReport';
 
 interface ChecklistDetailPanelProps {
   item: ChecklistItem;
@@ -200,7 +201,10 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
               </div>
             </div>
 
-            {localResult.details && localResult.details.length > 0 && (
+            {/* Entity screening gets its own report-style view */}
+            {(item.handlerName === 'entity_screening' || (item.itemType as any) === 'entity-screening') && localResult.details && localResult.details.length > 0 ? (
+              <EntityScreeningReport result={localResult} itemLabel={item.label} />
+            ) : localResult.details && localResult.details.length > 0 && (
               <div className="rounded-lg border border-border/50 overflow-hidden">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-muted/30 text-xs uppercase text-muted-foreground">
@@ -264,12 +268,39 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                             </div>
                           </td>
                           <td className="px-4 py-3 align-top text-right">
-                            <Badge variant="outline" className={cn("text-xs font-bold uppercase ml-auto inline-flex items-center", 
-                              isPending ? "text-muted-foreground border-border" : (rule.passed ? "text-success border-success/30 bg-success/10" : "text-destructive border-destructive/30 bg-destructive/10")
-                            )}>
-                              <StatusIcon className="h-3 w-3 mr-1" />
-                              {isPending ? 'Pending' : (rule.passed ? 'Passed' : 'Failed')}
-                            </Badge>
+                            <div className="flex items-center gap-2 justify-end">
+                              {/* Inline Resolve button for unresolved risk rows */}
+                              {(rule as any).flag_id && !(rule as any).resolved && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs gap-1"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const note = window.prompt('Resolution note (what action was taken?)') || '';
+                                    if (!note.trim()) return;
+                                    try {
+                                      await api.workflow.resolveRiskFlag((rule as any).flag_id, note.trim());
+                                      toast.success('Risk flag resolved');
+                                      // Re-run the aggregate check so the stage recomputes
+                                      if (onRunValidation) await onRunValidation(item.id);
+                                    } catch (err) {
+                                      console.error('Resolve failed', err);
+                                      toast.error('Could not resolve flag');
+                                    }
+                                  }}
+                                >
+                                  <Check className="h-3 w-3" />
+                                  Resolve
+                                </Button>
+                              )}
+                              <Badge variant="outline" className={cn("text-xs font-bold uppercase inline-flex items-center",
+                                isPending ? "text-muted-foreground border-border" : (rule.passed ? "text-success border-success/30 bg-success/10" : "text-destructive border-destructive/30 bg-destructive/10")
+                              )}>
+                                <StatusIcon className="h-3 w-3 mr-1" />
+                                {isPending ? 'Pending' : (rule.passed ? 'Passed' : 'Failed')}
+                              </Badge>
+                            </div>
                           </td>
                         </tr>
                       );

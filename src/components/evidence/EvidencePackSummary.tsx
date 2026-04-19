@@ -44,7 +44,13 @@ export function EvidencePackSummary({ caseData }: EvidencePackSummaryProps) {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Created Date</p>
-              <p className="font-medium">{format(caseData.timeline[0].timestamp, 'dd MMM yyyy HH:mm')}</p>
+              <p className="font-medium">
+                {caseData.createdAt
+                  ? format(new Date(caseData.createdAt), 'dd MMM yyyy HH:mm')
+                  : caseData.timeline?.[0]?.timestamp
+                    ? format(new Date(caseData.timeline[0].timestamp), 'dd MMM yyyy HH:mm')
+                    : '—'}
+              </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Assigned To</p>

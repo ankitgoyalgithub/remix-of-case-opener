@@ -56,7 +56,8 @@ import {
   ChevronUp,
   GitCompare,
   User,
-  Globe
+  Globe,
+  AlertTriangle,
 } from 'lucide-react';
 import { ChecklistDefinition, VerificationConfig, DocumentDefinition } from '@/data/mockStudioData';
 import { DOCUMENT_TYPE_LABELS } from '@/types/case';
@@ -181,7 +182,7 @@ export function WizardStepChecklist() {
                         />
                         <div className="flex items-center gap-4 mt-2">
                           {(() => {
-                            const hasAuto = item.verifications?.some(v => v.type === 'document_verification' || v.type === 'cross_validation' || v.type === 'external_api');
+                            const hasAuto = item.verifications?.some(v => v.type === 'document_verification' || v.type === 'cross_validation' || v.type === 'external_api' || v.type === 'agent_orchestrator' || v.type === 'entity_screening' || v.type === 'risk_review');
                             return hasAuto ? (
                               <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-warning/10 border border-warning/20">
                                 <Zap className="h-3 w-3 text-warning" />
@@ -357,6 +358,45 @@ export function WizardStepChecklist() {
                                     <GitCompare className="h-3.5 w-3.5 text-purple-500" />
                                     Intelligent Cross-Validation
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-xs font-bold gap-2 cursor-pointer" onClick={() => {
+                                    const next = [...(item.verifications || [])];
+                                    next.push({
+                                      id: Math.random().toString(36).substr(2, 9),
+                                      type: 'agent_orchestrator',
+                                      handler: 'agent_orchestrator',
+                                      config: { prompt: 'Cross-verify the Trade License with the VAT Certificate — the company name and TRN must match across both.' },
+                                    });
+                                    updateItem(item.id, { verifications: next });
+                                  }}>
+                                    <Zap className="h-3.5 w-3.5 text-amber-500" />
+                                    Agent (Prompt-Driven)
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-xs font-bold gap-2 cursor-pointer" onClick={() => {
+                                    const next = [...(item.verifications || [])];
+                                    next.push({
+                                      id: Math.random().toString(36).substr(2, 9),
+                                      type: 'entity_screening',
+                                      handler: 'entity_screening',
+                                      config: { focus: '' },
+                                    });
+                                    updateItem(item.id, { verifications: next });
+                                  }}>
+                                    <Globe className="h-3.5 w-3.5 text-rose-500" />
+                                    Entity Screening (AML/PEP/Adverse)
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-xs font-bold gap-2 cursor-pointer" onClick={() => {
+                                    const next = [...(item.verifications || [])];
+                                    next.push({
+                                      id: Math.random().toString(36).substr(2, 9),
+                                      type: 'risk_review',
+                                      handler: 'risk_review',
+                                      config: { block_on: ['critical', 'high'] },
+                                    });
+                                    updateItem(item.id, { verifications: next });
+                                  }}>
+                                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                                    Risk Review (Aggregate)
+                                  </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
@@ -383,11 +423,19 @@ export function WizardStepChecklist() {
                                         value={verif.type}
                                         onValueChange={(val: any) => {
                                           const next = [...(item.verifications || [])];
-                                          let prompt = '';
-                                          if (val === 'document_verification') prompt = 'Verify that this document is valid, not expired, and all mandatory fields are correctly filled.';
-                                          if (val === 'cross_validation') prompt = 'Compare the following fields across the selected documents and ensure they are semantically consistent. Highlight any discrepancies.';
-                                          
-                                          next[vIndex] = { ...next[vIndex], type: val, config: { prompt } };
+                                          let config: any = { prompt: '' };
+                                          if (val === 'document_verification') config = { prompt: 'Verify that this document is valid, not expired, and all mandatory fields are correctly filled.' };
+                                          if (val === 'cross_validation') config = { prompt: 'Compare the following fields across the selected documents and ensure they are semantically consistent. Highlight any discrepancies.' };
+                                          if (val === 'agent_orchestrator') config = { prompt: 'Cross-verify the Trade License with the VAT Certificate — the company name and TRN must match across both.' };
+                                          if (val === 'entity_screening') config = { focus: '' };
+                                          if (val === 'risk_review') config = { block_on: ['critical', 'high'] };
+
+                                          const nextVerif: any = { ...next[vIndex], type: val, config };
+                                          if (val === 'agent_orchestrator') nextVerif.handler = 'agent_orchestrator';
+                                          else if (val === 'entity_screening') nextVerif.handler = 'entity_screening';
+                                          else if (val === 'risk_review') nextVerif.handler = 'risk_review';
+                                          else delete nextVerif.handler;
+                                          next[vIndex] = nextVerif;
                                           updateItem(item.id, { verifications: next });
                                         }}
                                       >
@@ -399,6 +447,9 @@ export function WizardStepChecklist() {
                                           <SelectItem value="document_verification">Document Verification</SelectItem>
                                           <SelectItem value="cross_validation">Cross-Validation</SelectItem>
                                           <SelectItem value="external_api">External API</SelectItem>
+                                          <SelectItem value="agent_orchestrator">Agent (Prompt-Driven)</SelectItem>
+                                          <SelectItem value="entity_screening">Entity Screening</SelectItem>
+                                          <SelectItem value="risk_review">Risk Review (Aggregate)</SelectItem>
                                         </SelectContent>
                                       </Select>
                                     </div>
@@ -545,8 +596,8 @@ export function WizardStepChecklist() {
                                         <div className="flex flex-col lg:flex-row gap-8 w-full">
                                           <div className="w-full lg:w-[320px] space-y-2 shrink-0">
                                             <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Endpoint URI</Label>
-                                            <Input 
-                                              className="h-10 text-sm bg-background shadow-inner" 
+                                            <Input
+                                              className="h-10 text-sm bg-background shadow-inner"
                                               placeholder="https://api..."
                                               value={verif.config?.endpoint || ''}
                                               onChange={(e) => {
@@ -557,7 +608,7 @@ export function WizardStepChecklist() {
                                               }}
                                             />
                                           </div>
-                                          
+
                                           <div className="flex-1 space-y-2">
                                             <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Response Agent Instruction</Label>
                                             <textarea
@@ -571,6 +622,141 @@ export function WizardStepChecklist() {
                                               }}
                                             />
                                           </div>
+                                        </div>
+                                      )}
+
+                                      {verif.type === 'risk_review' && (
+                                        <div className="w-full space-y-3">
+                                          <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">
+                                            Risk Review — no config needed. Aggregates all RiskFlags raised on this request.
+                                          </Label>
+                                          <div className="space-y-1.5">
+                                            <Label className="text-[11px] text-muted-foreground">Block the stage when any unresolved flag has severity…</Label>
+                                            <div className="flex flex-wrap gap-2">
+                                              {(['critical', 'high', 'medium', 'low', 'info'] as const).map(sev => {
+                                                const checked = (verif.config?.block_on || ['critical', 'high']).includes(sev);
+                                                return (
+                                                  <button
+                                                    key={sev}
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const next = [...(item.verifications || [])];
+                                                      const current: string[] = next[vIndex].config.block_on || ['critical', 'high'];
+                                                      const updated = checked ? current.filter(s => s !== sev) : [...current, sev];
+                                                      next[vIndex].config.block_on = updated;
+                                                      next[vIndex].handler = 'risk_review';
+                                                      updateItem(item.id, { verifications: next });
+                                                    }}
+                                                    className={cn(
+                                                      'text-xs font-semibold uppercase tracking-wide px-2.5 h-7 rounded-md border transition-colors',
+                                                      checked
+                                                        ? 'bg-primary/10 text-primary border-primary/30'
+                                                        : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                                                    )}
+                                                  >
+                                                    {sev}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+                                          <p className="text-[11px] text-muted-foreground">
+                                            At runtime this lists every risk flag on the request (with severity + source document) and
+                                            lets the operator resolve or override each. The stage auto-completes when no flag at a
+                                            blocking severity remains unresolved.
+                                          </p>
+                                        </div>
+                                      )}
+
+                                      {verif.type === 'entity_screening' && (
+                                        <div className="w-full space-y-2">
+                                          <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">
+                                            Screening Focus (optional) — narrow the screening, or leave blank for a standard AML/PEP/Adverse Media sweep
+                                          </Label>
+                                          <textarea
+                                            className="flex min-h-[90px] w-full rounded-xl border border-input bg-background px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner leading-relaxed"
+                                            placeholder="e.g. Focus on UAE and GCC sanctions lists. Ignore minor civil disputes."
+                                            value={verif.config?.focus || ''}
+                                            onChange={(e) => {
+                                              const next = [...(item.verifications || [])];
+                                              next[vIndex].config.focus = e.target.value;
+                                              next[vIndex].handler = 'entity_screening';
+                                              updateItem(item.id, { verifications: next });
+                                            }}
+                                          />
+                                          <p className="text-[11px] text-muted-foreground">
+                                            Uses the <span className="font-semibold">Entity Name</span> set on the request, or falls back to the
+                                            Company Name from the Trade Licence. Runs a web search via Tavily and uses an LLM to classify
+                                            sanctions, PEP, and adverse-media signals. Requires <code className="px-1 py-0.5 rounded bg-muted text-[10px]">TAVILY_API_KEY</code> in the backend env.
+                                          </p>
+                                        </div>
+                                      )}
+
+                                      {verif.type === 'agent_orchestrator' && (
+                                        <div className="w-full space-y-2">
+                                          <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">
+                                            Check Prompt — write in plain English, AI resolves to a concrete check on save
+                                          </Label>
+                                          <textarea
+                                            className="flex min-h-[140px] w-full rounded-xl border border-input bg-background px-4 py-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner leading-relaxed"
+                                            placeholder="e.g. Cross-verify the Trade License with the VAT Certificate — company name and TRN must match."
+                                            value={verif.config?.prompt || ''}
+                                            onChange={(e) => {
+                                              const next = [...(item.verifications || [])];
+                                              next[vIndex].config.prompt = e.target.value;
+                                              next[vIndex].handler = 'agent_orchestrator';
+                                              // Mark the saved plan as stale — backend re-plans on save.
+                                              if (next[vIndex].config.plan) {
+                                                next[vIndex].config.plan = { ...next[vIndex].config.plan, stale: true };
+                                              }
+                                              updateItem(item.id, { verifications: next });
+                                            }}
+                                          />
+
+                                          {/* Show the resolved plan (saved by the backend) */}
+                                          {(() => {
+                                            const plan = verif.config?.plan;
+                                            if (!plan) {
+                                              return (
+                                                <p className="text-[11px] text-muted-foreground">
+                                                  Save the checklist to compute the plan. This runs once at save time — every request
+                                                  then uses the saved plan deterministically.
+                                                </p>
+                                              );
+                                            }
+                                            if (plan.stale) {
+                                              return (
+                                                <div className="text-[11px] text-warning px-3 py-2 rounded-md bg-warning/5 border border-warning/20">
+                                                  Prompt changed — save to re-compute the plan.
+                                                </div>
+                                              );
+                                            }
+                                            if (plan.action === 'unsupported') {
+                                              return (
+                                                <div className="text-[11px] text-destructive px-3 py-2 rounded-md bg-destructive/5 border border-destructive/20">
+                                                  Planner could not map this prompt to a concrete check. {plan.explanation || ''}
+                                                </div>
+                                              );
+                                            }
+                                            const docsLabel = (plan.documents || []).join(', ') || '—';
+                                            const actionLabel = plan.action === 'cross_validation' ? 'Cross-validate' : 'Verify';
+                                            return (
+                                              <div className="text-[12px] px-3 py-2.5 rounded-md bg-primary/5 border border-primary/15 space-y-1">
+                                                <div className="flex items-center gap-1.5">
+                                                  <Zap className="h-3.5 w-3.5 text-primary" />
+                                                  <span className="font-semibold text-primary uppercase tracking-wide text-[10px]">Resolved plan</span>
+                                                </div>
+                                                <div className="text-foreground leading-relaxed">
+                                                  <span className="font-medium">{actionLabel}</span>
+                                                  {' using '}
+                                                  <span className="font-mono text-[11px] bg-background px-1.5 py-0.5 rounded">{docsLabel}</span>
+                                                </div>
+                                                {plan.instruction && (
+                                                  <p className="text-muted-foreground text-[11px] italic">"{plan.instruction}"</p>
+                                                )}
+                                              </div>
+                                            );
+                                          })()}
                                         </div>
                                       )}
                                     </div>

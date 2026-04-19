@@ -151,3 +151,80 @@
     background-color: rgba(var(--background), 0.8);
   }
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  html, body, #root {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  /* The app root typically uses a height-constrained flex column. Unwind it
+     so the full evidence pack can flow across pages instead of being clipped
+     to the viewport. */
+  body * {
+    overflow: visible !important;
+  }
+
+  .evidence-pack-root,
+  .evidence-pack-root * {
+    overflow: visible !important;
+  }
+
+  /* Radix ScrollArea viewports use a nested [data-radix-scroll-area-viewport]
+     with inline overflow styles that clip to visible area. Force them open. */
+  [data-radix-scroll-area-viewport] {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  /* Don't page-break in the middle of a card / section. */
+  .evidence-pack-root section,
+  .evidence-pack-root [data-slot="card"],
+  .evidence-pack-root .rounded-md,
+  .evidence-pack-root .rounded-lg {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Embedded PDF/image previews tend to stretch a full page. Cap their
+     height so surrounding content remains visible. */
+  .evidence-pack-root iframe {
+    display: none !important;
+  }
+
+  .evidence-pack-root img {
+    max-height: 240px !important;
+    object-fit: contain !important;
+  }
+
+  /* The flattened document pages section renders full-size pages and must
+     not be capped like the thumbnail previews above. */
+  .evidence-document-pages .doc-page img {
+    max-height: none !important;
+    width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+
+  .evidence-document-pages .doc-render {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .evidence-document-pages .doc-render:first-child {
+    break-before: auto;
+    page-break-before: auto;
+  }
+
+  .evidence-document-pages .doc-page {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

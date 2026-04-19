@@ -30,12 +30,12 @@ export function EvidencePackExtractedData({ extractedData }: EvidencePackExtract
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {extractedData.map(section => {
+          {extractedData.map((section, sectionIdx) => {
             const sectionStatus = getSectionVerificationStatus(section);
             const verifiedCount = section.fields.filter(f => f.status === 'verified').length;
-            
+
             return (
-              <div key={section.title} className="border-b border-border pb-4 last:border-0">
+              <div key={`${section.title}-${sectionIdx}`} className="border-b border-border pb-4 last:border-0">
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-medium text-sm">{section.title}</h4>
                   <div className="flex items-center gap-2">
@@ -59,9 +59,9 @@ export function EvidencePackExtractedData({ extractedData }: EvidencePackExtract
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
-                  {section.fields.map(field => (
-                    <div 
-                      key={field.label} 
+                  {section.fields.map((field, fieldIdx) => (
+                    <div
+                      key={`${field.label}-${fieldIdx}`}
                       className={cn(
                         "flex items-center justify-between p-2 rounded-lg text-sm",
                         field.status === 'verified' ? 'bg-success/5' : 'bg-muted/50'

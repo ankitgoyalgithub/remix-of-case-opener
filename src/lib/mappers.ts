@@ -1,5 +1,9 @@
 import { RequestListItem } from '@/data/mockRequestsData';
-import { Stage, ChecklistItem, Document, DocumentType, calculateSlaRemaining, getSlaStatus, getAutoAssignedQueue } from '@/types/case';
+import {
+    Stage, ChecklistItem, Document, DocumentType,
+    calculateSlaRemaining, getSlaStatus, getAutoAssignedQueue,
+    DecisionTrail, PublicationTrail, RiskFlagSummary,
+} from '@/types/case';
 
 export function mapBackendRequestToListItem(backendReq: any): RequestListItem {
     const createdAt = new Date(backendReq.created_at);
@@ -17,7 +21,10 @@ export function mapBackendRequestToListItem(backendReq: any): RequestListItem {
         'in_review': 'In Review',
         'missing_info': 'Missing Info',
         'ready_for_export': 'Ready for Export',
-        'issued': 'Issued'
+        'issued': 'Issued',
+        'approved': 'Approved',
+        'rejected': 'Rejected',
+        'exported': 'Published',
     };
 
     return {
@@ -38,6 +45,45 @@ export function mapBackendRequestToListItem(backendReq: any): RequestListItem {
         queue: getAutoAssignedQueue(priority),
         createdAt,
     };
+}
+
+export function mapBackendRequestDecision(backendReq: any): DecisionTrail | undefined {
+    if (!backendReq.decision_at) return undefined;
+    const outcome =
+        backendReq.status === 'rejected'
+            ? 'Rejected'
+            : backendReq.status === 'approved' || backendReq.status === 'exported'
+            ? 'Approved'
+            : null;
+    if (!outcome) return undefined;
+    return {
+        outcome,
+        at: new Date(backendReq.decision_at),
+        by: backendReq.decision_by || 'System',
+        comment: backendReq.decision_comment || '',
+    };
+}
+
+export function mapBackendRequestPublication(backendReq: any): PublicationTrail | undefined {
+    if (!backendReq.published_at) return undefined;
+    return {
+        at: new Date(backendReq.published_at),
+        by: backendReq.published_by || 'System',
+    };
+}
+
+export function mapBackendRiskFlags(backendReq: any): RiskFlagSummary[] {
+    return (backendReq.risk_flags || []).map((f: any) => ({
+        id: f.id,
+        title: f.title,
+        severity: f.severity,
+        resolved: !!f.resolved,
+        resolvedAt: f.resolved_at ? new Date(f.resolved_at) : undefined,
+        resolvedBy: f.resolved_by_username || undefined,
+        resolutionNote: f.resolution_note || undefined,
+        createdAt: f.created_at ? new Date(f.created_at) : undefined,
+        description: f.description || undefined,
+    }));
 }
 
 export function mapBackendStageToStage(rs: any): Stage {
@@ -80,7 +126,12 @@ export function mapBackendRequestChecklistToChecklistItem(rc: any): ChecklistIte
         handlerName: rc.handler_name,
         configPayload: rc.config_payload,
         verifications: rc.config_payload?.verifications || [],
-    };
+        overrideReason: rc.override_reason || undefined,
+        overriddenAt: rc.overridden_at || undefined,
+        overriddenBy: rc.overridden_by || undefined,
+        checkedAt: rc.checked_at || undefined,
+        checkedBy: rc.checked_by || undefined,
+    } as any;
 }
 
 export function mapBackendDocumentToDocument(backendDoc: any): Document {

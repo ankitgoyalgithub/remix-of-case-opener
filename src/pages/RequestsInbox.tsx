@@ -67,7 +67,7 @@ export default function RequestsInbox() {
   };
 
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
-  const [newRequestData, setNewRequestData] = useState({ companyName: '', priority: 'normal' });
+  const [newRequestData, setNewRequestData] = useState({ companyName: '', entityName: '', priority: 'normal' });
   const [creating, setCreating] = useState(false);
 
   const handleCreateRequest = async () => {
@@ -79,11 +79,12 @@ export default function RequestsInbox() {
       setCreating(true);
       const res = await api.requests.create({
         company_name: newRequestData.companyName,
+        entity_name: newRequestData.entityName.trim() || newRequestData.companyName.trim(),
         priority: newRequestData.priority,
       });
       toast.success('Request created successfully');
       setIsNewRequestOpen(false);
-      setNewRequestData({ companyName: '', priority: 'normal' });
+      setNewRequestData({ companyName: '', entityName: '', priority: 'normal' });
       fetchRequests();
       navigate(`/request/${res.id}`);
     } catch (error) {
@@ -182,6 +183,15 @@ export default function RequestsInbox() {
                     placeholder="e.g. Acme Corp"
                     value={newRequestData.companyName}
                     onChange={(e) => setNewRequestData({ ...newRequestData, companyName: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="entityName" className="text-xs">Entity Name (optional, for AML screening)</Label>
+                  <Input
+                    id="entityName"
+                    placeholder="Defaults to Company Name if blank"
+                    value={newRequestData.entityName}
+                    onChange={(e) => setNewRequestData({ ...newRequestData, entityName: e.target.value })}
                   />
                 </div>
                 <div className="grid gap-2">

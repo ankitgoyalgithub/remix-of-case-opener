@@ -52,6 +52,19 @@ export const api = {
             method: 'POST',
             body: JSON.stringify(data),
         }),
+        readiness: (id: string) => fetchApi(`/requests/${id}/readiness/`),
+        approve: (id: string, comment: string) => fetchApi(`/requests/${id}/approve/`, {
+            method: 'POST',
+            body: JSON.stringify({ comment }),
+        }),
+        reject: (id: string, comment: string) => fetchApi(`/requests/${id}/reject/`, {
+            method: 'POST',
+            body: JSON.stringify({ comment }),
+        }),
+        publish: (id: string) => fetchApi(`/requests/${id}/publish/`, {
+            method: 'POST',
+            body: JSON.stringify({}),
+        }),
     },
     workflow: {
         stages: () => fetchApi('/workflow/stages/'),
@@ -67,6 +80,10 @@ export const api = {
         }),
         runChecklistValidation: (id: string | number) => fetchApi(`/workflow/request-checklists/${id}/run_validation/`, {
             method: 'POST',
+        }),
+        resolveRiskFlag: (id: number, resolutionNote: string) => fetchApi(`/workflow/risk-flags/${id}/resolve/`, {
+            method: 'POST',
+            body: JSON.stringify({ resolution_note: resolutionNote }),
         }),
     },
     documents: {

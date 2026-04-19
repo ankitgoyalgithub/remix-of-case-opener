@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, UserPlus, Mail, Trash2, MoreHorizontal, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, UserPlus, Mail, Trash2, MoreHorizontal, AlertTriangle, Check, X, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
@@ -28,6 +28,9 @@ interface RequestDetailHeaderProps {
   onRequestMissingInfo?: () => void;
   onEscalate?: () => void;
   onDelete?: () => void;
+  onApprove?: () => void;
+  onReject?: () => void;
+  onPublish?: () => void;
   timelineDrawer?: ReactNode;
 }
 
@@ -36,6 +39,9 @@ const STATUS_STYLES: Record<string, string> = {
   'In Review': 'bg-info/10 text-info',
   'Missing Info': 'bg-warning/10 text-warning',
   'Ready for Export': 'bg-success/10 text-success',
+  'Approved': 'bg-success/10 text-success',
+  'Rejected': 'bg-destructive/10 text-destructive',
+  'Published': 'bg-primary/10 text-primary',
   'Issued': 'bg-primary/10 text-primary',
 };
 
@@ -53,6 +59,9 @@ export function RequestDetailHeader({
   onAssignOwner,
   onRequestMissingInfo,
   onDelete,
+  onApprove,
+  onReject,
+  onPublish,
   timelineDrawer,
 }: RequestDetailHeaderProps) {
   const navigate = useNavigate();
@@ -69,6 +78,10 @@ export function RequestDetailHeader({
     slaStatus === 'red' ? 'text-destructive font-medium' : slaStatus === 'amber' ? 'text-warning' : 'text-muted-foreground';
 
   const shortId = requestId?.startsWith('REQ-') ? requestId : requestId.split('-')[0];
+
+  const statusLc = status.toLowerCase();
+  const canApproveOrReject = !['approved', 'rejected', 'published', 'issued'].includes(statusLc);
+  const canPublish = statusLc === 'approved';
 
   return (
     <div className="bg-background border-b border-border px-6 py-3 shrink-0">
@@ -125,6 +138,40 @@ export function RequestDetailHeader({
             <Mail className="h-3.5 w-3.5" />
             Request Info
           </Button>
+
+          {canApproveOrReject && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                onClick={onReject}
+              >
+                <X className="h-3.5 w-3.5" />
+                Reject
+              </Button>
+              <Button
+                size="sm"
+                className="h-8 gap-1.5 bg-success hover:bg-success/90 text-white"
+                onClick={onApprove}
+              >
+                <Check className="h-3.5 w-3.5" />
+                Approve
+              </Button>
+            </>
+          )}
+
+          {canPublish && (
+            <Button
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={onPublish}
+            >
+              <Send className="h-3.5 w-3.5" />
+              Publish Data
+            </Button>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8">

@@ -193,6 +193,14 @@ export function ActiveStagePanel({
                           {item.itemType}
                         </span>
                       </div>
+                      {(item as any).overrideReason && (
+                        <span
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 h-4 rounded bg-warning/10 text-warning"
+                          title={`Overridden: ${(item as any).overrideReason}`}
+                        >
+                          Overridden
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

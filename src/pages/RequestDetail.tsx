@@ -2,12 +2,21 @@ import { useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { CaseStepper } from '@/components/case/CaseStepper';
 import { RequestDetailHeader } from '@/components/request/RequestDetailHeader';
+import { ReadinessPanel } from '@/components/request/ReadinessPanel';
 import { TimelineDrawer } from '@/components/case/TimelineDrawer';
+import { BypassReasonModal } from '@/components/case/BypassReasonModal';
+import { DecisionModal, DecisionAction } from '@/components/request/DecisionModal';
 import { MissingInfoEmailModal } from '@/components/request/MissingInfoEmailModal';
 import { AssignOwnerModal } from '@/components/request/AssignOwnerModal';
 import { OperationsWorkbench } from '@/components/workbench/OperationsWorkbench';
 import { api } from '@/lib/api';
-import { mapBackendRequestToListItem, mapBackendStageToStage, mapBackendRequestChecklistToChecklistItem, mapBackendDocumentToDocument, groupExtractionsBySection } from '@/lib/mappers';
+import {
+  mapBackendRequestToListItem, mapBackendStageToStage,
+  mapBackendRequestChecklistToChecklistItem, mapBackendDocumentToDocument,
+  groupExtractionsBySection, mapBackendRequestDecision,
+  mapBackendRequestPublication, mapBackendRiskFlags,
+} from '@/lib/mappers';
+import { buildTimelineEvents } from '@/lib/timeline';
 import {
   Document,
   TimelineEvent,
@@ -27,6 +36,7 @@ export default function RequestDetail() {
   const { requestId } = useParams();
   const [loading, setLoading] = useState(true);
   const [requestData, setRequestData] = useState<CaseData | null>(null);
+  const [readinessKey, setReadinessKey] = useState(0);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [activeTab, setActiveTab] = useState('tasks');
   const [showMissingInfoModal, setShowMissingInfoModal] = useState(false);
@@ -85,8 +95,23 @@ export default function RequestDetail() {
           data: d.extraction.data
         }));
 
+      const decision = mapBackendRequestDecision(req);
+      const publication = mapBackendRequestPublication(req);
+      const riskFlags = mapBackendRiskFlags(req);
+
+      const timeline = buildTimelineEvents({
+        createdAt: listItem.createdAt,
+        companyName: listItem.companyName,
+        decision,
+        publication,
+        documents: requestDocuments,
+        checklist: requestChecklist as any,
+        riskFlags,
+      });
+
       const fullData: CaseData = {
         id: listItem.id,
+        smartId: listItem.smartId,
         companyName: listItem.companyName,
         status: listItem.status,
         owner: listItem.owner,
@@ -99,8 +124,11 @@ export default function RequestDetail() {
         stages: requestStages,
         documents: requestDocuments,
         extractedData: groupExtractionsBySection(extractionRecords),
-        timeline: [],
+        timeline,
         checklist: requestChecklist,
+        decision,
+        publication,
+        riskFlags,
         workforceMismatch: {
           detected: false,
           molCount: 0,
@@ -108,14 +136,15 @@ export default function RequestDetail() {
           accepted: false
         },
         docDefs: dynamicDocDefs,
-        isExported: false,
-        isIssued: listItem.status === 'Issued',
+        isExported: publication !== undefined,
+        isIssued: listItem.status === 'Issued' || listItem.status === 'Published',
         missingInfoRequested: undefined
       };
 
       console.log('DEBUG_FRONTEND: fullData.documents names =', fullData.documents.map(d => d.name));
       console.log('DEBUG_FRONTEND: fullData.documents urls =', fullData.documents.map(d => d.url));
       setRequestData(fullData);
+      setReadinessKey(k => k + 1);
     } catch (error) {
       console.error('Failed to fetch request details:', error);
       toast.error('Failed to load request data');
@@ -126,6 +155,20 @@ export default function RequestDetail() {
 
   useEffect(() => {
     fetchRequestDetails();
+  }, [requestId]);
+
+  // Refetch when the tab regains focus, so Studio edits (new/required docs,
+  // checklist changes) show up on existing requests without a manual reload.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchRequestDetails();
+    };
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [requestId]);
 
   // Keep selectedDocument sync'd with the latest requestData payload (e.g. after upload finishes)
@@ -187,11 +230,15 @@ export default function RequestDetail() {
   // Determine automatic request status
   const computedStatus = useMemo(() => {
     if (!requestData) return 'In Review';
+    // Terminal states from the backend always win over derived ones.
+    if (requestData.status === 'Published') return 'Published';
+    if (requestData.status === 'Approved') return 'Approved';
+    if (requestData.status === 'Rejected') return 'Rejected';
     if (requestData.isIssued) return 'Issued';
     if (allStagesComplete) return 'Ready for Export';
     if (allMissingDocs.length > 0 || requestData.missingInfoRequested) return 'Missing Info';
     return 'In Review';
-  }, [requestData?.isIssued, allStagesComplete, allMissingDocs, requestData?.missingInfoRequested]);
+  }, [requestData?.status, requestData?.isIssued, allStagesComplete, allMissingDocs, requestData?.missingInfoRequested]);
 
   const headerData = {
     brokerName: 'Gulf Insurance Brokers',
@@ -284,19 +331,75 @@ export default function RequestDetail() {
     }));
   };
 
+  const [bypassItem, setBypassItem] = useState<{ id: string; label: string } | null>(null);
+  const [decisionAction, setDecisionAction] = useState<DecisionAction | null>(null);
+
+  const submitDecision = async (comment: string) => {
+    if (!requestData || !decisionAction) return;
+    try {
+      if (decisionAction === 'approve') {
+        await api.requests.approve(requestData.id, comment);
+        toast.success('Request approved.');
+      } else {
+        await api.requests.reject(requestData.id, comment);
+        toast.success('Request rejected.');
+      }
+      await fetchRequestDetails();
+    } catch (err: any) {
+      console.error('Decision failed', err);
+      toast.error(err?.message || 'Could not record decision.');
+    } finally {
+      setDecisionAction(null);
+    }
+  };
+
+  const submitPublish = async () => {
+    if (!requestData) return;
+    if (!window.confirm('Publish this request to the core system?')) return;
+    try {
+      await api.requests.publish(requestData.id);
+      toast.success('Request published.');
+      fetchRequestDetails();
+    } catch (err: any) {
+      console.error('Publish failed', err);
+      toast.error(err?.message || 'Could not publish request.');
+    }
+  };
+
+  const persistChecklistToggle = async (itemId: string, nextChecked: boolean, overrideReason?: string) => {
+    const payload: any = { checked: nextChecked };
+    if (overrideReason) payload.override_reason = overrideReason;
+    await api.workflow.requestChecklistUpdate(itemId, payload);
+    setRequestData(prev => ({
+      ...prev,
+      checklist: prev.checklist.map(i =>
+        i.id === itemId
+          ? {
+              ...i,
+              checked: nextChecked,
+              overrideReason: nextChecked ? (overrideReason || i.overrideReason) : undefined,
+            }
+          : i
+      ),
+    }));
+  };
+
   const handleChecklistToggle = async (itemId: string) => {
     if (!requestData) return;
     const item = requestData.checklist.find(i => i.id === itemId);
     if (!item) return;
 
+    const nextChecked = !item.checked;
+
+    // If the operator is trying to MARK a FAILED check as done, ask for a bypass reason first.
+    const resultStatus = (item as any).result?.status;
+    if (nextChecked && resultStatus === 'fail') {
+      setBypassItem({ id: itemId, label: item.label });
+      return;
+    }
+
     try {
-      await api.workflow.requestChecklistUpdate(itemId, { checked: !item.checked });
-      setRequestData(prev => ({
-        ...prev,
-        checklist: prev.checklist.map(i =>
-          i.id === itemId ? { ...i, checked: !item.checked } : i
-        ),
-      }));
+      await persistChecklistToggle(itemId, nextChecked);
     } catch (err) {
       console.error('Failed to toggle checklist', err);
       toast.error('Failed to update checklist item');
@@ -519,10 +622,16 @@ export default function RequestDetail() {
         onRequestMissingInfo={() => setShowMissingInfoModal(true)}
         onEscalate={handleEscalate}
         onDelete={handleDeleteRequest}
+        onApprove={() => setDecisionAction('approve')}
+        onReject={() => setDecisionAction('reject')}
+        onPublish={submitPublish}
         timelineDrawer={<TimelineDrawer events={requestData.timeline} />}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Readiness overview */}
+        <ReadinessPanel requestId={requestData.id} refreshKey={readinessKey} />
+
         {/* Stage progress rail */}
         <div className="w-full border-b border-border bg-background flex py-2 px-6 shrink-0 items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
@@ -587,6 +696,32 @@ export default function RequestDetail() {
         currentOwner={requestData.owner}
         currentQueue={requestData.queue}
         onAssign={handleAssignOwner}
+      />
+
+      <BypassReasonModal
+        item={bypassItem}
+        onCancel={() => setBypassItem(null)}
+        onConfirm={async (reason) => {
+          if (!bypassItem) return;
+          const id = bypassItem.id;
+          try {
+            await persistChecklistToggle(id, true, reason);
+            toast.success('Check overridden with reason logged.');
+          } catch (err) {
+            console.error('Failed to override check', err);
+            toast.error('Could not mark the check as done.');
+          } finally {
+            setBypassItem(null);
+          }
+        }}
+      />
+
+      <DecisionModal
+        open={decisionAction !== null}
+        action={decisionAction || 'approve'}
+        companyName={requestData.companyName}
+        onCancel={() => setDecisionAction(null)}
+        onConfirm={submitDecision}
       />
     </div>
   );

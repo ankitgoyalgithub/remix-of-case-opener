@@ -1,7 +1,7 @@
 import React from 'react';
 import { Document, DocumentType, DOCUMENT_TYPE_LABELS } from '@/types/case';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, Circle, Upload, Loader2, Eye } from 'lucide-react';
+import { CheckCircle2, Circle, Upload, Loader2, Eye, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface RequiredDocumentsPanelProps {
     documents: Document[];
@@ -9,6 +9,8 @@ interface RequiredDocumentsPanelProps {
     onUpload: (file: File, type: DocumentType) => Promise<void>;
     onSelectDocument: (doc: Document) => void;
     selectedDocumentId?: string;
+    collapsed?: boolean;
+    onToggleCollapsed?: () => void;
 }
 
 export function RequiredDocumentsPanel({
@@ -16,7 +18,9 @@ export function RequiredDocumentsPanel({
     requiredDocTypes,
     onUpload,
     onSelectDocument,
-    selectedDocumentId
+    selectedDocumentId,
+    collapsed = false,
+    onToggleCollapsed,
 }: RequiredDocumentsPanelProps) {
     const uploadedDocsMap = React.useMemo(() => {
         const map: Record<string, Document> = {};
@@ -36,14 +40,27 @@ export function RequiredDocumentsPanel({
 
     return (
         <div className="flex flex-col h-full bg-background">
-            <div className="px-4 py-2.5 border-b border-border flex items-center justify-between shrink-0">
-                <h3 className="text-sm font-semibold text-foreground">Documents</h3>
+            <button
+                type="button"
+                onClick={onToggleCollapsed}
+                className="px-4 py-2.5 border-b border-border flex items-center justify-between shrink-0 hover:bg-muted/40 transition-colors text-left"
+            >
+                <div className="flex items-center gap-1.5">
+                    {onToggleCollapsed && (
+                        collapsed ? (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        )
+                    )}
+                    <h3 className="text-sm font-semibold text-foreground">Documents</h3>
+                </div>
                 <span className="text-xs text-muted-foreground">
                     {stats.uploaded} of {stats.total}
                 </span>
-            </div>
+            </button>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className={cn('flex-1 overflow-y-auto', collapsed && 'hidden')}>
                 {requiredDocTypes.map(type => {
                     const doc = uploadedDocsMap[type];
                     const isUploaded = !!doc;

@@ -65,6 +65,10 @@ export const api = {
             method: 'POST',
             body: JSON.stringify({}),
         }),
+        nlFilter: (query: string) => fetchApi('/requests/nl_filter/', {
+            method: 'POST',
+            body: JSON.stringify({ query }),
+        }),
     },
     workflow: {
         stages: () => fetchApi('/workflow/stages/'),
@@ -89,6 +93,10 @@ export const api = {
     documents: {
         list: () => fetchApi('/documents/files/'),
         get: (id: string) => fetchApi(`/documents/files/${id}/`),
+        update: (id: string, data: any) => fetchApi(`/documents/files/${id}/`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        }),
         extractions: (docId?: string) =>
             fetchApi(`/documents/extractions/${docId ? `?document_id=${docId}` : ''}`),
         upload: (data: FormData) => fetchApi('/documents/files/', {
@@ -115,12 +123,68 @@ export const api = {
     notifications: {
         list: () => fetchApi('/notifications/'),
     },
+    dashboard: {
+        metrics: () => fetchApi('/dashboard/metrics/'),
+    },
     settings: {
         get: () => fetchApi('/settings/'),
         update: (data: any) => fetchApi('/settings/', {
             method: 'PUT',
             body: JSON.stringify(data),
         }),
+    },
+    inboundEmail: {
+        accounts: {
+            list: () => fetchApi('/inbound_email/accounts/'),
+            update: (id: string, data: any) => fetchApi(`/inbound_email/accounts/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+            delete: (id: string) => fetchApi(`/inbound_email/accounts/${id}/`, { method: 'DELETE' }),
+            poll: (id: string) => fetchApi(`/inbound_email/accounts/${id}/poll/`, { method: 'POST', body: JSON.stringify({}) }),
+            pollAll: (opts: { triggered_by?: string } = {}) => fetchApi('/inbound_email/accounts/poll_all/', {
+                method: 'POST',
+                body: JSON.stringify({ triggered_by: opts.triggered_by || 'manual' }),
+            }),
+        },
+        rules: {
+            list: () => fetchApi('/inbound_email/rules/'),
+            create: (data: any) => fetchApi('/inbound_email/rules/', { method: 'POST', body: JSON.stringify(data) }),
+            update: (id: string, data: any) => fetchApi(`/inbound_email/rules/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+            delete: (id: string) => fetchApi(`/inbound_email/rules/${id}/`, { method: 'DELETE' }),
+        },
+        emails: {
+            list: () => fetchApi('/inbound_email/emails/'),
+        },
+        jobs: {
+            list: () => fetchApi('/inbound_email/jobs/'),
+            get: (id: string) => fetchApi(`/inbound_email/jobs/${id}/`),
+        },
+        startOAuth: () => {
+            const base = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+            window.location.href = `${base}/inbound_email/oauth/start/`;
+        },
+    },
+    integrations: {
+        providers: {
+            list: () => fetchApi('/integrations/providers/'),
+            get: (id: string) => fetchApi(`/integrations/providers/${id}/`),
+            create: (data: any) => fetchApi('/integrations/providers/', { method: 'POST', body: JSON.stringify(data) }),
+            update: (id: string, data: any) => fetchApi(`/integrations/providers/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+            delete: (id: string) => fetchApi(`/integrations/providers/${id}/`, { method: 'DELETE' }),
+        },
+        capabilities: {
+            list: () => fetchApi('/integrations/capabilities/'),
+            create: (data: any) => fetchApi('/integrations/capabilities/', { method: 'POST', body: JSON.stringify(data) }),
+            update: (id: string, data: any) => fetchApi(`/integrations/capabilities/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+            delete: (id: string) => fetchApi(`/integrations/capabilities/${id}/`, { method: 'DELETE' }),
+        },
+        credentials: {
+            list: () => fetchApi('/integrations/credentials/'),
+            create: (data: any) => fetchApi('/integrations/credentials/', { method: 'POST', body: JSON.stringify(data) }),
+            update: (id: string, data: any) => fetchApi(`/integrations/credentials/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+            delete: (id: string) => fetchApi(`/integrations/credentials/${id}/`, { method: 'DELETE' }),
+        },
+        logs: {
+            list: () => fetchApi('/integrations/logs/'),
+        },
     },
     studio: {
         stages: {

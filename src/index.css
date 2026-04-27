@@ -127,29 +127,55 @@
     box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.05);
   }
 
-  .animate-shimmer {
-    background: linear-gradient(90deg,
-        rgba(255, 255, 255, 0) 0%,
-        rgba(255, 255, 255, 0.05) 50%,
-        rgba(255, 255, 255, 0) 100%);
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite;
-  }
-
+  /* Shimmer animation used by Skeleton via `before:animate-[shimmer_1.6s_infinite]`.
+     Translates a gradient overlay across the skeleton width. */
   @keyframes shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-
-    100% {
-      background-position: -200% 0;
-    }
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 
   .neo-blur {
     backdrop-filter: blur(16px) saturate(180%);
     background-color: rgba(var(--background), 0.8);
   }
+}
+
+/* PDF.js text layer (used by HighlightedPdfViewer) */
+/* Width / height are set inline by pdf.js as
+   `calc(var(--scale-factor) * pageWidthpx)` — don't override with CSS. */
+.pdf-text-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  line-height: 1;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pdf-text-layer span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  border-radius: 2px;
+  transition: background-color 120ms;
+}
+
+.pdf-text-layer ::selection {
+  background: rgba(59, 130, 246, 0.35);
+}
+
+.pdf-highlight {
+  background: rgba(250, 204, 21, 0.45) !important;
+  color: rgba(0, 0, 0, 0.0) !important;
+  box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.55);
+}
+
+.pdf-highlight-active {
+  background: rgba(249, 115, 22, 0.55) !important;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.65);
 }
 
 @media print {

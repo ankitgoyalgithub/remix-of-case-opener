@@ -66,7 +66,7 @@ export default function SetupWizard() {
       case 4:
         return <WizardStepEmails />;
       case 5:
-        return <WizardStepReview onPublish={handleComplete} />;
+        return <WizardStepReview />;
       default:
         return null;
     }

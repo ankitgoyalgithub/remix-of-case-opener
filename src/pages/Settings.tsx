@@ -1,5 +1,8 @@
-import { useState } from 'react';
-import { Settings as SettingsIcon, Bell, Monitor, Globe, Shield, CreditCard, Users, Link as LinkIcon, Database, Zap, Lock, Palette } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Settings as SettingsIcon, Bell, Monitor, Globe, Shield, CreditCard, Users, Link as LinkIcon, Database, Zap, Lock, Palette, Mail, Plus, RefreshCw, Trash2, CheckCircle2, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
+import { api } from '@/lib/api';
+import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -10,8 +13,65 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+interface MailboxAccount {
+    id: string;
+    email_address: string;
+    provider: string;
+    enabled: boolean;
+    has_refresh_token: boolean;
+    last_polled_at: string | null;
+    rule_count: number;
+}
+
 export default function Settings() {
     const [activeTab, setActiveTab] = useState('general');
+    const [mailboxes, setMailboxes] = useState<MailboxAccount[]>([]);
+    const [mailboxesLoading, setMailboxesLoading] = useState(false);
+    const [polling, setPolling] = useState<string | null>(null);
+
+    const loadMailboxes = async () => {
+        try {
+            setMailboxesLoading(true);
+            const data = await api.inboundEmail.accounts.list();
+            setMailboxes(data);
+        } catch {
+            // silent — Settings page renders even when API is unavailable
+        } finally {
+            setMailboxesLoading(false);
+        }
+    };
+
+    useEffect(() => { loadMailboxes(); }, []);
+
+    const handleConnectGmail = () => {
+        api.inboundEmail.startOAuth();
+    };
+
+    const handlePoll = async (account: MailboxAccount) => {
+        setPolling(account.id);
+        try {
+            const res = await api.inboundEmail.accounts.poll(account.id);
+            toast.success(`Polled ${account.email_address}`, {
+                description: `${res.fetched ?? 0} fetched · ${res.matched ?? 0} matched · ${res.skipped ?? 0} skipped`,
+            });
+            loadMailboxes();
+        } catch (err: any) {
+            toast.error(err?.message || 'Poll failed');
+        } finally {
+            setPolling(null);
+        }
+    };
+
+    const handleDisconnect = async (account: MailboxAccount) => {
+        if (!window.confirm(`Disconnect ${account.email_address}?`)) return;
+        try {
+            await api.inboundEmail.accounts.delete(account.id);
+            toast.success('Disconnected');
+            loadMailboxes();
+        } catch {
+            toast.error('Failed to disconnect');
+        }
+    };
 
     const handleUpdate = () => {
         toast.success('Settings saved successfully');
@@ -185,6 +245,107 @@ export default function Settings() {
                 </TabsContent>
 
                 <TabsContent value="api" className="space-y-6">
+                    {/* Connected mailboxes */}
+                    <Card className="overflow-hidden max-w-4xl mx-auto">
+                        <CardHeader className="bg-gradient-to-r from-primary/5 via-background to-info/5 border-b border-border">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/15 to-info/10 text-primary flex items-center justify-center shrink-0">
+                                        <Mail className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <CardTitle className="text-base font-semibold">Connected mailboxes</CardTitle>
+                                        <CardDescription className="text-xs mt-0.5">
+                                            Inbox-driven submissions. Brokers email here; documents become requests automatically.
+                                        </CardDescription>
+                                    </div>
+                                </div>
+                                <Button size="sm" className="gap-1.5 shrink-0" onClick={handleConnectGmail}>
+                                    <Plus className="h-3.5 w-3.5" />
+                                    Connect Gmail
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-5">
+                            {mailboxesLoading ? (
+                                <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Loading mailboxes…
+                                </div>
+                            ) : mailboxes.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+                                        <Mail className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                    <p className="text-sm font-medium">No mailboxes connected.</p>
+                                    <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                                        Click <strong>Connect Gmail</strong> to authorize a mailbox. You'll be sent to Google to grant read access, then bounced back here.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {mailboxes.map(account => (
+                                        <div
+                                            key={account.id}
+                                            className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-md border border-border bg-muted/10"
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="h-9 w-9 rounded-md bg-gradient-to-br from-primary/15 to-info/10 text-primary flex items-center justify-center shrink-0">
+                                                    <Mail className="h-4 w-4" />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <p className="text-sm font-medium truncate">{account.email_address}</p>
+                                                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 uppercase">{account.provider}</Badge>
+                                                        {account.has_refresh_token ? (
+                                                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-success/10 text-success border-success/30 gap-1">
+                                                                <CheckCircle2 className="h-2.5 w-2.5" />
+                                                                Authorized
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-warning/10 text-warning border-warning/30 gap-1">
+                                                                <AlertTriangle className="h-2.5 w-2.5" />
+                                                                No token
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                        {account.rule_count} rule{account.rule_count !== 1 ? 's' : ''}
+                                                        {account.last_polled_at && ` · last polled ${format(new Date(account.last_polled_at), 'dd MMM HH:mm')}`}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <Button
+                                                    variant="outline" size="sm" className="h-7 gap-1.5 text-xs"
+                                                    onClick={() => handlePoll(account)}
+                                                    disabled={polling === account.id}
+                                                >
+                                                    {polling === account.id
+                                                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                        : <RefreshCw className="h-3 w-3" />}
+                                                    Poll
+                                                </Button>
+                                                <Button
+                                                    variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                                    onClick={() => handleDisconnect(account)}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <Link to="/studio/inbound" className="block">
+                                        <div className="mt-2 px-3 py-2 rounded-md border border-dashed border-border hover:border-primary/40 hover:bg-muted/20 transition-colors flex items-center justify-between text-xs text-muted-foreground hover:text-foreground">
+                                            <span>Configure ingestion rules + view recent emails</span>
+                                            <ArrowRight className="h-3.5 w-3.5" />
+                                        </div>
+                                    </Link>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
                     <Card className="glass-card border-none shadow-none bg-card/40 overflow-hidden max-w-4xl mx-auto">
                         <CardContent className="p-0">
                             <div className="grid grid-cols-1 md:grid-cols-2">

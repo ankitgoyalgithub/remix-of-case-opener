@@ -138,15 +138,18 @@ export function mapBackendDocumentToDocument(backendDoc: any): Document {
     const documentUrl = backendDoc.file_url || backendDoc.file || '';
     const fileName = (backendDoc.file || '').split('/').pop() || 'document';
     const cleanName = fileName.split('?')[0];
+    const apiBase = import.meta.env.VITE_API_BASE_URL || '/api';
     return {
         id: backendDoc.id,
         name: cleanName,
         type: backendDoc.doc_type as DocumentType,
         uploadedAt: new Date(backendDoc.uploaded_at),
         status: backendDoc.status === 'processed' ? 'extracted' : (backendDoc.status as any),
-        url: documentUrl.startsWith('http') 
-            ? documentUrl 
-            : `${(import.meta.env.VITE_API_BASE_URL || '').replace('/api', '')}${documentUrl.startsWith('/') ? '' : '/'}${documentUrl}`,
+        url: documentUrl.startsWith('http')
+            ? documentUrl
+            : `${apiBase.replace('/api', '')}${documentUrl.startsWith('/') ? '' : '/'}${documentUrl}`,
+        // Same-origin streaming URL (avoids S3 CORS for pdf.js-based viewers).
+        proxyUrl: `${apiBase}/documents/files/${backendDoc.id}/stream/`,
         extraction: backendDoc.extraction,
         requestStageId: backendDoc.request_stage,
         checklistId: backendDoc.checklist_item ? backendDoc.checklist_item.toString() : undefined,

@@ -1,4 +1,3 @@
-import { useState, createContext, useContext } from 'react';
 import { Outlet, useLocation, Link } from 'react-router-dom';
 import {
   Sidebar,
@@ -10,191 +9,204 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar';
 import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import {
   ArrowLeft,
-  Wand2,
-  BookOpen,
-  MessageSquare,
-  Settings,
-  Sparkles,
+  LayoutDashboard,
   Workflow,
   FileStack,
-  Database,
-  Brain,
-  Link2,
   ClipboardCheck,
+  Plug,
   Mail,
+  Inbox,
+  ListChecks,
+  Settings,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
-// Context for Simple/Advanced mode
-const StudioModeContext = createContext<{ isAdvanced: boolean; setIsAdvanced: (v: boolean) => void }>({
-  isAdvanced: false,
-  setIsAdvanced: () => { },
-});
-
-export function useStudioMode() {
-  return useContext(StudioModeContext);
+interface MenuItem {
+  title: string;
+  url: string;
+  icon: any;
+  description: string;
 }
 
-const simpleMenuItems = [
-  { title: 'Setup Wizard', url: '/studio/setup', icon: Wand2, description: 'Guided configuration' },
-  { title: 'Document Library', url: '/studio/library', icon: BookOpen, description: 'Manage documents' },
-  { title: 'Templates & Messages', url: '/studio/templates', icon: MessageSquare, description: 'Notifications' },
-  { title: 'Settings', url: '/studio/settings', icon: Settings, description: 'Global settings' },
-];
-
-const advancedMenuItems = [
-  { title: 'Workflow Builder', url: '/studio/workflow', icon: Workflow, description: 'Configure stages' },
-  { title: 'Document Catalog', url: '/studio/documents', icon: FileStack, description: 'Define document types' },
-  { title: 'Fields to Extract', url: '/studio/extraction', icon: Database, description: 'AI extraction schema' },
-  { title: 'AI Notes', url: '/studio/ai-instructions', icon: Brain, description: 'Extraction guidance' },
-  { title: 'Cross-Validation', url: '/studio/cv-rules', icon: Link2, description: 'Field matching rules' },
-  { title: 'Stage Checklist', url: '/studio/checklists', icon: ClipboardCheck, description: 'Stage task config' },
-  { title: 'Email Templates', url: '/studio/emails', icon: Mail, description: 'Notification templates' },
-  { title: 'Settings', url: '/studio/settings', icon: Settings, description: 'Global settings' },
+const menuItems: MenuItem[] = [
+  { title: 'Overview', url: '/studio', icon: LayoutDashboard, description: 'Config health + quick links' },
+  { title: 'Workflows', url: '/studio/workflows', icon: Workflow, description: 'Stage pipelines' },
+  { title: 'Documents', url: '/studio/documents', icon: FileStack, description: 'Doc types + extraction + rules' },
+  { title: 'Checks', url: '/studio/checks', icon: ClipboardCheck, description: 'Reusable checklist items' },
+  { title: 'Integrations', url: '/studio/integrations', icon: Plug, description: 'External API providers' },
+  { title: 'Inbound email', url: '/studio/inbound', icon: Inbox, description: 'Email-driven submissions' },
+  { title: 'Jobs', url: '/studio/jobs', icon: ListChecks, description: 'Polling history + per-email outcomes' },
+  { title: 'Messages', url: '/studio/messages', icon: Mail, description: 'Email + notification templates' },
+  { title: 'Settings', url: '/studio/settings', icon: Settings, description: 'SLA, queues, roles' },
 ];
 
 export default function AIStudioLayout() {
-  const [isAdvanced, setIsAdvanced] = useState(false);
-
   return (
-    <StudioModeContext.Provider value={{ isAdvanced, setIsAdvanced }}>
-      <SidebarProvider defaultOpen={true}>
-        <div className="min-h-full flex w-full bg-background">
-          <StudioSidebar isAdvanced={isAdvanced} />
-          <main className="flex-1 flex flex-col overflow-hidden">
-            {/* Top bar */}
-            <div className="h-14 border-b border-border bg-card flex items-center px-4 gap-3 sticky top-0 z-10">
-              <SidebarTrigger className="h-8 w-8 hover:bg-muted rounded-md text-muted-foreground" />
-
-              <Link to="/requests">
-                <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 text-xs px-3">
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  Exit Studio
-                </Button>
-              </Link>
-
-              <div className="flex-1" />
-
-              {/* Mode toggle */}
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background">
-                <span className={cn('text-xs font-medium transition-colors', !isAdvanced ? 'text-foreground' : 'text-muted-foreground')}>
-                  Standard
-                </span>
-                <Switch
-                  checked={isAdvanced}
-                  onCheckedChange={setIsAdvanced}
-                  className="data-[state=checked]:bg-primary h-4 w-8 scale-90"
-                />
-                <span className={cn('text-xs font-medium transition-colors', isAdvanced ? 'text-foreground' : 'text-muted-foreground')}>
-                  Advanced
-                </span>
-              </div>
-
-              <Separator orientation="vertical" className="h-5 bg-border/60" />
-
-              <Badge variant="outline" className="gap-1.5 text-xs font-medium text-success border-success/30 bg-success/5">
-                <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                Live
-              </Badge>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-auto">
-              <div className="max-w-[1400px] w-full mx-auto min-h-full p-6 lg:p-8">
-                <Outlet />
-              </div>
-            </div>
-          </main>
-        </div>
-      </SidebarProvider>
-    </StudioModeContext.Provider>
+    <SidebarProvider defaultOpen={true}>
+      <StudioShell />
+    </SidebarProvider>
   );
 }
 
-function StudioSidebar({ isAdvanced }: { isAdvanced: boolean }) {
-  const location = useLocation();
-  const { state } = useSidebar();
+/**
+ * Inner shell that reads sidebar state. Must live inside <SidebarProvider> so
+ * the edge-anchored toggle and peek rail can reflect the current open state.
+ */
+function StudioShell() {
+  const { state, toggleSidebar } = useSidebar();
   const collapsed = state === 'collapsed';
 
-  const menuItems = isAdvanced ? advancedMenuItems : simpleMenuItems;
+  return (
+    <div className="min-h-full flex w-full bg-background relative">
+      <StudioSidebar />
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Top bar — no trigger here; the edge button handles collapse. */}
+        <div className="h-14 border-b border-border bg-gradient-to-r from-primary/5 via-background to-info/5 flex items-center px-4 gap-3 sticky top-0 z-10">
+          <Link to="/requests">
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 text-xs px-3">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Exit Studio
+            </Button>
+          </Link>
+
+          <div className="flex-1" />
+
+          <Badge variant="outline" className="gap-1.5 text-xs font-medium text-success border-success/30 bg-success/5">
+            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            Live
+          </Badge>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto">
+          <div className="max-w-[1400px] w-full mx-auto min-h-full p-6 lg:p-8">
+            <Outlet />
+          </div>
+        </div>
+
+        {/* Peek rail — thin hover strip on the left edge when the sidebar is hidden. */}
+        {collapsed && (
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-label="Open navigation"
+            className="absolute inset-y-0 left-0 w-1.5 hover:w-2 bg-transparent hover:bg-primary/20 transition-all z-20 group"
+          >
+            <span className="sr-only">Open navigation</span>
+            <span className="absolute top-1/2 -translate-y-1/2 left-full ml-1 opacity-0 group-hover:opacity-100 transition-opacity bg-foreground text-background text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
+              Open
+            </span>
+          </button>
+        )}
+      </main>
+
+      {/* Edge-anchored toggle: always visible, hugs the sidebar/main boundary. */}
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-label={collapsed ? 'Open navigation' : 'Collapse navigation'}
+              className={cn(
+                'fixed top-[70px] z-30 h-7 w-7 rounded-full border border-border bg-background shadow-sm',
+                'flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/40',
+                'transition-all',
+                collapsed ? 'left-1.5' : 'left-[calc(16rem-0.875rem)]',
+              )}
+            >
+              {collapsed ? (
+                <ChevronRight className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronLeft className="h-3.5 w-3.5" />
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="text-[11px]">
+            {collapsed ? 'Open' : 'Collapse'} navigation
+            <kbd className="ml-2 text-[10px] opacity-70 font-mono">⌘B</kbd>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  );
+}
+
+function StudioSidebar() {
+  const location = useLocation();
+
+  const isActive = (url: string) => {
+    if (url === '/studio') return location.pathname === '/studio' || location.pathname === '/studio/';
+    return location.pathname === url || location.pathname.startsWith(url + '/');
+  };
 
   return (
-    <Sidebar className={cn(
-      'border-r border-border bg-card transition-all duration-300',
-      collapsed ? 'w-16' : 'w-64'
-    )} collapsible="icon">
+    <Sidebar className="border-r border-border bg-card" collapsible="offcanvas">
       <SidebarContent className="p-0">
         {/* Branding */}
-        <div className={cn('p-4 border-b border-border/60', collapsed ? 'px-3' : 'px-4')}>
+        <div className="p-4 border-b border-border/60">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-              <Sparkles className="h-4 w-4 text-primary" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
+              <Sparkles className="h-4 w-4 text-white" />
             </div>
-            {!collapsed && (
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground leading-none">Insure Studio</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {isAdvanced ? 'Advanced Mode' : 'Standard Mode'}
-                </p>
-              </div>
-            )}
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground leading-none">AI Studio</p>
+              <p className="text-[11px] text-muted-foreground mt-1">Configuration</p>
+            </div>
           </div>
         </div>
 
         {/* Nav items */}
         <SidebarGroup className="pt-3 px-3">
-          {!collapsed && (
-            <SidebarGroupLabel className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-2 mb-2">
-              {isAdvanced ? 'Configuration' : 'Setup'}
-            </SidebarGroupLabel>
-          )}
+          <SidebarGroupLabel className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-2 mb-2">
+            Modules
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="space-y-0.5">
               {menuItems.map((item) => {
-                const isActive = location.pathname === item.url;
+                const active = isActive(item.url);
                 return (
-                  <SidebarMenuItem key={item.title + item.url}>
-                    <SidebarMenuButton asChild tooltip={collapsed ? item.title : undefined} className="h-auto p-0">
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton asChild className="h-auto p-0">
                       <NavLink
                         to={item.url}
                         className={cn(
                           'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-150',
-                          isActive
-                            ? 'bg-primary text-white shadow-sm'
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          active
+                            ? 'bg-primary text-white shadow-sm shadow-primary/20'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                         )}
                         activeClassName=""
                       >
                         <item.icon className={cn(
                           'h-4 w-4 shrink-0',
-                          isActive ? 'text-white' : 'text-muted-foreground group-hover:text-foreground'
+                          active ? 'text-white' : 'text-muted-foreground group-hover:text-foreground',
                         )} />
-                        {!collapsed && (
-                          <div className="flex-1 min-w-0">
-                            <span className={cn(
-                              'block text-sm font-medium truncate leading-none',
-                              isActive ? 'text-white' : 'text-foreground'
-                            )}>
-                              {item.title}
-                            </span>
-                            <span className={cn(
-                              'block text-xs truncate leading-none mt-0.5',
-                              isActive ? 'text-white/70' : 'text-muted-foreground'
-                            )}>
-                              {item.description}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex-1 min-w-0">
+                          <span className={cn(
+                            'block text-sm font-medium truncate leading-none',
+                            active ? 'text-white' : 'text-foreground',
+                          )}>
+                            {item.title}
+                          </span>
+                          <span className={cn(
+                            'block text-xs truncate leading-none mt-0.5',
+                            active ? 'text-white/70' : 'text-muted-foreground',
+                          )}>
+                            {item.description}
+                          </span>
+                        </div>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

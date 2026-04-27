@@ -1,22 +1,15 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 import {
   Workflow,
   FileText,
   Database,
-  Brain,
   ClipboardCheck,
   Mail,
   Check,
   AlertCircle,
-  Rocket,
-  Save,
 } from 'lucide-react';
 import { useStudioStages, useStudioDocuments, useStudioFields, useStudioInstructions, useStudioChecklist, useStudioEmails } from '@/hooks/useStudioStore';
+
 interface ReviewSection {
   icon: React.ElementType;
   title: string;
@@ -25,11 +18,7 @@ interface ReviewSection {
   details: string;
 }
 
-interface WizardStepReviewProps {
-  onPublish?: () => void;
-}
-
-export function WizardStepReview({ onPublish }: WizardStepReviewProps) {
+export function WizardStepReview() {
   const { stages } = useStudioStages();
   const { documents } = useStudioDocuments();
   const { fields } = useStudioFields();
@@ -153,40 +142,6 @@ export function WizardStepReview({ onPublish }: WizardStepReviewProps) {
         </div>
       )}
 
-      {/* Action Command Center */}
-      <div className="bg-muted/20 rounded-xl p-6 border flex items-center justify-between mt-6">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-            <Rocket className="h-6 w-6" />
-          </div>
-          <div className="space-y-1">
-            <h4 className="text-lg font-semibold text-foreground">Ready for Deployment</h4>
-            <p className="text-sm text-muted-foreground">System Engine v4.2 &bull; Autonomous Mode Enabled</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="h-10 px-6 font-medium" onClick={() => {
-            toast.success('Configuration cataloged as draft');
-          }}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Draft
-          </Button>
-          <Button className="h-10 px-8 bg-primary hover:bg-primary/90 font-medium transition-all group overflow-hidden relative" onClick={() => {
-            if (onPublish) {
-              onPublish();
-            } else {
-              toast.success('Enterprise Configuration Published', {
-                description: 'The operational environment has been recalibrated.',
-              });
-            }
-          }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
-            <Rocket className="h-4 w-4 mr-2 relative z-10" />
-            <span className="relative z-10">Publish Architecture</span>
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

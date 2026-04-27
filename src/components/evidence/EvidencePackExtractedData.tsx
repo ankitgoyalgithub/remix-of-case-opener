@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Database, Check, AlertCircle, Lock } from 'lucide-react';
@@ -6,6 +7,47 @@ import { cn } from '@/lib/utils';
 
 interface EvidencePackExtractedDataProps {
   extractedData: ExtractedDataSection[];
+}
+
+/**
+ * Defensively render a field value that might be a primitive, an object, or an
+ * array. Newer extractions (Trade Licence, MoA, etc.) return nested objects
+ * for some fields — rendering those directly would crash React.
+ */
+function renderFieldValue(value: unknown): ReactNode {
+  if (value === null || value === undefined || value === '') return 'N/A';
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return 'N/A';
+    if (value.every(v => typeof v === 'string' || typeof v === 'number')) {
+      return value.join(', ');
+    }
+    // List of objects → bulleted compact view
+    return (
+      <ul className="mt-1 space-y-1 list-disc pl-4">
+        {value.map((item, i) => (
+          <li key={i} className="text-xs">{renderFieldValue(item)}</li>
+        ))}
+      </ul>
+    );
+  }
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) return 'N/A';
+    return (
+      <span className="block mt-1 space-y-0.5 text-xs">
+        {entries.map(([k, v]) => (
+          <span key={k} className="block">
+            <span className="text-muted-foreground">{k}: </span>
+            <span>{renderFieldValue(v)}</span>
+          </span>
+        ))}
+      </span>
+    );
+  }
+  return String(value);
 }
 
 export function EvidencePackExtractedData({ extractedData }: EvidencePackExtractedDataProps) {
@@ -63,13 +105,13 @@ export function EvidencePackExtractedData({ extractedData }: EvidencePackExtract
                     <div
                       key={`${field.label}-${fieldIdx}`}
                       className={cn(
-                        "flex items-center justify-between p-2 rounded-lg text-sm",
+                        "flex items-start justify-between gap-3 p-2 rounded-lg text-sm",
                         field.status === 'verified' ? 'bg-success/5' : 'bg-muted/50'
                       )}
                     >
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <span className="text-muted-foreground">{field.label}: </span>
-                        <span className="font-medium">{field.value || 'N/A'}</span>
+                        <span className="font-medium break-words">{renderFieldValue(field.value)}</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={cn(

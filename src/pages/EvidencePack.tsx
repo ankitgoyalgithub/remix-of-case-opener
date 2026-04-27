@@ -144,7 +144,7 @@ export default function EvidencePack() {
   }
 
   return (
-    <div className="min-h-screen bg-background evidence-pack-root">
+    <div className="h-full overflow-y-auto bg-background evidence-pack-root print:h-auto print:overflow-visible">
       {/* Header — hidden in print */}
       <div className="bg-background border-b border-border px-6 py-3 print:hidden sticky top-0 z-10">
         <div className="max-w-4xl mx-auto flex items-center justify-between">

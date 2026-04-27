@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, UserPlus, Mail, Trash2, MoreHorizontal, AlertTriangle, Check, X, Send } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
 import {
@@ -65,6 +65,7 @@ export function RequestDetailHeader({
   timelineDrawer,
 }: RequestDetailHeaderProps) {
   const navigate = useNavigate();
+  const { requestId: routeRequestId } = useParams();
 
   const slaText = slaRemaining > 0
     ? `${slaRemaining}h left`
@@ -83,14 +84,21 @@ export function RequestDetailHeader({
   const canApproveOrReject = !['approved', 'rejected', 'published', 'issued'].includes(statusLc);
   const canPublish = statusLc === 'approved';
 
+  const headerGradient = slaStatus === 'red'
+    ? 'from-destructive/5 via-background to-warning/5'
+    : priority === 'Urgent'
+    ? 'from-destructive/5 via-background to-primary/5'
+    : 'from-primary/5 via-background to-info/5';
+
   return (
-    <div className="bg-background border-b border-border px-6 py-3 shrink-0">
-      <div className="flex items-center gap-4">
+    <div className={cn('relative border-b border-border px-6 py-3 shrink-0 bg-gradient-to-r overflow-hidden', headerGradient)}>
+      <div className="absolute -top-10 -right-10 w-52 h-52 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+      <div className="relative flex items-center gap-4">
         <Button
           variant="ghost"
           size="icon"
           className="h-8 w-8 shrink-0 -ml-2"
-          onClick={() => navigate('/requests')}
+          onClick={() => navigate(routeRequestId ? `/request/${routeRequestId}` : '/requests')}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -98,14 +106,14 @@ export function RequestDetailHeader({
         {/* Primary info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2.5">
-            <h1 className="text-lg font-semibold text-foreground truncate">{companyName}</h1>
+            <h1 className="text-lg font-semibold text-foreground truncate tracking-tight">{companyName}</h1>
             {priority === 'Urgent' && (
-              <span className="inline-flex items-center gap-1 px-1.5 h-5 rounded text-[11px] font-medium bg-destructive/10 text-destructive">
-                <AlertTriangle className="h-3 w-3" />
+              <span className="inline-flex items-center gap-1 px-1.5 h-5 rounded-md text-[11px] font-semibold bg-destructive/10 text-destructive border border-destructive/20">
+                <AlertTriangle className="h-3 w-3 animate-pulse" />
                 Urgent
               </span>
             )}
-            <span className={cn('inline-flex items-center px-2 h-5 rounded text-[11px] font-medium', STATUS_STYLES[status] || 'bg-muted text-foreground')}>
+            <span className={cn('inline-flex items-center px-2 h-5 rounded-md text-[11px] font-medium', STATUS_STYLES[status] || 'bg-muted text-foreground')}>
               {status}
             </span>
           </div>
@@ -119,7 +127,11 @@ export function RequestDetailHeader({
             <span className={owner === 'Unassigned' ? 'italic' : ''}>{owner || 'Unassigned'}</span>
             <span>·</span>
             <span className="flex items-center gap-1.5">
-              <span className={cn('inline-block w-1.5 h-1.5 rounded-full', slaDotColor)} />
+              <span className={cn(
+                'inline-block w-1.5 h-1.5 rounded-full',
+                slaDotColor,
+                slaStatus === 'red' && 'animate-pulse',
+              )} />
               <span className={slaTextColor}>{slaText}</span>
             </span>
             <span>·</span>

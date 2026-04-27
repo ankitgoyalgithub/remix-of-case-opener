@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CapabilityPicker, CapabilityPickerValue } from './CapabilityPicker';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -593,36 +594,28 @@ export function WizardStepChecklist() {
                                       )}
 
                                       {verif.type === 'external_api' && (
-                                        <div className="flex flex-col lg:flex-row gap-8 w-full">
-                                          <div className="w-full lg:w-[320px] space-y-2 shrink-0">
-                                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Endpoint URI</Label>
-                                            <Input
-                                              className="h-10 text-sm bg-background shadow-inner"
-                                              placeholder="https://api..."
-                                              value={verif.config?.endpoint || ''}
-                                              onChange={(e) => {
-                                                const next = [...(item.verifications || [])];
-                                                next[vIndex].config.endpoint = e.target.value;
-                                                next[vIndex].handler = 'external_generic_api';
-                                                updateItem(item.id, { verifications: next });
-                                              }}
-                                            />
-                                          </div>
-
-                                          <div className="flex-1 space-y-2">
-                                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Response Agent Instruction</Label>
-                                            <textarea
-                                              className="flex min-h-[120px] w-full rounded-xl border border-input bg-background px-4 py-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner leading-relaxed"
-                                              placeholder="Instructions for processing API response..."
-                                              value={verif.config?.prompt || ''}
-                                              onChange={(e) => {
-                                                const next = [...(item.verifications || [])];
-                                                next[vIndex].config.prompt = e.target.value;
-                                                updateItem(item.id, { verifications: next });
-                                              }}
-                                            />
-                                          </div>
-                                        </div>
+                                        <CapabilityPicker
+                                          value={{
+                                            capability_key: verif.config?.capability_key,
+                                            input_mapping: verif.config?.input_mapping,
+                                            pass_condition: verif.config?.pass_condition,
+                                          } as CapabilityPickerValue}
+                                          onChange={(next) => {
+                                            const verifs = [...(item.verifications || [])];
+                                            // Wire to the integrations handler — the runner routes by `handler` first, so
+                                            // the verif.type can stay 'external_api' for display purposes.
+                                            verifs[vIndex].handler = 'external_api_verification';
+                                            verifs[vIndex].config = {
+                                              ...verifs[vIndex].config,
+                                              capability_key: next.capability_key,
+                                              input_mapping: next.input_mapping || {},
+                                              ...(next.pass_condition !== undefined
+                                                ? { pass_condition: next.pass_condition }
+                                                : {}),
+                                            };
+                                            updateItem(item.id, { verifications: verifs });
+                                          }}
+                                        />
                                       )}
 
                                       {verif.type === 'risk_review' && (

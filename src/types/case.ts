@@ -53,6 +53,9 @@ export interface Document {
   status: 'uploaded' | 'processing' | 'processed' | 'failed' | 'extracted' | 'verified';
   highlights?: DocumentHighlight[];
   url?: string;
+  /** Same-origin proxy URL for pdf.js / fetch-based readers that can't use the
+   * signed S3 URL directly due to CORS. */
+  proxyUrl?: string;
   extraction?: any;
   requestStageId?: string | number;
   checklistId?: string;
@@ -120,10 +123,36 @@ export interface ChecklistRuleResult {
   note?: string | null;
 }
 
+export interface AgentTraceStep {
+  handler?: string;
+  status?: string;
+  model?: string;
+  provider?: string;
+  duration_ms?: number;
+  ran_at?: string;
+  prompt?: string;
+  plan?: any;
+  action?: string;
+  instruction?: string;
+  entity_name?: string;
+  entity_source?: string;
+  focus?: string;
+  summary?: string;
+  tavily_answer?: string;
+  sources?: Array<{ type: string; ref?: string; label?: string }>;
+}
+
+export interface AgentTrace {
+  steps?: AgentTraceStep[];
+  definition_prompt?: string;
+  definition_plan?: any;
+}
+
 export interface ChecklistValidationResult {
   status: 'pass' | 'fail' | 'pending' | 'error';
   details: ChecklistRuleResult[];
   run_at?: string;
+  trace?: AgentTrace;
 }
 
 export interface CrossValidationPair {

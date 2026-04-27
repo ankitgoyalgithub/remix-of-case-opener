@@ -7,9 +7,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 interface ExtractedDataPanelProps {
   sections: ExtractedDataSection[];
   isCompact?: boolean;
+  onFieldClick?: (field: ExtractedField) => void;
+  activeFieldKey?: string | null;
 }
 
-export function ExtractedDataPanel({ sections, isCompact }: ExtractedDataPanelProps) {
+export function ExtractedDataPanel({ sections, isCompact, onFieldClick, activeFieldKey }: ExtractedDataPanelProps) {
   return (
     <TooltipProvider>
       <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
@@ -27,13 +29,18 @@ export function ExtractedDataPanel({ sections, isCompact }: ExtractedDataPanelPr
             )}
 
             <div className="grid gap-2">
-              {section.fields.map((field) => (
-                <ExtractedFieldRow
-                  key={`${field.documentId}-${field.label}`}
-                  field={field}
-                  isCompact={isCompact}
-                />
-              ))}
+              {section.fields.map((field) => {
+                const key = `${field.documentId}-${field.label}`;
+                return (
+                  <ExtractedFieldRow
+                    key={key}
+                    field={field}
+                    isCompact={isCompact}
+                    onClick={onFieldClick ? () => onFieldClick(field) : undefined}
+                    isActive={activeFieldKey === key}
+                  />
+                );
+              })}
             </div>
           </div>
         ))}
@@ -45,6 +52,8 @@ export function ExtractedDataPanel({ sections, isCompact }: ExtractedDataPanelPr
 interface ExtractedFieldRowProps {
   field: ExtractedField;
   isCompact?: boolean;
+  onClick?: () => void;
+  isActive?: boolean;
 }
 
 function isTabularArray(value: unknown): value is Record<string, unknown>[] {
@@ -87,7 +96,7 @@ function tryParseStructured(value: unknown): unknown {
   return value;
 }
 
-function ExtractedFieldRow({ field }: ExtractedFieldRowProps) {
+function ExtractedFieldRow({ field, onClick, isActive }: ExtractedFieldRowProps) {
   // Recover structured values that may have been stringified upstream.
   const value = tryParseStructured(field.value as unknown);
   const hasValue = value !== null && value !== undefined && !(typeof value === 'string' && value.trim() === '');
@@ -168,7 +177,17 @@ function ExtractedFieldRow({ field }: ExtractedFieldRowProps) {
 
   // Scalar (original behaviour)
   return (
-    <div className="group flex items-center justify-between p-3 rounded-md border bg-background hover:border-primary/40 transition-colors shadow-sm">
+    <div
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      className={cn(
+        'group flex items-center justify-between p-3 rounded-md border bg-background transition-colors shadow-sm',
+        onClick && 'cursor-pointer hover:border-primary/40',
+        isActive && 'border-primary ring-1 ring-primary/40 bg-primary/5',
+      )}
+    >
       <div className="flex-1 min-w-0 pr-4">
         <span className="text-xs font-semibold text-muted-foreground uppercase block mb-1">
           {field.label}

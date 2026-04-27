@@ -57,17 +57,31 @@ export function EvidencePackDocumentPages({ documents }: EvidencePackDocumentPag
             setLoading(true);
             const out: RenderedDoc[] = [];
             for (const doc of documents) {
-                if (!doc.url) {
+                if (!doc.url && !doc.proxyUrl) {
                     out.push({ doc, pageImages: [], kind: 'other', error: 'No file available' });
                     continue;
                 }
                 const kind = classifyDoc(doc);
+                // Prefer the same-origin proxy URL to dodge S3 CORS; fall back to
+                // the signed URL so environments with a working CORS config still
+                // work even if the proxy endpoint isn't there yet.
+                const fetchUrl = doc.proxyUrl || doc.url!;
                 try {
                     if (kind === 'pdf') {
-                        const pages = await renderPdfPages(doc.url);
+                        let pages: string[] = [];
+                        try {
+                            pages = await renderPdfPages(fetchUrl);
+                        } catch (primaryErr) {
+                            console.warn('Proxy render failed, trying signed URL', primaryErr);
+                            if (doc.url && doc.url !== fetchUrl) {
+                                pages = await renderPdfPages(doc.url);
+                            } else {
+                                throw primaryErr;
+                            }
+                        }
                         out.push({ doc, pageImages: pages, kind });
                     } else if (kind === 'image') {
-                        out.push({ doc, pageImages: [doc.url], kind });
+                        out.push({ doc, pageImages: [doc.url || fetchUrl], kind });
                     } else {
                         out.push({ doc, pageImages: [], kind, error: 'Preview not supported for this file type.' });
                     }

@@ -45,19 +45,15 @@ export default function RequestDetail() {
   const [selectedChecklistItemId, setSelectedChecklistItemId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const fetchRequestDetails = async () => {
+  const fetchRequestDetails = async (opts: { silent?: boolean } = {}) => {
     if (!requestId) return;
     try {
-      setLoading(true);
+      if (!opts.silent) setLoading(true);
       const [req, docsRes, studioDocsRes] = await Promise.all([
         api.requests.get(requestId),
         api.documents.list(),
         api.studio.documents.list()
       ]);
-
-      console.log('DEBUG_FRONTEND: docsRes length =', docsRes.length);
-      console.log('DEBUG_FRONTEND: docsRes[0] =', JSON.stringify(docsRes[0]));
-      console.log('DEBUG_FRONTEND: requestId =', requestId);
 
       const listItem = mapBackendRequestToListItem(req);
 
@@ -141,15 +137,13 @@ export default function RequestDetail() {
         missingInfoRequested: undefined
       };
 
-      console.log('DEBUG_FRONTEND: fullData.documents names =', fullData.documents.map(d => d.name));
-      console.log('DEBUG_FRONTEND: fullData.documents urls =', fullData.documents.map(d => d.url));
       setRequestData(fullData);
       setReadinessKey(k => k + 1);
     } catch (error) {
       console.error('Failed to fetch request details:', error);
-      toast.error('Failed to load request data');
+      if (!opts.silent) toast.error('Failed to load request data');
     } finally {
-      setLoading(false);
+      if (!opts.silent) setLoading(false);
     }
   };
 
@@ -370,6 +364,7 @@ export default function RequestDetail() {
     const payload: any = { checked: nextChecked };
     if (overrideReason) payload.override_reason = overrideReason;
     await api.workflow.requestChecklistUpdate(itemId, payload);
+    // Optimistic item update so the checkbox flips instantly.
     setRequestData(prev => ({
       ...prev,
       checklist: prev.checklist.map(i =>
@@ -382,6 +377,9 @@ export default function RequestDetail() {
           : i
       ),
     }));
+    // Server signal has already recomputed stage status + request status.
+    // Pull the updated stages silently so the "Completed" pill flips without a full reload.
+    fetchRequestDetails({ silent: true });
   };
 
   const handleChecklistToggle = async (itemId: string) => {

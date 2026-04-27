@@ -3,6 +3,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ActiveStagePanel } from '@/components/case/ActiveStagePanel';
 import { ExtractedDataPanel } from '@/components/case/ExtractedDataPanel';
 import { ChecklistDetailPanel } from '@/components/case/ChecklistDetailPanel';
+import { HighlightedPdfViewer } from '@/components/case/HighlightedPdfViewer';
+import { ExtractionDiffDialog } from '@/components/case/ExtractionDiffDialog';
 import {
     Document,
     getMissingDocuments,
@@ -17,6 +19,7 @@ import {
     Sparkles,
     ChevronDown,
     ChevronRight,
+    GitCompare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -75,6 +78,30 @@ export function OperationsWorkbench({
     const [isReextractDialogOpen, setIsReextractDialogOpen] = React.useState(false);
     const [documentsCollapsed, setDocumentsCollapsed] = React.useState(false);
     const [checklistCollapsed, setChecklistCollapsed] = React.useState(false);
+    const [highlightText, setHighlightText] = React.useState<string | null>(null);
+    const [activeFieldKey, setActiveFieldKey] = React.useState<string | null>(null);
+    const [showDiffDialog, setShowDiffDialog] = React.useState(false);
+
+    // Find a prior version of the selected document (same doc_type, different id, older)
+    const priorVersionOfSelected = React.useMemo(() => {
+        if (!selectedDocument) return null;
+        const sameType = requestData.documents.filter(d =>
+            d.id !== selectedDocument.id
+            && d.type === selectedDocument.type
+            && !!d.extraction?.data
+        );
+        if (sameType.length === 0) return null;
+        // documents are already sorted newest-first in RequestDetail; pick the first
+        // one that is older than the selected doc.
+        const older = sameType.find(d => d.uploadedAt.getTime() < selectedDocument.uploadedAt.getTime());
+        return older || sameType[0];
+    }, [selectedDocument, requestData.documents]);
+
+    // Reset the highlight when selection changes so it doesn't "stick" across docs.
+    React.useEffect(() => {
+        setHighlightText(null);
+        setActiveFieldKey(null);
+    }, [selectedDocument?.id]);
 
     const currentStageData = requestData.stages.find(s => s.id === activeViewStage);
     const selectedItem = requestData.checklist.find(i => i.id === selectedChecklistItemId);
@@ -260,6 +287,19 @@ export function OperationsWorkbench({
                             </Button>
                         )}
 
+                        {selectedDocument && !selectedItem && priorVersionOfSelected && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 gap-1.5 text-xs"
+                                onClick={() => setShowDiffDialog(true)}
+                                title="Compare with prior version"
+                            >
+                                <GitCompare className="h-3 w-3" />
+                                Compare versions
+                            </Button>
+                        )}
+
                         {selectedDocument && !selectedItem && (
                             <Dialog open={isReextractDialogOpen} onOpenChange={setIsReextractDialogOpen}>
                                 <DialogTrigger asChild>
@@ -325,40 +365,90 @@ export function OperationsWorkbench({
                     </div>
                 </div>
 
-                <ScrollArea className="flex-1">
-                    <div className="px-5 py-4">
-                        {selectedItem ? (
-                            <ChecklistDetailPanel
-                                item={selectedItem}
-                                onValidationComplete={() => { }}
-                                onRunValidation={onRunValidation}
-                            />
-                        ) : (selectedDocument && selectedDocument.status === 'failed') ? (
-                            <div className="flex flex-col items-center justify-center py-16 text-center">
-                                <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-                                    <AlertCircle className="h-6 w-6 text-destructive" />
+                {(() => {
+                    const isPdfSelected = selectedDocument && !selectedItem && /\.pdf($|\?)/i.test(selectedDocument.name || selectedDocument.url || '');
+                    const showSplit = isPdfSelected && filteredExtractedData.length > 0 && selectedDocument?.status !== 'failed';
+
+                    if (selectedItem || (selectedDocument && selectedDocument.status === 'failed') || !selectedDocument || filteredExtractedData.length === 0 || !showSplit) {
+                        return (
+                            <ScrollArea className="flex-1">
+                                <div className="px-5 py-4">
+                                    {selectedItem ? (
+                                        <ChecklistDetailPanel
+                                            item={selectedItem}
+                                            onValidationComplete={() => { }}
+                                            onRunValidation={onRunValidation}
+                                        />
+                                    ) : (selectedDocument && selectedDocument.status === 'failed') ? (
+                                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                                            <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                                                <AlertCircle className="h-6 w-6 text-destructive" />
+                                            </div>
+                                            <h4 className="text-sm font-semibold text-foreground">Extraction failed</h4>
+                                            <p className="text-xs text-muted-foreground mt-1 max-w-[320px]">
+                                                The AI could not confidently extract data from this document. Try Re-extract with specific pointers, or enter values manually.
+                                            </p>
+                                        </div>
+                                    ) : filteredExtractedData.length > 0 ? (
+                                        <ExtractedDataPanel sections={filteredExtractedData} isCompact />
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                                            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                                                <Database className="h-5 w-5 text-muted-foreground" />
+                                            </div>
+                                            <p className="text-sm font-medium text-foreground">No document selected</p>
+                                            <p className="text-xs text-muted-foreground mt-1 max-w-[280px]">
+                                                Select a document on the left to see its extracted fields, or pick a checklist item to see validation details.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
-                                <h4 className="text-sm font-semibold text-foreground">Extraction failed</h4>
-                                <p className="text-xs text-muted-foreground mt-1 max-w-[320px]">
-                                    The AI could not confidently extract data from this document. Try Re-extract with specific pointers, or enter values manually.
-                                </p>
+                            </ScrollArea>
+                        );
+                    }
+
+                    // Split layout: PDF on the left, extracted data on the right.
+                    return (
+                        <div className="flex-1 flex overflow-hidden">
+                            <div className="flex-1 min-w-0 border-r border-border">
+                                <HighlightedPdfViewer
+                                    url={selectedDocument!.proxyUrl || selectedDocument!.url!}
+                                    externalUrl={selectedDocument!.url}
+                                    fileName={selectedDocument!.name}
+                                    highlightText={highlightText}
+                                />
                             </div>
-                        ) : filteredExtractedData.length > 0 ? (
-                            <ExtractedDataPanel sections={filteredExtractedData} isCompact />
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-16 text-center">
-                                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                                    <Database className="h-5 w-5 text-muted-foreground" />
-                                </div>
-                                <p className="text-sm font-medium text-foreground">No document selected</p>
-                                <p className="text-xs text-muted-foreground mt-1 max-w-[280px]">
-                                    Select a document on the left to see its extracted fields, or pick a checklist item to see validation details.
-                                </p>
+                            <div className="w-[360px] xl:w-[420px] shrink-0 overflow-hidden">
+                                <ScrollArea className="h-full">
+                                    <div className="px-4 py-3">
+                                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                            Click a field to locate it on the page
+                                        </p>
+                                        <ExtractedDataPanel
+                                            sections={filteredExtractedData}
+                                            isCompact
+                                            activeFieldKey={activeFieldKey}
+                                            onFieldClick={(field) => {
+                                                const value = field.value == null ? '' : String(field.value);
+                                                if (!value) return;
+                                                setHighlightText(value);
+                                                setActiveFieldKey(`${field.documentId}-${field.label}`);
+                                            }}
+                                        />
+                                    </div>
+                                </ScrollArea>
                             </div>
-                        )}
-                    </div>
-                </ScrollArea>
+                        </div>
+                    );
+                })()}
             </div>
+
+            <ExtractionDiffDialog
+                open={showDiffDialog}
+                onOpenChange={setShowDiffDialog}
+                previous={priorVersionOfSelected || undefined}
+                current={selectedDocument || undefined}
+            />
         </div>
     );
 }

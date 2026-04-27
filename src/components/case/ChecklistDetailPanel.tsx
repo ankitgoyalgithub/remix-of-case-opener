@@ -11,6 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EntityScreeningReport } from './EntityScreeningReport';
+import { AgentTracePanel } from './AgentTracePanel';
 
 interface ChecklistDetailPanelProps {
   item: ChecklistItem;
@@ -309,6 +310,8 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                 </table>
               </div>
             )}
+
+            <AgentTracePanel trace={localResult.trace} runAt={localResult.run_at} />
           </div>
         ) : (item.verifications?.some(v => v.type !== 'manual') || (item.handlerName && item.handlerName !== 'manual') || item.itemType === 'cross-validation') ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">

@@ -6,23 +6,29 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { 
-  Workflow as WorkflowIcon, 
-  GripVertical, 
-  Plus, 
-  Save, 
-  Clock, 
-  Edit2, 
+import {
+  Workflow as WorkflowIcon,
+  GripVertical,
+  Plus,
+  Save,
+  Clock,
+  Edit2,
   Check,
   X,
   AlertCircle,
-  PlusCircle
+  PlusCircle,
+  Trash2,
 } from 'lucide-react';
 import { useStudioStages } from '@/hooks/useStudioStore';
 import { WorkflowStage } from '@/data/mockStudioData';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AddStageDialog } from '@/components/studio/AddStageDialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 export default function WorkflowBuilder() {
   const { stages, addStage, removeStage, reorderStages, updateStage } = useStudioStages();
@@ -65,6 +71,14 @@ export default function WorkflowBuilder() {
   const handleAddStage = (name: string, description: string) => {
     addStage(name, description);
     toast.success('Stage added');
+  };
+
+  const handleDeleteStage = (stage: WorkflowStage) => {
+    removeStage(stage.id);
+    setHasChanges(true);
+    toast.success(`Stage "${stage.name}" deleted`, {
+      description: 'Linked checks and per-request progress have been cleared on every request.',
+    });
   };
 
   return (
@@ -203,9 +217,50 @@ export default function WorkflowBuilder() {
                         onCheckedChange={() => handleToggleMandatory(stage.id, stage.mandatory)}
                       />
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(stage)}>
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(stage)} title="Edit stage">
                       <Edit2 className="h-4 w-4" />
                     </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          title="Delete stage"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete stage "{stage.name}"?</AlertDialogTitle>
+                          <AlertDialogDescription asChild>
+                            <div className="space-y-2 text-sm">
+                              <p>
+                                This stage will be removed from the workflow. <strong>This cascades</strong> to:
+                              </p>
+                              <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+                                <li>Every <strong>checklist definition</strong> attached to this stage will be deleted.</li>
+                                <li>Every <strong>per-request progress row</strong> (RequestStage and its checks/results) on every existing request — open <em>and</em> closed.</li>
+                                <li>Adjacent stages will re-link their next/previous pointers automatically.</li>
+                              </ul>
+                              <p className="text-destructive font-medium">
+                                This can't be undone. Consider toggling <em>Mandatory</em> off instead if you only want to skip it for new requests.
+                              </p>
+                            </div>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteStage(stage)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete stage
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 )}
               </div>

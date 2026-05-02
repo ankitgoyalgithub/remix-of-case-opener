@@ -81,6 +81,18 @@ export default function DocumentCatalog() {
     }
   };
 
+  const handleToggleActive = async (doc: DocDef) => {
+    const next = !(doc.is_active ?? true);
+    setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, is_active: next } : d));
+    try {
+      await api.studio.documents.update(doc.id, { is_active: next });
+      toast.success(next ? `${doc.name} enabled` : `${doc.name} disabled — dependent checks will be hidden`);
+    } catch {
+      setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, is_active: !next } : d));
+      toast.error('Failed to update active flag');
+    }
+  };
+
   const handleAddDocument = async () => {
     if (!newDocName.trim()) { toast.error('Document name is required'); return; }
     try {
@@ -88,11 +100,11 @@ export default function DocumentCatalog() {
       const newTypeSlug = newDocName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const res = await api.studio.documents.create({
         name: newDocName,
-        type: newTypeSlug || 'custom-doc',
+        doc_type: newTypeSlug || 'custom-doc',
         category: newDocCategory,
         description: newDocDescription,
         mandatory: false,
-        renewalOnly: false,
+        renewal_only: false,
         extraction_keys: [],
       });
       setDocuments(prev => [...prev, res]);
@@ -259,7 +271,12 @@ export default function DocumentCatalog() {
             return (
               <div
                 key={doc.id}
-                className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all cursor-pointer overflow-hidden"
+                className={cn(
+                  'group rounded-xl border bg-card transition-all cursor-pointer overflow-hidden',
+                  (doc.is_active ?? true)
+                    ? 'border-border hover:border-primary/30 hover:shadow-sm'
+                    : 'border-dashed border-muted-foreground/30 opacity-60 hover:opacity-80',
+                )}
                 onClick={() => setDrawerDoc(doc)}
               >
                 {/* Top row */}
@@ -325,6 +342,14 @@ export default function DocumentCatalog() {
                         className="scale-75"
                       />
                       <span>Required</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Switch
+                        checked={doc.is_active ?? true}
+                        onCheckedChange={() => handleToggleActive(doc)}
+                        className="scale-75"
+                      />
+                      <span>{(doc.is_active ?? true) ? 'Active' : 'Disabled'}</span>
                     </div>
                   </div>
                   <Button

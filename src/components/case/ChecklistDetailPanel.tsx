@@ -205,19 +205,62 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
             {/* Entity screening gets its own report-style view */}
             {(item.handlerName === 'entity_screening' || (item.itemType as any) === 'entity-screening') && localResult.details && localResult.details.length > 0 ? (
               <EntityScreeningReport result={localResult} itemLabel={item.label} />
-            ) : localResult.details && localResult.details.length > 0 && (
-              <div className="rounded-lg border border-border/50 overflow-hidden">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-muted/30 text-xs uppercase text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3 font-semibold">Rule / Field</th>
-                      <th className="px-4 py-3 font-semibold">Source Document</th>
-                      <th className="px-4 py-3 font-semibold">Target Document</th>
-                      <th className="px-4 py-3 font-semibold text-right">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40">
-                    {localResult.details.map((rule, idx) => {
+            ) : localResult.details && localResult.details.length > 0 && (() => {
+              // Group rows by step_index so multi-handler checks render one
+              // labelled table per handler instead of one undifferentiated blob.
+              const groups: Map<number, any[]> = new Map();
+              for (const r of localResult.details) {
+                const idx = (r as any).step_index ?? 0;
+                if (!groups.has(idx)) groups.set(idx, []);
+                groups.get(idx)!.push(r);
+              }
+              const orderedKeys = Array.from(groups.keys()).sort((a, b) => a - b);
+              const showGroupHeaders = groups.size > 1;
+              const traceSteps = (localResult.trace as any)?.steps || [];
+
+              return (
+                <div className="space-y-4">
+                  {orderedKeys.map(stepIdx => {
+                    const rows = groups.get(stepIdx) || [];
+                    const stepMeta = traceSteps[stepIdx] || {};
+                    const handlerName = stepMeta.handler || (rows[0] as any)?.handler || 'manual';
+                    const stepStatus = stepMeta.status || (rows[0] as any)?.step_status;
+
+                    return (
+                      <div key={stepIdx} className="rounded-lg border border-border/50 overflow-hidden">
+                        {showGroupHeaders && (
+                          <div className="flex items-center justify-between gap-3 px-4 py-2 bg-muted/40 border-b border-border/60">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-[10px] font-semibold text-muted-foreground tabular-nums shrink-0">#{stepIdx + 1}</span>
+                              <span className="text-xs font-mono text-foreground truncate">{handlerName}</span>
+                              {typeof stepMeta.duration_ms === 'number' && (
+                                <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">· {stepMeta.duration_ms}ms</span>
+                              )}
+                            </div>
+                            {stepStatus && (
+                              <Badge variant="outline" className={cn(
+                                "text-[10px] uppercase font-bold",
+                                stepStatus === 'pass' && "text-success border-success/30 bg-success/10",
+                                stepStatus === 'fail' && "text-destructive border-destructive/30 bg-destructive/10",
+                                stepStatus === 'pending' && "text-info border-info/30 bg-info/10",
+                                stepStatus === 'error' && "text-warning border-warning/30 bg-warning/10",
+                              )}>
+                                {stepStatus}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                        <table className="w-full text-left text-sm">
+                          <thead className="bg-muted/20 text-xs uppercase text-muted-foreground">
+                            <tr>
+                              <th className="px-4 py-3 font-semibold">Rule / Field</th>
+                              <th className="px-4 py-3 font-semibold">Source Document</th>
+                              <th className="px-4 py-3 font-semibold">Target Document</th>
+                              <th className="px-4 py-3 font-semibold text-right">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/40">
+                            {rows.map((rule, idx) => {
                       const isPending = rule.passed === null;
                       const StatusIcon = isPending ? Clock : (rule.passed ? Check : X);
                       
@@ -306,10 +349,14 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                         </tr>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             <AgentTracePanel trace={localResult.trace} runAt={localResult.run_at} />
           </div>

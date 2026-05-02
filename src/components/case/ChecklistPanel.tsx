@@ -124,13 +124,19 @@ export function ChecklistPanel({
               <div className="space-y-2">
                 {items.map((item) => {
                   const isMissingDoc = item.documentType && item.documentType.some(dt => missingDocs.includes(dt));
+                  const resultStatus = (item.result as any)?.status as ('pass' | 'fail' | 'pending' | 'error' | undefined);
+                  const isFailed = resultStatus === 'fail';
+                  const isErrored = resultStatus === 'error';
+                  const isResultPending = resultStatus === 'pending';
 
                   return (
                     <div
                       key={item.id}
                       className={cn(
                         "flex items-center gap-2 py-1 px-2 rounded",
-                        isMissingDoc && "bg-destructive/10"
+                        isMissingDoc && "bg-destructive/10",
+                        isFailed && "bg-destructive/10",
+                        isErrored && "bg-warning/10",
                       )}
                     >
                       <Checkbox
@@ -139,20 +145,34 @@ export function ChecklistPanel({
                         onCheckedChange={() => onToggle(item.id)}
                         className={cn(
                           "data-[state=checked]:bg-success data-[state=checked]:border-success",
-                          isMissingDoc && "border-destructive"
+                          (isMissingDoc || isFailed) && "border-destructive"
                         )}
                       />
                       <label
                         htmlFor={item.id}
                         className={cn(
-                          "text-sm cursor-pointer flex-1",
-                          item.checked && "text-muted-foreground line-through",
+                          "text-sm cursor-pointer flex-1 flex items-center gap-2",
+                          item.checked && !isFailed && !isErrored && "text-muted-foreground line-through",
                           isMissingDoc && "text-destructive font-medium"
                         )}
                       >
-                        {item.label}
-                        {item.required && (
-                          <span className="text-destructive ml-1">*</span>
+                        <span className="truncate">
+                          {item.label}
+                          {item.required && (
+                            <span className="text-destructive ml-1">*</span>
+                          )}
+                        </span>
+                        {resultStatus === 'pass' && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 h-4 rounded bg-success/15 text-success shrink-0">Passed</span>
+                        )}
+                        {isFailed && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 h-4 rounded bg-destructive/15 text-destructive shrink-0">Failed</span>
+                        )}
+                        {isErrored && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 h-4 rounded bg-warning/15 text-warning shrink-0">Error</span>
+                        )}
+                        {isResultPending && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 h-4 rounded bg-info/15 text-info shrink-0">Pending</span>
                         )}
                       </label>
                     </div>

@@ -3,7 +3,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { Check, AlertCircle, Lock, AlertTriangle, CheckCircle2, FileText, Sparkles, ShieldCheck, ListTodo, RefreshCw, Loader2, Play } from 'lucide-react';
+import { Check, AlertCircle, Lock, AlertTriangle, CheckCircle2, FileText, Sparkles, ShieldCheck, ListTodo, RefreshCw, Loader2, Play, XCircle, Clock } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { getDocumentsForStage } from '@/lib/stageDocumentMapping';
@@ -153,6 +153,10 @@ export function ActiveStagePanel({
         {stageChecklistWithComputed.map((item) => {
           const isSelected = selectedItemId === item.id;
           const isChecked = item.checked;
+          const resultStatus = (item.result as any)?.status as ('pass' | 'fail' | 'pending' | 'error' | undefined);
+          const isFailed = resultStatus === 'fail';
+          const isErrored = resultStatus === 'error';
+          const isResultPending = resultStatus === 'pending';
 
           return (
             <div
@@ -160,8 +164,11 @@ export function ActiveStagePanel({
               onClick={() => onSelectItem?.(item.id)}
               className={cn(
                 "flex flex-col py-3 px-4 rounded-xl transition-all border cursor-pointer",
-                isSelected ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/10" : "border-transparent bg-muted/20 hover:bg-muted/40",
-                isChecked && !isSelected && "bg-success/5 border-success/10"
+                isSelected ? "border-primary bg-primary/5 shadow-md ring-1 ring-primary/10"
+                  : isFailed ? "border-destructive/30 bg-destructive/5 hover:bg-destructive/10"
+                  : isErrored ? "border-warning/30 bg-warning/5 hover:bg-warning/10"
+                  : "border-transparent bg-muted/20 hover:bg-muted/40",
+                isChecked && !isSelected && !isFailed && !isErrored && "bg-success/5 border-success/10"
               )}
             >
               <div className="flex items-center justify-between gap-3">
@@ -186,13 +193,37 @@ export function ActiveStagePanel({
                       {item.label}
                       {item.required && <span className="text-destructive ml-1">*</span>}
                     </label>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <div className="flex items-center gap-1">
                         {getItemTypeIcon(item.itemType)}
                         <span className="text-xs font-bold text-muted-foreground uppercase tracking-tight">
                           {item.itemType}
                         </span>
                       </div>
+                      {resultStatus === 'pass' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 h-4 rounded bg-success/15 text-success">
+                          <CheckCircle2 className="h-2.5 w-2.5" />
+                          Passed
+                        </span>
+                      )}
+                      {resultStatus === 'fail' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 h-4 rounded bg-destructive/15 text-destructive">
+                          <XCircle className="h-2.5 w-2.5" />
+                          Failed
+                        </span>
+                      )}
+                      {resultStatus === 'error' && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 h-4 rounded bg-warning/15 text-warning">
+                          <AlertTriangle className="h-2.5 w-2.5" />
+                          Error
+                        </span>
+                      )}
+                      {isResultPending && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 h-4 rounded bg-info/15 text-info">
+                          <Clock className="h-2.5 w-2.5" />
+                          Pending
+                        </span>
+                      )}
                       {(item as any).overrideReason && (
                         <span
                           className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 h-4 rounded bg-warning/10 text-warning"

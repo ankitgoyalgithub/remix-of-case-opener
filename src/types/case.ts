@@ -23,8 +23,11 @@ export interface FieldMatchRule {
 export interface CrossValidationRule {
   id: number;
   name: string;
+  mode?: 'field-match' | 'set-equal';
   source_doc_type: string;
   target_doc_type: string;
+  participating_doc_types?: string[];
+  extracted_field?: string;
   description?: string;
   field_rules: FieldMatchRule[];
 }
@@ -32,9 +35,11 @@ export interface CrossValidationRule {
 export interface DocDef {
   id: number | string;
   type: string;
+  doc_type?: string;
   name: string;
   category: string;
   mandatory: boolean;
+  is_active?: boolean;
   renewalOnly?: boolean;
   description?: string;
   aiInstructions?: string;

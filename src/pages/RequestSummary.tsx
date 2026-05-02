@@ -5,9 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
     Loader2, ArrowLeft, ArrowRight, AlertTriangle, CheckCircle2,
     FileCheck, FileWarning, ShieldAlert, Send, Gavel, Upload, Sparkles,
+    Files, FileQuestion, ExternalLink, PlayCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -15,6 +17,8 @@ import { cn } from '@/lib/utils';
 import { DOCUMENT_TYPE_LABELS, DocumentType, calculateSlaRemaining, getSlaStatus } from '@/types/case';
 import { mapBackendRequestToListItem, mapBackendRequestDecision, mapBackendRequestPublication } from '@/lib/mappers';
 import { ConversationPanel, InboundEmail } from '@/components/request/ConversationPanel';
+import { BulkZipUploadButton } from '@/components/request/BulkZipUploadButton';
+import { OutputTemplatePicker } from '@/components/request/OutputTemplatePicker';
 import { AnimatedNumber } from '@/components/ui/animated-number';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ParallaxHero } from '@/components/ui/parallax-hero';
@@ -86,6 +90,26 @@ export default function RequestSummary() {
     const [docDefs, setDocDefs] = useState<any[]>([]);
     const [uploadingType, setUploadingType] = useState<string | null>(null);
     const [remappingId, setRemappingId] = useState<string | null>(null);
+    const [runningChecks, setRunningChecks] = useState(false);
+
+    const handleRunChecks = async () => {
+        if (!requestId || runningChecks) return;
+        setRunningChecks(true);
+        const t = toast.loading('Running automated checks…');
+        try {
+            const res: any = await api.requests.runChecklists(requestId);
+            toast.success(
+                `Checks done — ran ${res.ran ?? 0}, passed ${res.passed ?? 0}, failed ${res.failed ?? 0}`,
+                { id: t },
+            );
+            await fetchData(true);
+        } catch (err: any) {
+            console.error('Failed to run checklists', err);
+            toast.error(err?.message || 'Failed to run checks', { id: t });
+        } finally {
+            setRunningChecks(false);
+        }
+    };
 
     const fetchData = async (silent = false) => {
         if (!requestId) return;
@@ -245,6 +269,7 @@ export default function RequestSummary() {
     // (or an unknown slug). Operator can remap them inline.
     const knownDocTypes = new Set(docDefs.map((d: any) => d.doc_type));
     const untypedDocs = documents.filter((d: any) => d.doc_type === 'other' || !knownDocTypes.has(d.doc_type));
+    const mappedDocs = documents.filter((d: any) => d.doc_type && d.doc_type !== 'other' && knownDocTypes.has(d.doc_type));
 
     const isComplete = pct === 100 && missingDocs.length === 0 && failingDocs.length === 0 && openRisks.length === 0;
     const heroGradient = isComplete
@@ -300,7 +325,7 @@ export default function RequestSummary() {
                             <p className="text-[11px] text-muted-foreground font-mono mt-2">
                                 {request.smart_id || request.id?.slice(0, 8)} · Created {format(listItem.createdAt, 'dd MMM yyyy HH:mm')}
                             </p>
-                            <div className="flex items-center gap-2 mt-4">
+                            <div className="flex items-center gap-2 mt-4 flex-wrap">
                                 <Button size="sm" className="h-8 gap-1.5 shadow-md shadow-primary/20" onClick={() => navigate(`/request/${requestId}/workbench`)}>
                                     Open workbench
                                     <ArrowRight className="h-3.5 w-3.5" />
@@ -311,6 +336,31 @@ export default function RequestSummary() {
                                         Evidence pack
                                     </Button>
                                 </Link>
+                                {requestId && (
+                                    <BulkZipUploadButton
+                                        requestId={requestId}
+                                        onComplete={() => fetchData(true)}
+                                        className="h-8 bg-background/70 backdrop-blur"
+                                    />
+                                )}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 gap-1.5 bg-background/70 backdrop-blur"
+                                    onClick={handleRunChecks}
+                                    disabled={runningChecks}
+                                >
+                                    {runningChecks
+                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                        : <PlayCircle className="h-3.5 w-3.5" />}
+                                    Run checks now
+                                </Button>
+                                {requestId && (
+                                    <OutputTemplatePicker
+                                        requestId={requestId}
+                                        className="h-8 gap-1.5 bg-background/70 backdrop-blur"
+                                    />
+                                )}
                             </div>
                         </div>
 
@@ -382,121 +432,157 @@ export default function RequestSummary() {
                 {/* Main 2-col layout: action items left, conversation right (when present) */}
                 <div className={cn('grid gap-3', hasConversation ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1')}>
                     <div className={cn('space-y-3', hasConversation ? 'lg:col-span-2' : '')}>
-                        {/* Pending docs + Open risks side-by-side */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <Card>
-                                <CardHeader className="pb-2 pt-4 px-4">
-                                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                                        <FileWarning className="h-4 w-4 text-warning" />
-                                        Pending documents
-                                        <span className="ml-auto text-[11px] font-normal text-muted-foreground">
-                                            {rd.documents.received} / {rd.documents.total}
-                                        </span>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="px-3 pb-3">
-                                    {missingDocs.length === 0 && failingDocs.length === 0 ? (
-                                        <div className="flex items-center gap-2 py-2 px-1 text-sm text-success">
-                                            <CheckCircle2 className="h-4 w-4" />
-                                            All required received.
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-0.5">
-                                            {missingDocs.map(doc => {
-                                                const baseLabel = DOCUMENT_TYPE_LABELS[doc.doc_type as DocumentType] || doc.name || doc.doc_type;
-                                                const label = doc.party_name ? `${baseLabel} — ${doc.party_name}` : baseLabel;
-                                                const key = doc.party_requirement_id ? `party-${doc.party_requirement_id}` : `static-${doc.doc_type}`;
-                                                const uploadKey = doc.party_requirement_id ? `party:${doc.party_requirement_id}` : doc.doc_type;
-                                                return (
-                                                    <CompactDocRow
-                                                        key={key}
-                                                        label={label}
-                                                        tone="warning"
-                                                        uploading={uploadingType === uploadKey}
-                                                        onSelect={(file) => handleUpload(doc.doc_type, file, doc.party_requirement_id)}
-                                                    />
-                                                );
-                                            })}
-                                            {failingDocs.map(doc => {
-                                                const baseLabel = DOCUMENT_TYPE_LABELS[doc.doc_type as DocumentType] || doc.name || doc.doc_type;
-                                                const label = doc.party_name ? `${baseLabel} — ${doc.party_name}` : baseLabel;
-                                                const key = doc.party_requirement_id ? `party-fail-${doc.party_requirement_id}` : `static-fail-${doc.doc_type}`;
-                                                const uploadKey = doc.party_requirement_id ? `party:${doc.party_requirement_id}` : doc.doc_type;
-                                                return (
-                                                    <CompactDocRow
-                                                        key={key}
-                                                        label={label}
-                                                        tone="destructive"
-                                                        uploading={uploadingType === uploadKey}
-                                                        onSelect={(file) => handleUpload(doc.doc_type, file, doc.party_requirement_id)}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                        {/* Documents — single section with Pending / Mapped / Missing Mapping tabs */}
+                        <Card>
+                            <CardHeader className="pb-2 pt-4 px-4">
+                                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                                    <Files className="h-4 w-4 text-primary" />
+                                    Documents
+                                    <span className="ml-auto text-[11px] font-normal text-muted-foreground">
+                                        {mappedDocs.length} mapped · {missingDocs.length + failingDocs.length} pending
+                                        {untypedDocs.length > 0 ? ` · ${untypedDocs.length} unmapped` : ''}
+                                    </span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="px-3 pb-3">
+                                <Tabs defaultValue={
+                                    (missingDocs.length + failingDocs.length) > 0 ? 'pending'
+                                    : untypedDocs.length > 0 ? 'unmapped'
+                                    : 'mapped'
+                                }>
+                                    <TabsList className="grid w-full grid-cols-3">
+                                        <TabsTrigger value="pending" className="gap-1.5 text-xs">
+                                            <FileWarning className="h-3 w-3" />
+                                            Pending
+                                            <CountBadge n={missingDocs.length + failingDocs.length} tone="warning" />
+                                        </TabsTrigger>
+                                        <TabsTrigger value="mapped" className="gap-1.5 text-xs">
+                                            <FileCheck className="h-3 w-3" />
+                                            Mapped
+                                            <CountBadge n={mappedDocs.length} tone="success" />
+                                        </TabsTrigger>
+                                        <TabsTrigger value="unmapped" className="gap-1.5 text-xs">
+                                            <FileQuestion className="h-3 w-3" />
+                                            Missing mapping
+                                            <CountBadge n={untypedDocs.length} tone="info" />
+                                        </TabsTrigger>
+                                    </TabsList>
 
-                            <Card>
-                                <CardHeader className="pb-2 pt-4 px-4">
-                                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                                        <ShieldAlert className={cn('h-4 w-4', openRisks.length > 0 ? 'text-destructive' : 'text-muted-foreground')} />
-                                        Open risks
-                                        <span className="ml-auto text-[11px] font-normal text-muted-foreground">
-                                            {openRisks.length} unresolved
-                                        </span>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="px-3 pb-3">
-                                    {openRisks.length === 0 ? (
-                                        <div className="flex items-center gap-2 py-2 px-1 text-sm text-success">
-                                            <CheckCircle2 className="h-4 w-4" />
-                                            No open flags.
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-0.5 max-h-[260px] overflow-y-auto pr-1">
-                                            {openRisks
-                                                .slice()
-                                                .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
-                                                .map(rf => (
-                                                    <RiskRow key={rf.id} flag={rf} />
+                                    <TabsContent value="pending" className="mt-3">
+                                        {missingDocs.length === 0 && failingDocs.length === 0 ? (
+                                            <div className="flex items-center gap-2 py-3 px-1 text-sm text-success">
+                                                <CheckCircle2 className="h-4 w-4" />
+                                                All required documents received.
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-0.5">
+                                                {missingDocs.map(doc => {
+                                                    const baseLabel = DOCUMENT_TYPE_LABELS[doc.doc_type as DocumentType] || doc.name || doc.doc_type;
+                                                    const label = doc.party_name ? `${baseLabel} — ${doc.party_name}` : baseLabel;
+                                                    const key = doc.party_requirement_id ? `party-${doc.party_requirement_id}` : `static-${doc.doc_type}`;
+                                                    const uploadKey = doc.party_requirement_id ? `party:${doc.party_requirement_id}` : doc.doc_type;
+                                                    return (
+                                                        <CompactDocRow
+                                                            key={key}
+                                                            label={label}
+                                                            tone="warning"
+                                                            uploading={uploadingType === uploadKey}
+                                                            onSelect={(file) => handleUpload(doc.doc_type, file, doc.party_requirement_id)}
+                                                        />
+                                                    );
+                                                })}
+                                                {failingDocs.map(doc => {
+                                                    const baseLabel = DOCUMENT_TYPE_LABELS[doc.doc_type as DocumentType] || doc.name || doc.doc_type;
+                                                    const label = doc.party_name ? `${baseLabel} — ${doc.party_name}` : baseLabel;
+                                                    const key = doc.party_requirement_id ? `party-fail-${doc.party_requirement_id}` : `static-fail-${doc.doc_type}`;
+                                                    const uploadKey = doc.party_requirement_id ? `party:${doc.party_requirement_id}` : doc.doc_type;
+                                                    return (
+                                                        <CompactDocRow
+                                                            key={key}
+                                                            label={label}
+                                                            tone="destructive"
+                                                            uploading={uploadingType === uploadKey}
+                                                            onSelect={(file) => handleUpload(doc.doc_type, file, doc.party_requirement_id)}
+                                                        />
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </TabsContent>
+
+                                    <TabsContent value="mapped" className="mt-3">
+                                        {mappedDocs.length === 0 ? (
+                                            <div className="flex items-center gap-2 py-3 px-1 text-sm text-muted-foreground">
+                                                <FileCheck className="h-4 w-4" />
+                                                Nothing uploaded yet.
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-1">
+                                                {mappedDocs.map((doc: any) => (
+                                                    <MappedDocRow key={doc.id} doc={doc} />
                                                 ))}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </div>
+                                            </div>
+                                        )}
+                                    </TabsContent>
 
-                        {/* Untyped attachments */}
-                        {untypedDocs.length > 0 && (
-                            <Card>
-                                <CardHeader className="pb-2 pt-4 px-4">
-                                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                                        <FileWarning className="h-4 w-4 text-info" />
-                                        Attachments needing classification
-                                        <span className="ml-auto text-[11px] font-normal text-muted-foreground">
-                                            {untypedDocs.length}
-                                        </span>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="px-4 pb-4">
-                                    <p className="text-[11px] text-muted-foreground mb-2">
-                                        AI couldn't confidently match these to a type. Pick one to assign.
-                                    </p>
-                                    <div className="space-y-1.5">
-                                        {untypedDocs.map((doc: any) => (
-                                            <UntypedDocRow
-                                                key={doc.id}
-                                                doc={doc}
-                                                docDefs={docDefs}
-                                                busy={remappingId === doc.id}
-                                                onAssign={(t) => handleRemapDocType(doc.id, t)}
-                                            />
-                                        ))}
+                                    <TabsContent value="unmapped" className="mt-3">
+                                        {untypedDocs.length === 0 ? (
+                                            <div className="flex items-center gap-2 py-3 px-1 text-sm text-success">
+                                                <CheckCircle2 className="h-4 w-4" />
+                                                Every uploaded file has a document type.
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <p className="text-[11px] text-muted-foreground mb-2">
+                                                    AI couldn't confidently match these to a type. Pick one to assign.
+                                                </p>
+                                                <div className="space-y-1.5">
+                                                    {untypedDocs.map((doc: any) => (
+                                                        <UntypedDocRow
+                                                            key={doc.id}
+                                                            doc={doc}
+                                                            docDefs={docDefs}
+                                                            busy={remappingId === doc.id}
+                                                            onAssign={(t) => handleRemapDocType(doc.id, t)}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+                                    </TabsContent>
+                                </Tabs>
+                            </CardContent>
+                        </Card>
+
+                        {/* Open risks — own card, full width below the documents section */}
+                        <Card>
+                            <CardHeader className="pb-2 pt-4 px-4">
+                                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                                    <ShieldAlert className={cn('h-4 w-4', openRisks.length > 0 ? 'text-destructive' : 'text-muted-foreground')} />
+                                    Open risks
+                                    <span className="ml-auto text-[11px] font-normal text-muted-foreground">
+                                        {openRisks.length} unresolved
+                                    </span>
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="px-3 pb-3">
+                                {openRisks.length === 0 ? (
+                                    <div className="flex items-center gap-2 py-2 px-1 text-sm text-success">
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        No open flags.
                                     </div>
-                                </CardContent>
-                            </Card>
-                        )}
+                                ) : (
+                                    <div className="space-y-0.5 max-h-[320px] overflow-y-auto pr-1">
+                                        {openRisks
+                                            .slice()
+                                            .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
+                                            .map(rf => (
+                                                <RiskRow key={rf.id} flag={rf} />
+                                            ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
 
                         {/* Decision / Publication trail */}
                         {(decision || publication) && (
@@ -616,6 +702,60 @@ function MiniProgress({
                 <div className={cn('h-full transition-[width] duration-700 ease-out', barClass)} style={{ width: `${pct}%` }} />
             </div>
             {sub && <p className={cn('text-[10px] mt-1 truncate', subClass)}>{sub}</p>}
+        </div>
+    );
+}
+
+function CountBadge({ n, tone }: { n: number; tone: 'warning' | 'success' | 'info' }) {
+    if (n === 0) return null;
+    const cls =
+        tone === 'warning' ? 'bg-warning/15 text-warning'
+            : tone === 'success' ? 'bg-success/15 text-success'
+                : 'bg-info/15 text-info';
+    return (
+        <span className={cn('ml-1 text-[10px] font-semibold px-1.5 rounded tabular-nums', cls)}>
+            {n}
+        </span>
+    );
+}
+
+function MappedDocRow({ doc }: { doc: any }) {
+    const fileName = (doc.file_url || doc.file || '').split('/').pop()?.split('?')[0] || 'attachment';
+    const label = DOCUMENT_TYPE_LABELS[doc.doc_type as DocumentType] || doc.doc_type;
+    const uploadedAt = doc.uploaded_at ? new Date(doc.uploaded_at) : null;
+    const status: string = doc.status || 'uploaded';
+    const statusClass =
+        status === 'processed' ? 'bg-success/10 text-success border-success/30'
+            : status === 'failed' ? 'bg-destructive/10 text-destructive border-destructive/30'
+                : status === 'processing' ? 'bg-info/10 text-info border-info/30'
+                    : 'bg-muted text-muted-foreground border-border';
+    const fileHref = doc.file_url || doc.file;
+    return (
+        <div className="flex items-center gap-3 px-2 py-1.5 rounded-md border border-border/60 bg-muted/15 hover:bg-muted/30 transition-colors">
+            <FileCheck className="h-3.5 w-3.5 text-success shrink-0" />
+            <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-medium truncate">{label}</p>
+                    <Badge variant="outline" className={cn('text-[10px] h-4 px-1.5 capitalize', statusClass)}>
+                        {status}
+                    </Badge>
+                </div>
+                <p className="text-[11px] text-muted-foreground truncate">
+                    <span className="font-mono">{fileName}</span>
+                    {uploadedAt && <> · {format(uploadedAt, 'dd MMM HH:mm')}</>}
+                </p>
+            </div>
+            {fileHref && (
+                <a
+                    href={fileHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    title="Open file"
+                >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+            )}
         </div>
     );
 }

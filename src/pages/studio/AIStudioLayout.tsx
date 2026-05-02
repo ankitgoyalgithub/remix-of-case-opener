@@ -30,6 +30,7 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -48,6 +49,7 @@ const menuItems: MenuItem[] = [
   { title: 'Inbound email', url: '/studio/inbound', icon: Inbox, description: 'Email-driven submissions' },
   { title: 'Jobs', url: '/studio/jobs', icon: ListChecks, description: 'Polling history + per-email outcomes' },
   { title: 'Messages', url: '/studio/messages', icon: Mail, description: 'Email + notification templates' },
+  { title: 'Outputs', url: '/studio/outputs', icon: FileSpreadsheet, description: 'UW sheet & XLSX templates' },
   { title: 'Settings', url: '/studio/settings', icon: Settings, description: 'SLA, queues, roles' },
 ];
 
@@ -68,7 +70,7 @@ function StudioShell() {
   const collapsed = state === 'collapsed';
 
   return (
-    <div className="min-h-full flex w-full bg-background relative">
+    <div className="h-full flex w-full bg-background relative overflow-hidden">
       <StudioSidebar />
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {/* Top bar — no trigger here; the edge button handles collapse. */}

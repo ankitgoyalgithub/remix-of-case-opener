@@ -6,17 +6,19 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { 
-  Link2, 
-  Plus, 
-  Save, 
-  Trash2, 
-  ShieldCheck, 
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Link2,
+  Plus,
+  Save,
+  Trash2,
+  ShieldCheck,
   ArrowRight,
   Settings2,
   AlertCircle,
   Loader2,
-  Search
+  Search,
+  Layers,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
@@ -31,11 +33,22 @@ export default function CrossValidationRules() {
   const [isFieldDialogOpen, setIsFieldDialogOpen] = useState(false);
   const [selectedRule, setSelectedRule] = useState<CrossValidationRule | null>(null);
   
-  const [newRule, setNewRule] = useState({
+  const [newRule, setNewRule] = useState<{
+    name: string;
+    mode: 'field-match' | 'set-equal';
+    source_doc_type: string;
+    target_doc_type: string;
+    participating_doc_types: string[];
+    extracted_field: string;
+    description: string;
+  }>({
     name: '',
+    mode: 'field-match',
     source_doc_type: '',
     target_doc_type: '',
-    description: ''
+    participating_doc_types: [],
+    extracted_field: '',
+    description: '',
   });
 
   const [newFieldRule, setNewFieldRule] = useState<Partial<FieldMatchRule>>({
@@ -62,20 +75,57 @@ export default function CrossValidationRules() {
   };
 
   const handleCreateRule = async () => {
-    if (!newRule.name || !newRule.source_doc_type || !newRule.target_doc_type) {
-      toast.error('Please fill in all required fields');
+    if (!newRule.name) {
+      toast.error('Rule name is required');
       return;
+    }
+    if (newRule.mode === 'field-match') {
+      if (!newRule.source_doc_type || !newRule.target_doc_type) {
+        toast.error('Source and target document types are required for field-match rules');
+        return;
+      }
+    } else {
+      if (newRule.participating_doc_types.length < 2 || !newRule.extracted_field.trim()) {
+        toast.error('Set-equal rules need at least 2 participating documents and a shared field name');
+        return;
+      }
     }
 
     try {
-      const created = await api.studio.cvRules.create(newRule);
+      const payload: any = {
+        name: newRule.name,
+        mode: newRule.mode,
+        description: newRule.description,
+      };
+      if (newRule.mode === 'field-match') {
+        payload.source_doc_type = newRule.source_doc_type;
+        payload.target_doc_type = newRule.target_doc_type;
+      } else {
+        payload.participating_doc_types = newRule.participating_doc_types;
+        payload.extracted_field = newRule.extracted_field.trim();
+      }
+      const created = await api.studio.cvRules.create(payload);
       setRules([...rules, { ...created, field_rules: [] }]);
       setIsCreateDialogOpen(false);
-      setNewRule({ name: '', source_doc_type: '', target_doc_type: '', description: '' });
+      setNewRule({
+        name: '', mode: 'field-match',
+        source_doc_type: '', target_doc_type: '',
+        participating_doc_types: [], extracted_field: '',
+        description: '',
+      });
       toast.success('Rule created successfully');
     } catch (error) {
       toast.error('Failed to create rule');
     }
+  };
+
+  const toggleParticipating = (slug: string) => {
+    setNewRule(r => ({
+      ...r,
+      participating_doc_types: r.participating_doc_types.includes(slug)
+        ? r.participating_doc_types.filter(x => x !== slug)
+        : [...r.participating_doc_types, slug],
+    }));
   };
 
   const handleDeleteRule = async (id: number) => {
@@ -203,19 +253,39 @@ export default function CrossValidationRules() {
               </div>
             </CardHeader>
             <CardContent className="pt-4">
-              <div className="flex items-center gap-6 mb-6 px-2">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Source Document</span>
-                  <Badge className="py-1 px-3 bg-blue-500/10 text-blue-600 border-blue-500/20">{DOCUMENT_TYPE_LABELS[rule.source_doc_type as DocumentType] || rule.source_doc_type}</Badge>
+              {(rule as any).mode === 'set-equal' ? (
+                <div className="flex flex-col gap-2 mb-6 px-2">
+                  <div className="flex items-center gap-2">
+                    <Layers className="h-3.5 w-3.5 text-info" />
+                    <span className="text-xs uppercase font-bold text-info tracking-wider">Set-equal mode</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    All listed documents must report the same value for{' '}
+                    <code className="text-[10px] bg-muted px-1 rounded">{(rule as any).extracted_field || '(no field set)'}</code>.
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {((rule as any).participating_doc_types || []).map((dt: string) => (
+                      <Badge key={dt} variant="outline" className="bg-info/5 text-info border-info/30">
+                        {DOCUMENT_TYPE_LABELS[dt as DocumentType] || dt}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground mt-4" />
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Target Document</span>
-                  <Badge className="py-1 px-3 bg-purple-500/10 text-purple-600 border-purple-500/20">{DOCUMENT_TYPE_LABELS[rule.target_doc_type as DocumentType] || rule.target_doc_type}</Badge>
+              ) : (
+                <div className="flex items-center gap-6 mb-6 px-2">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Source Document</span>
+                    <Badge className="py-1 px-3 bg-blue-500/10 text-blue-600 border-blue-500/20">{DOCUMENT_TYPE_LABELS[rule.source_doc_type as DocumentType] || rule.source_doc_type}</Badge>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground mt-4" />
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xs uppercase font-bold text-muted-foreground tracking-wider">Target Document</span>
+                    <Badge className="py-1 px-3 bg-purple-500/10 text-purple-600 border-purple-500/20">{DOCUMENT_TYPE_LABELS[rule.target_doc_type as DocumentType] || rule.target_doc_type}</Badge>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="space-y-2">
+              <div className={cn('space-y-2', (rule as any).mode === 'set-equal' && 'hidden')}>
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5 px-2">
                     <Settings2 className="h-3 w-3" />
@@ -279,51 +349,109 @@ export default function CrossValidationRules() {
 
       {/* Create Rule Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
-            <DialogTitle>Create Cross-Validation Rule</DialogTitle>
+            <DialogTitle>Create cross-validation rule</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-2">
             <div className="grid gap-2">
-              <Label htmlFor="name">Rule Name</Label>
-              <Input 
-                id="name" 
-                placeholder="e.g. Trade License vs MOA Name Match" 
+              <Label htmlFor="mode">Mode</Label>
+              <Select value={newRule.mode} onValueChange={(v: any) => setNewRule({ ...newRule, mode: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="field-match">Field match (pairwise)</SelectItem>
+                  <SelectItem value="set-equal">Set equality (all docs share field)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                {newRule.mode === 'field-match'
+                  ? 'Compare specific extracted fields between two documents.'
+                  : 'Require every listed document to report the same value for one field.'}
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="name">Rule name</Label>
+              <Input
+                id="name"
+                placeholder={newRule.mode === 'set-equal'
+                  ? 'e.g. All entity docs share company name'
+                  : 'e.g. Trade Licence vs VAT Certificate name match'}
                 value={newRule.name}
                 onChange={(e) => setNewRule({ ...newRule, name: e.target.value })}
               />
             </div>
+
+            {newRule.mode === 'field-match' ? (
+              <>
+                <div className="grid gap-2">
+                  <Label htmlFor="source">Source document type</Label>
+                  <Select value={newRule.source_doc_type} onValueChange={(v) => setNewRule({ ...newRule, source_doc_type: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectContent>
+                      {documentTypes.map(type => (
+                        <SelectItem key={type} value={type}>{DOCUMENT_TYPE_LABELS[type]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="target">Target document type</Label>
+                  <Select value={newRule.target_doc_type} onValueChange={(v) => setNewRule({ ...newRule, target_doc_type: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectContent>
+                      {documentTypes.map(type => (
+                        <SelectItem key={type} value={type}>{DOCUMENT_TYPE_LABELS[type]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid gap-2">
+                  <Label>Participating document types</Label>
+                  <div className="border border-border rounded-md p-2 max-h-56 overflow-y-auto space-y-1">
+                    {documentTypes.map(type => {
+                      const checked = newRule.participating_doc_types.includes(type);
+                      return (
+                        <label
+                          key={type}
+                          className={cn(
+                            'flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-sm',
+                            checked ? 'bg-primary/10' : 'hover:bg-muted/50',
+                          )}
+                        >
+                          <Checkbox checked={checked} onCheckedChange={() => toggleParticipating(type)} />
+                          <span>{DOCUMENT_TYPE_LABELS[type]}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    {newRule.participating_doc_types.length} selected — at least 2 required.
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="ef">Shared field (extraction key)</Label>
+                  <Input
+                    id="ef"
+                    placeholder="e.g. Company Name"
+                    value={newRule.extracted_field}
+                    onChange={(e) => setNewRule({ ...newRule, extracted_field: e.target.value })}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    The extraction key whose value must agree across every selected document.
+                  </p>
+                </div>
+              </>
+            )}
+
             <div className="grid gap-2">
-              <Label htmlFor="source">Source Document Type</Label>
-              <Select onValueChange={(v) => setNewRule({ ...newRule, source_doc_type: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {documentTypes.map(type => (
-                    <SelectItem key={type} value={type}>{DOCUMENT_TYPE_LABELS[type]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="target">Target Document Type</Label>
-              <Select onValueChange={(v) => setNewRule({ ...newRule, target_doc_type: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {documentTypes.map(type => (
-                    <SelectItem key={type} value={type}>{DOCUMENT_TYPE_LABELS[type]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="desc">Description (Optional)</Label>
-              <Input 
-                id="desc" 
-                placeholder="What does this rule verify?" 
+              <Label htmlFor="desc">Description (optional)</Label>
+              <Input
+                id="desc"
+                placeholder="What does this rule verify?"
                 value={newRule.description}
                 onChange={(e) => setNewRule({ ...newRule, description: e.target.value })}
               />
@@ -331,7 +459,7 @@ export default function CrossValidationRules() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateRule}>Create Rule</Button>
+            <Button onClick={handleCreateRule}>Create rule</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -53,6 +53,10 @@ export const api = {
             body: JSON.stringify(data),
         }),
         readiness: (id: string) => fetchApi(`/requests/${id}/readiness/`),
+        runChecklists: (id: string, docType?: string) => fetchApi(`/requests/${id}/run_checklists/`, {
+            method: 'POST',
+            body: JSON.stringify(docType ? { doc_type: docType } : {}),
+        }),
         approve: (id: string, comment: string) => fetchApi(`/requests/${id}/approve/`, {
             method: 'POST',
             body: JSON.stringify({ comment }),
@@ -217,5 +221,21 @@ export const api = {
             update: (id: string | number, data: any) => fetchApi(`/studio/field-match-rules/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
             delete: (id: string | number) => fetchApi(`/studio/field-match-rules/${id}/`, { method: 'DELETE' }),
         },
+        checkHandlers: {
+            list: () => fetchApi('/studio/check-handlers/'),
+        },
+        outputTemplates: {
+            list: () => fetchApi('/studio/output-templates/'),
+            create: (data: FormData) => fetchApi('/studio/output-templates/', { method: 'POST', body: data }),
+            update: (id: string | number, data: any) => fetchApi(`/studio/output-templates/${id}/`, {
+                method: 'PATCH', body: JSON.stringify(data),
+            }),
+            delete: (id: string | number) => fetchApi(`/studio/output-templates/${id}/`, { method: 'DELETE' }),
+            renderUrl: (templateId: string | number, requestId: string) => {
+                const base = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+                return `${base}/studio/output-templates/${templateId}/render/${requestId}/`;
+            },
+        },
+        bulkUpload: (data: FormData) => fetchApi('/studio/bulk-upload/', { method: 'POST', body: data }),
     }
 };

@@ -20,6 +20,7 @@ import { CaseData, Document } from '@/types/case';
 import { EvidencePackSummary } from '@/components/evidence/EvidencePackSummary';
 import { EvidencePackChecklist } from '@/components/evidence/EvidencePackChecklist';
 import { EvidencePackExtractedData } from '@/components/evidence/EvidencePackExtractedData';
+import { ShareholdingTree } from '@/components/case/ShareholdingTree';
 import { EvidencePackOverrides } from '@/components/evidence/EvidencePackOverrides';
 import { EvidencePackTimeline } from '@/components/evidence/EvidencePackTimeline';
 import { EvidencePackDocuments } from '@/components/evidence/EvidencePackDocuments';
@@ -29,6 +30,7 @@ import { EvidencePackDocumentPages } from '@/components/evidence/EvidencePackDoc
 export default function EvidencePack() {
   const { requestId } = useParams();
   const [caseData, setCaseData] = useState<CaseData | null>(null);
+  const [moaExtraction, setMoaExtraction] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,6 +58,9 @@ export default function EvidencePack() {
         const extractionRecords = requestDocuments
           .filter(d => d.extraction)
           .map(d => ({ document: d.id, data: d.extraction.data }));
+
+        const moaDoc = requestDocuments.find((d: any) => d.type === 'moa' || (d as any).doc_type === 'moa');
+        setMoaExtraction(moaDoc && (moaDoc as any).extraction ? (moaDoc as any).extraction.data : null);
 
         const decision = mapBackendRequestDecision(req);
         const publication = mapBackendRequestPublication(req);
@@ -206,6 +211,15 @@ export default function EvidencePack() {
 
         <EvidencePackChecklist stages={caseData.stages} checklist={caseData.checklist} />
         <EvidencePackExtractedData extractedData={caseData.extractedData} />
+        {moaExtraction && (
+          <section className="rounded-xl border border-border bg-card p-5">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              Shareholding structure
+              <span className="text-[11px] font-normal text-muted-foreground">From MoA extraction</span>
+            </h3>
+            <ShareholdingTree extraction={moaExtraction} />
+          </section>
+        )}
         <EvidencePackOverrides workforceMismatch={caseData.workforceMismatch} />
         <EvidencePackTimeline timeline={caseData.timeline} />
         <EvidencePackDocuments documents={caseData.documents} />

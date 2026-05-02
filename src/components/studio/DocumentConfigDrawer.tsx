@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +45,7 @@ interface DocumentConfigDrawerProps {
 export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocument, onSave }: DocumentConfigDrawerProps) {
   const [docDef, setDocDef] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   
   // Local states for complex fields
   const [fields, setFields] = useState<string[]>([]);
@@ -114,6 +120,21 @@ export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocu
     toast.success('Cross-validation rule removed');
   };
 
+  const handleDelete = async () => {
+    try {
+      setDeleting(true);
+      await api.studio.documents.delete(docDef.id);
+      toast.success(`"${docDef.name}" deleted`);
+      if (onSave) onSave();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Failed to delete document type', error);
+      toast.error(error?.message || 'Failed to delete document type');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -121,6 +142,7 @@ export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocu
       const payload = {
         category: docDef.category,
         mandatory: docDef.mandatory,
+        is_active: docDef.is_active ?? true,
         renewal_only: docDef.renewal_only, // Ensure this matches backend field name
         extraction_keys: fields,
         ai_instructions: aiInstructions,
@@ -434,6 +456,19 @@ export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocu
 
             <div className="flex items-center justify-between">
               <div>
+                <Label className="text-sm">Active</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  When off, requests stop expecting this document and any check that depends on it is hidden.
+                </p>
+              </div>
+              <Switch
+                checked={docDef.is_active ?? true}
+                onCheckedChange={(val) => setDocDef({ ...docDef, is_active: val })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
                 <Label className="text-sm">Mandatory</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Make this document generally required
@@ -457,8 +492,39 @@ export function DocumentConfigDrawer({ open, onOpenChange, document: initialDocu
         </div>
 
         {/* Sticky footer */}
-        <div className="shrink-0 px-6 py-4 border-t border-border bg-background">
-          <Button onClick={handleSave} disabled={saving} className="w-full gap-2">
+        <div className="shrink-0 px-6 py-4 border-t border-border bg-background flex items-center gap-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                disabled={saving || deleting}
+                className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/5 hover:text-destructive"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this document type?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  <strong>{docDef.name}</strong> will be removed from the catalog. Existing requests that reference it
+                  will keep their attachments, but operators won't be able to upload new files of this type.
+                  This action can't be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete document type
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <Button onClick={handleSave} disabled={saving || deleting} className="flex-1 gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Save Configuration
           </Button>

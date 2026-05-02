@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { GlobalHeader } from './GlobalHeader';
 import { api } from '@/lib/api';
 
-const AUTO_POLL_INTERVAL_MS = 10_000;
+const AUTO_POLL_INTERVAL_MS = 60_000;
 
 /**
  * Custom event emitted after every successful inbound-email auto-poll. Pages

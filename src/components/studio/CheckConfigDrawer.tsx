@@ -26,10 +26,10 @@ interface HandlerMeta {
 type AutoCheckRule = 'manual' | 'document-present' | 'field-extracted' | 'cross-validation';
 
 const AUTO_CHECK_OPTIONS: Array<{ value: AutoCheckRule; label: string }> = [
-  { value: 'manual', label: 'Manual Only' },
-  { value: 'document-present', label: 'Document Present' },
-  { value: 'field-extracted', label: 'Field Extracted' },
-  { value: 'cross-validation', label: 'Cross-validation Auto' },
+  { value: 'manual', label: 'Only when an operator runs it' },
+  { value: 'document-present', label: 'When the linked document arrives' },
+  { value: 'field-extracted', label: 'When AI extracts the fields' },
+  { value: 'cross-validation', label: 'When linked rules can run' },
 ];
 
 const ITEM_TYPES = [
@@ -37,8 +37,8 @@ const ITEM_TYPES = [
   { value: 'verification', label: 'Verification' },
   { value: 'extraction', label: 'Extraction' },
   { value: 'cross-validation', label: 'Cross-validation' },
-  { value: 'third-party-api', label: 'Third-party API' },
-  { value: 'agent-orchestrator', label: 'Agent (prompt-driven)' },
+  { value: 'third-party-api', label: 'External API' },
+  { value: 'agent-orchestrator', label: 'AI agent' },
   { value: 'entity-screening', label: 'Entity screening' },
   { value: 'risk-review', label: 'Risk review' },
 ];
@@ -310,143 +310,136 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[640px] sm:max-w-[640px] flex flex-col p-0">
-        <SheetHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
-          <SheetTitle className="text-left truncate">{item.name}</SheetTitle>
-          <SheetDescription className="text-left text-xs">
-            Stage: {stages.find(s => s.id === stageId)?.name || '—'} · ID {item.id}
+      <SheetContent className="w-[620px] sm:max-w-[620px] flex flex-col p-0">
+        <SheetHeader className="px-5 pt-5 pb-3 border-b border-border shrink-0">
+          <SheetTitle className="text-left truncate text-base">{item.name}</SheetTitle>
+          <SheetDescription className="text-left text-[11px]">
+            {stages.find(s => s.id === stageId)?.name || 'No stage'}
           </SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto">
-          <Tabs defaultValue="basics" className="px-6 pt-4">
-            <TabsList className="grid grid-cols-4 w-full">
-              <TabsTrigger value="basics" className="gap-1.5"><Settings2 className="h-3.5 w-3.5" />Basics</TabsTrigger>
-              <TabsTrigger value="prompts" className="gap-1.5"><Wand2 className="h-3.5 w-3.5" />Prompts</TabsTrigger>
-              <TabsTrigger value="linked" className="gap-1.5"><FileText className="h-3.5 w-3.5" />Linked</TabsTrigger>
-              <TabsTrigger value="advanced" className="gap-1.5"><Sparkles className="h-3.5 w-3.5" />Advanced</TabsTrigger>
+          <Tabs defaultValue="basics" className="px-5 pt-3">
+            <TabsList className="grid grid-cols-4 w-full h-9">
+              <TabsTrigger value="basics" className="text-xs">Basics</TabsTrigger>
+              <TabsTrigger value="prompts" className="text-xs">Prompts</TabsTrigger>
+              <TabsTrigger value="linked" className="text-xs">Linked</TabsTrigger>
+              <TabsTrigger value="advanced" className="text-xs">Advanced</TabsTrigger>
             </TabsList>
 
             {/* BASICS */}
-            <TabsContent value="basics" className="space-y-4 pt-4 pb-6">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">Name</Label>
+            <TabsContent value="basics" className="space-y-3 pt-4 pb-6">
+              <Field label="Name">
                 <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Trade licence is current" />
-              </div>
+              </Field>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Stage</Label>
+                <Field label="Stage">
                   <Select value={stageId ? String(stageId) : ''} onValueChange={v => setStageId(Number(v))}>
-                    <SelectTrigger><SelectValue placeholder="Stage" /></SelectTrigger>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {stages.map(s => (
                         <SelectItem key={s.id} value={String(s.id)}>{s.order}. {s.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Item type</Label>
+                </Field>
+                <Field label="Type">
                   <Select value={itemType} onValueChange={setItemType}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {ITEM_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">Auto-check rule</Label>
-                <Select value={autoCheckRule} onValueChange={v => setAutoCheckRule(v as AutoCheckRule)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {AUTO_CHECK_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                </Field>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
-                  <div>
-                    <Label className="text-sm">Required</Label>
-                    <p className="text-[11px] text-muted-foreground">Block release until passed</p>
-                  </div>
-                  <Switch checked={required} onCheckedChange={setRequired} />
-                </div>
-                <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
-                  <div>
-                    <Label className="text-sm">Manual override</Label>
-                    <p className="text-[11px] text-muted-foreground">Ops can mark as passed</p>
-                  </div>
-                  <Switch checked={overrideAllowed} onCheckedChange={setOverrideAllowed} />
-                </div>
+                <ToggleRow
+                  label="Required"
+                  hint="Blocks release until passed"
+                  checked={required}
+                  onChange={setRequired}
+                />
+                <ToggleRow
+                  label="Allow override"
+                  hint="Ops can pass it manually"
+                  checked={overrideAllowed}
+                  onChange={setOverrideAllowed}
+                />
               </div>
+
+              <details className="text-xs pt-1">
+                <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
+                  When should it run automatically?
+                </summary>
+                <div className="mt-2">
+                  <Select value={autoCheckRule} onValueChange={v => setAutoCheckRule(v as AutoCheckRule)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {AUTO_CHECK_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground mt-1.5">
+                    Used as a fallback when no Steps are configured under <strong>Advanced</strong>.
+                  </p>
+                </div>
+              </details>
             </TabsContent>
 
             {/* PROMPTS */}
             <TabsContent value="prompts" className="space-y-4 pt-4 pb-6">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <Wand2 className="h-3 w-3" />
-                  Task description
-                </Label>
+              <Field
+                label="What this check does"
+                hint="One line, plain English. Shown to ops in the workbench."
+              >
                 <Textarea
                   value={taskDescription}
                   onChange={e => setTaskDescription(e.target.value)}
-                  placeholder="What this check is verifying. Shown to ops in the workbench."
-                  rows={3}
-                  className="text-sm font-mono"
+                  placeholder="e.g. Confirms the trade licence is still valid."
+                  rows={2}
+                  className="text-sm"
                 />
-                <p className="text-[10px] text-muted-foreground">Plain English. Surfaces to operators when a manual review is needed.</p>
-              </div>
+              </Field>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                  <Sparkles className="h-3 w-3 text-primary" />
-                  Prompt / additional instructions
-                </Label>
+              <Field
+                label="AI prompt"
+                hint="Tell the AI exactly what to verify. Used by AI-driven steps."
+              >
                 <Textarea
                   value={taskDetails}
                   onChange={e => setTaskDetails(e.target.value)}
-                  placeholder={'Detailed instructions for the AI agent. e.g. "Verify that the trade licence expiry date is at least 90 days in the future. Flag if the activity codes do not include insurance brokerage."'}
-                  rows={9}
-                  className="text-sm font-mono leading-relaxed"
+                  placeholder={'e.g. Confirm the trade licence expiry is at least 90 days away and the activity list includes "insurance brokerage". Flag anything that doesn\'t match.'}
+                  rows={8}
+                  className="text-sm leading-relaxed"
                 />
-                <p className="text-[10px] text-muted-foreground">
-                  This is the prompt the agent uses when <code className="text-[10px] bg-muted px-1 rounded">item_type</code> is <code className="text-[10px] bg-muted px-1 rounded">agent-orchestrator</code> or any handler that consumes free-form instructions.
-                </p>
-              </div>
+              </Field>
             </TabsContent>
 
             {/* LINKED */}
             <TabsContent value="linked" className="space-y-4 pt-4 pb-6">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-medium text-muted-foreground">Linked documents</Label>
-                  <span className="text-[11px] text-muted-foreground">{linkedDocs.length} selected</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Document types this check depends on. The auto-check rule uses these to know when to run (e.g. <em>document-present</em> waits for any of these to be uploaded).
-                </p>
+              <Field
+                label="Documents this check needs"
+                hint="The check waits for these to be uploaded before running."
+                trailing={<span className="text-[11px] text-muted-foreground">{linkedDocs.length} selected</span>}
+              >
                 {Object.keys(groupedDocs).length === 0 ? (
-                  <div className="text-xs text-muted-foreground py-6 text-center border border-dashed rounded-md">
-                    No document types defined yet. Add them in <strong>Documents</strong>.
-                  </div>
+                  <p className="text-xs text-muted-foreground py-6 text-center border border-dashed rounded-md">
+                    No document types yet. Add them in <strong>Documents</strong>.
+                  </p>
                 ) : (
-                  <div className="space-y-3 mt-2">
+                  <div className="space-y-2">
                     {Object.entries(groupedDocs).map(([cat, docs]) => (
-                      <div key={cat} className="border border-border rounded-md p-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">{cat}</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                      <div key={cat} className="border border-border rounded-md p-2.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">{cat}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
                           {docs.map(d => {
                             const checked = linkedDocs.includes(d.doc_type);
                             return (
                               <label
                                 key={d.id}
                                 className={cn(
-                                  'flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm transition-colors',
+                                  'flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-sm',
                                   checked ? 'bg-primary/10' : 'hover:bg-muted/50',
                                 )}
                               >
@@ -460,33 +453,27 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
                     ))}
                   </div>
                 )}
-              </div>
+              </Field>
 
               {autoCheckRule === 'cross-validation' && (
-                <div className="space-y-2 pt-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                      <Network className="h-3 w-3" />
-                      Cross-validation rules
-                    </Label>
-                    <span className="text-[11px] text-muted-foreground">{cvRuleIds.length} selected</span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Which CV rules this check evaluates. Manage rules under <strong>Documents → Configure → CV rules</strong>.
-                  </p>
+                <Field
+                  label="Cross-validation rules"
+                  hint="Pick the rules this check should run."
+                  trailing={<span className="text-[11px] text-muted-foreground">{cvRuleIds.length} selected</span>}
+                >
                   {cvOptions.length === 0 ? (
-                    <div className="text-xs text-muted-foreground py-6 text-center border border-dashed rounded-md">
-                      No cross-validation rules defined yet.
-                    </div>
+                    <p className="text-xs text-muted-foreground py-6 text-center border border-dashed rounded-md">
+                      No rules yet. Create them in <strong>Documents → CV rules</strong>.
+                    </p>
                   ) : (
-                    <div className="space-y-1 mt-2 max-h-72 overflow-y-auto pr-1">
+                    <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
                       {cvOptions.map(r => {
                         const checked = cvRuleIds.includes(r.id);
                         return (
                           <label
                             key={r.id}
                             className={cn(
-                              'flex items-start gap-2 px-2 py-2 rounded cursor-pointer text-sm transition-colors border',
+                              'flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer text-sm border',
                               checked ? 'bg-primary/10 border-primary/30' : 'border-border hover:bg-muted/30',
                             )}
                           >
@@ -502,62 +489,49 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
                       })}
                     </div>
                   )}
-                </div>
+                </Field>
               )}
             </TabsContent>
 
             {/* ADVANCED */}
-            <TabsContent value="advanced" className="space-y-4 pt-4 pb-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Verifications</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Stack one or more handlers — they all run in order. Worst-case status wins.
-                  </p>
-                </div>
-                <Badge variant="outline" className="text-[10px]">{verifications.length} step{verifications.length === 1 ? '' : 's'}</Badge>
+            <TabsContent value="advanced" className="space-y-3 pt-4 pb-6">
+              <div>
+                <p className="text-sm font-medium">Steps</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Add one or more steps. They run in order. If any step fails, the check fails.
+                </p>
               </div>
 
               {verifications.length === 0 && (
-                <div className="rounded-md border border-info/30 bg-info/5 p-3 flex items-start gap-2">
-                  <Sparkles className="h-3.5 w-3.5 text-info shrink-0 mt-0.5" />
-                  <div className="text-[11px] text-foreground/80">
-                    <p className="font-medium">No verifications yet.</p>
-                    <p className="text-muted-foreground mt-0.5">
-                      Click "Add verification" to plug in a handler (FTA, NER, signature match, AML…).
-                      Leave empty to fall back to the auto-check rule (document-present, field-extracted, …).
-                    </p>
-                  </div>
-                </div>
+                <p className="text-xs text-muted-foreground py-6 text-center border border-dashed rounded-md">
+                  No steps yet. Add one below.
+                </p>
               )}
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {verifications.map((v, idx) => {
                   const meta = handlerByName[v.handler];
                   const isManual = v.handler === 'manual';
                   return (
-                    <div key={idx} className="rounded-md border border-border bg-muted/10">
-                      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60">
-                        <span className="text-[10px] font-semibold text-muted-foreground tabular-nums w-5">#{idx + 1}</span>
+                    <div key={idx} className="rounded-md border border-border bg-card">
+                      <div className="flex items-center gap-2 px-2.5 py-1.5 border-b border-border/60">
+                        <span className="text-[10px] font-semibold text-muted-foreground tabular-nums w-4">{idx + 1}</span>
                         {isManual ? (
-                          <Badge className="bg-warning/15 text-warning border-0 text-[10px] gap-1 h-5">
+                          <span className="flex-1 text-xs font-medium text-warning flex items-center gap-1.5">
                             <Wand2 className="h-3 w-3" />
-                            Manual step
-                          </Badge>
+                            Manual signoff
+                          </span>
                         ) : (
                           <Select value={v.handler || ''} onValueChange={(handler) => updateVerification(idx, { handler })}>
                             <SelectTrigger className="h-7 flex-1 text-xs">
-                              <SelectValue placeholder="Pick a handler" />
+                              <SelectValue placeholder="Pick what this step does" />
                             </SelectTrigger>
                             <SelectContent className="max-h-72">
                               {Object.entries(groupedHandlers).map(([cat, list]) => (
                                 <div key={cat} className="px-1 py-1">
-                                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{cat}</p>
+                                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{cat}</p>
                                   {list.map(h => (
-                                    <SelectItem key={h.name} value={h.name}>
-                                      <span className="font-medium">{h.label}</span>
-                                      <span className="ml-2 text-[10px] font-mono text-muted-foreground">{h.name}</span>
-                                    </SelectItem>
+                                    <SelectItem key={h.name} value={h.name}>{h.label}</SelectItem>
                                   ))}
                                 </div>
                               ))}
@@ -570,20 +544,20 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
                             onClick={() => moveVerification(idx, -1)}
                             title="Move up"
                           >
-                            <span className="text-xs">↑</span>
+                            <span className="text-sm">↑</span>
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7"
                             disabled={idx === verifications.length - 1}
                             onClick={() => moveVerification(idx, 1)}
                             title="Move down"
                           >
-                            <span className="text-xs">↓</span>
+                            <span className="text-sm">↓</span>
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                             onClick={() => removeVerification(idx)}
-                            title="Remove"
+                            title="Remove step"
                           >
-                            <span className="text-xs">×</span>
+                            <span className="text-sm">×</span>
                           </Button>
                         </div>
                       </div>
@@ -591,7 +565,7 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
                       {!isManual && meta && (
                         <div className="px-3 py-3">
                           {meta.description && (
-                            <p className="text-[10px] text-muted-foreground mb-3">{meta.description}</p>
+                            <p className="text-[11px] text-muted-foreground mb-3 leading-relaxed">{meta.description}</p>
                           )}
                           <HandlerSchemaForm
                             schema={meta.schema}
@@ -604,13 +578,13 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
                       {!isManual && !meta && v.handler && (
                         <p className="px-3 py-3 text-[11px] text-warning flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" />
-                          Handler "{v.handler}" not found in the registry.
+                          "{v.handler}" isn't a registered handler.
                         </p>
                       )}
 
                       {isManual && (
                         <p className="px-3 py-2 text-[11px] text-muted-foreground">
-                          A "manual" step keeps the check at <em>pending</em> until an operator ticks it. Useful when the rest of the pipeline is automated but a human signoff is required.
+                          The check stays pending until an operator ticks it.
                         </p>
                       )}
                     </div>
@@ -619,18 +593,20 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
               </div>
 
               <div className="flex items-center gap-2 pt-1">
-                <Button variant="outline" size="sm" onClick={addVerification} className="gap-1.5">
+                <Button variant="outline" size="sm" onClick={addVerification} className="gap-1.5 h-8">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Add verification
+                  Add step
                 </Button>
-                <Button variant="outline" size="sm" onClick={addManualStep} className="gap-1.5">
+                <Button variant="outline" size="sm" onClick={addManualStep} className="gap-1.5 h-8">
                   <Wand2 className="h-3.5 w-3.5" />
-                  Add manual step
+                  Add manual signoff
                 </Button>
               </div>
 
-              <details className="text-[11px]">
-                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Raw config_payload (advanced)</summary>
+              <details className="text-[11px] pt-2">
+                <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
+                  Raw config (read-only inspector)
+                </summary>
                 <Textarea
                   value={configPayloadText}
                   onChange={e => { setConfigPayloadText(e.target.value); setConfigPayloadError(null); }}
@@ -642,37 +618,21 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
                   <p className="text-[11px] text-destructive flex items-center gap-1 mt-1"><AlertCircle className="h-3 w-3" />{configPayloadError}</p>
                 )}
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  The list above is the source of truth on save. Edit raw JSON only for keys outside the verification stack.
+                  Steps above always win on save.
                 </p>
-              </details>
-
-              <details className="text-[11px]">
-                <summary className="cursor-pointer text-muted-foreground hover:text-foreground">API config (legacy)</summary>
-                <Textarea
-                  value={apiConfigText}
-                  onChange={e => { setApiConfigText(e.target.value); setApiConfigError(null); }}
-                  rows={4}
-                  className={cn('font-mono text-xs leading-relaxed mt-2', apiConfigError && 'border-destructive')}
-                  spellCheck={false}
-                />
-                {apiConfigError && (
-                  <p className="text-[11px] text-destructive flex items-center gap-1 mt-1"><AlertCircle className="h-3 w-3" />{apiConfigError}</p>
-                )}
               </details>
             </TabsContent>
           </Tabs>
         </div>
 
         {/* Sticky footer */}
-        <div className="shrink-0 px-6 py-4 border-t border-border bg-background flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
-            {linkedDocs.length > 0 && <Badge variant="outline" className="text-[10px]">{linkedDocs.length} docs</Badge>}
-            {cvRuleIds.length > 0 && <Badge variant="outline" className="text-[10px]">{cvRuleIds.length} CV rules</Badge>}
-            {verifications.length > 0 && (
-              <Badge variant="outline" className="text-[10px]">
-                {verifications.length} verification{verifications.length === 1 ? '' : 's'}
-              </Badge>
-            )}
+        <div className="shrink-0 px-5 py-3 border-t border-border bg-background flex items-center gap-2">
+          <div className="flex-1 text-[11px] text-muted-foreground truncate">
+            {[
+              linkedDocs.length > 0 && `${linkedDocs.length} ${linkedDocs.length === 1 ? 'doc' : 'docs'}`,
+              cvRuleIds.length > 0 && `${cvRuleIds.length} ${cvRuleIds.length === 1 ? 'rule' : 'rules'}`,
+              verifications.length > 0 && `${verifications.length} ${verifications.length === 1 ? 'step' : 'steps'}`,
+            ].filter(Boolean).join(' · ')}
           </div>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
           <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
@@ -682,5 +642,44 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function Field({
+  label, hint, trailing, children,
+}: {
+  label: string;
+  hint?: string;
+  trailing?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <Label className="text-xs font-medium text-foreground">{label}</Label>
+        {trailing}
+      </div>
+      {children}
+      {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+function ToggleRow({
+  label, hint, checked, onChange,
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-md border border-border px-3 py-2 gap-2">
+      <div className="min-w-0">
+        <p className="text-sm font-medium leading-tight">{label}</p>
+        {hint && <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{hint}</p>}
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
   );
 }

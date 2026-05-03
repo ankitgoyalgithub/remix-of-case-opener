@@ -117,7 +117,8 @@ export default function RequestSummary() {
         const [reqResult, rdResult, docsResult, defsResult] = await Promise.allSettled([
             api.requests.get(requestId),
             api.requests.readiness(requestId),
-            api.documents.list(),
+            // Server-side filter — only this request's documents come back.
+            api.documents.list({ requestId }),
             api.studio.documents.list(),
         ]);
 
@@ -130,7 +131,17 @@ export default function RequestSummary() {
 
         if (rdResult.status === 'fulfilled') setReadiness(rdResult.value);
         if (docsResult.status === 'fulfilled') {
-            setDocuments(docsResult.value.filter((d: any) => d.request === requestId));
+            // Defensive belt-and-braces: the server already filtered, but tolerate
+            // any odd shape (`request` as object, mismatched casing) so a stray
+            // row never leaks into another request's view.
+            const target = String(requestId).toLowerCase();
+            const filtered = (docsResult.value as any[]).filter((d) => {
+                const r = d?.request;
+                if (r == null) return false;
+                const rid = (typeof r === 'object' ? r.id ?? r.pk : r);
+                return rid && String(rid).toLowerCase() === target;
+            });
+            setDocuments(filtered);
         }
         if (defsResult.status === 'fulfilled') setDocDefs(defsResult.value);
 

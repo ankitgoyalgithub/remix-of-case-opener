@@ -95,7 +95,10 @@ export const api = {
         }),
     },
     documents: {
-        list: () => fetchApi('/documents/files/'),
+        list: (opts: { requestId?: string } = {}) => {
+            const qs = opts.requestId ? `?request=${encodeURIComponent(opts.requestId)}` : '';
+            return fetchApi(`/documents/files/${qs}`);
+        },
         get: (id: string) => fetchApi(`/documents/files/${id}/`),
         update: (id: string, data: any) => fetchApi(`/documents/files/${id}/`, {
             method: 'PATCH',

@@ -51,7 +51,7 @@ export default function RequestDetail() {
       if (!opts.silent) setLoading(true);
       const [req, docsRes, studioDocsRes] = await Promise.all([
         api.requests.get(requestId),
-        api.documents.list(),
+        api.documents.list({ requestId }),
         api.studio.documents.list()
       ]);
 
@@ -77,9 +77,15 @@ export default function RequestDetail() {
 
       const requestStages = (req.request_stages || []).map(mapBackendStageToStage);
 
-      // Map documents and filter by current request (ensure newest first)
-      const requestDocuments = docsRes
-        .filter((d: any) => d.request === requestId)
+      // Map documents and filter by current request (defensive — server already filters)
+      const target = String(requestId).toLowerCase();
+      const requestDocuments = (docsRes as any[])
+        .filter((d) => {
+          const r = d?.request;
+          if (r == null) return false;
+          const rid = typeof r === 'object' ? r.id ?? r.pk : r;
+          return rid && String(rid).toLowerCase() === target;
+        })
         .map(mapBackendDocumentToDocument)
         .sort((a: Document, b: Document) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
 

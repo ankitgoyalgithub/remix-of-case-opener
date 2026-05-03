@@ -40,7 +40,7 @@ export default function EvidencePack() {
         setLoading(true);
         const [req, docsRes, studioDocsRes] = await Promise.all([
           api.requests.get(requestId),
-          api.documents.list(),
+          api.documents.list({ requestId }),
           api.studio.documents.list(),
         ]);
         const listItem = mapBackendRequestToListItem(req);
@@ -51,8 +51,14 @@ export default function EvidencePack() {
             stageId: rs.stage,
           }))
         );
-        const requestDocuments: Document[] = docsRes
-          .filter((d: any) => d.request === requestId)
+        const target = String(requestId).toLowerCase();
+        const requestDocuments: Document[] = (docsRes as any[])
+          .filter((d) => {
+            const r = d?.request;
+            if (r == null) return false;
+            const rid = typeof r === 'object' ? r.id ?? r.pk : r;
+            return rid && String(rid).toLowerCase() === target;
+          })
           .map(mapBackendDocumentToDocument)
           .sort((a: Document, b: Document) => b.uploadedAt.getTime() - a.uploadedAt.getTime());
         const extractionRecords = requestDocuments

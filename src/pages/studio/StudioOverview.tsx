@@ -24,71 +24,104 @@ interface Gap {
     action?: { label: string; to: string };
 }
 
+// Tolerate paginated DRF responses (`{count, next, results}`) and flat arrays
+// alike — different endpoints have different default pagination configs and
+// we'd rather show 12 stages than report "0 stages, run the setup wizard"
+// because of a wrapper.
+function asArray(v: any): any[] {
+    if (Array.isArray(v)) return v;
+    if (v && Array.isArray(v.results)) return v.results;
+    return [];
+}
+
 export default function StudioOverview() {
     const [loading, setLoading] = useState(true);
     const [state, setState] = useState<StudioState>({
         stages: [], documents: [], checklists: [], cvRules: [],
     });
+    // Track which lists succeeded so we can distinguish "genuinely empty" from
+    // "API call failed / unauthenticated / timed out". Showing "No stages
+    // configured. Run setup." when the fetch silently 401'd is misleading.
+    const [loadErrors, setLoadErrors] = useState<{ [k in keyof StudioState]?: string }>({});
 
     useEffect(() => {
         (async () => {
-            try {
-                const [stages, documents, checklists, cvRules] = await Promise.all([
-                    api.studio.stages.list().catch(() => []),
-                    api.studio.documents.list().catch(() => []),
-                    api.studio.checklists.list().catch(() => []),
-                    api.studio.cvRules.list().catch(() => []),
-                ]);
-                setState({ stages, documents, checklists, cvRules });
-            } catch (err) {
-                console.error('Failed to load studio overview', err);
-                toast.error('Failed to load configuration summary');
-            } finally {
-                setLoading(false);
+            const errs: typeof loadErrors = {};
+            const tryLoad = async <K extends keyof StudioState>(key: K, fn: () => Promise<any>) => {
+                try {
+                    return asArray(await fn());
+                } catch (err: any) {
+                    errs[key] = err?.message || 'failed to load';
+                    console.error(`StudioOverview: ${key} load failed`, err);
+                    return [];
+                }
+            };
+            const [stages, documents, checklists, cvRules] = await Promise.all([
+                tryLoad('stages', () => api.studio.stages.list()),
+                tryLoad('documents', () => api.studio.documents.list()),
+                tryLoad('checklists', () => api.studio.checklists.list()),
+                tryLoad('cvRules', () => api.studio.cvRules.list()),
+            ]);
+            setState({ stages, documents, checklists, cvRules });
+            setLoadErrors(errs);
+            if (Object.keys(errs).length > 0) {
+                toast.error('Some configuration could not be loaded — gaps below may be inaccurate.');
             }
+            setLoading(false);
         })();
     }, []);
 
-    // Gap detection: these surface config holes without making the user hunt.
+    // Gap detection: only fire "no X" gaps when the fetch SUCCEEDED and the
+    // result is genuinely empty. Otherwise surface a single "couldn't load"
+    // warning so we don't shame the user for a wrapper / auth / network
+    // problem on our end.
     const gaps: Gap[] = [];
-    if (state.stages.length === 0) {
+
+    if (Object.keys(loadErrors).length > 0) {
         gaps.push({
             severity: 'warning',
-            message: 'No workflow stages configured. Requests won\'t have a pipeline.',
-            action: { label: 'Run setup wizard', to: '/studio/setup' },
+            message: `Couldn't load: ${Object.keys(loadErrors).join(', ')}. The summary below may be incomplete — refresh once the issue clears.`,
         });
-    }
-    if (state.documents.length === 0) {
-        gaps.push({
-            severity: 'warning',
-            message: 'No document types defined. Operators can\'t upload anything meaningful.',
-            action: { label: 'Add documents', to: '/studio/documents' },
-        });
-    }
-    const docsWithoutExtraction = state.documents.filter((d: any) => !(d.extraction_keys || []).length);
-    if (state.documents.length > 0 && docsWithoutExtraction.length > 0) {
-        gaps.push({
-            severity: 'info',
-            message: `${docsWithoutExtraction.length} document type${docsWithoutExtraction.length > 1 ? 's' : ''} have no extraction schema — they'll be extracted free-form.`,
-            action: { label: 'Configure extraction', to: '/studio/documents' },
-        });
-    }
-    const checklistsWithoutHandler = state.checklists.filter((c: any) =>
-        c.item_type !== 'manual' && !c.handler_name
-    );
-    if (checklistsWithoutHandler.length > 0) {
-        gaps.push({
-            severity: 'warning',
-            message: `${checklistsWithoutHandler.length} automated check${checklistsWithoutHandler.length > 1 ? 's' : ''} have no handler wired — they'll never run.`,
-            action: { label: 'Review checks', to: '/studio/checks' },
-        });
-    }
-    if (state.cvRules.length === 0 && state.documents.length > 1) {
-        gaps.push({
-            severity: 'info',
-            message: 'No cross-validation rules configured — document-to-document field matching is off.',
-            action: { label: 'Add rules', to: '/studio/documents' },
-        });
+    } else {
+        if (state.stages.length === 0) {
+            gaps.push({
+                severity: 'warning',
+                message: 'No workflow stages configured. Requests won\'t have a pipeline.',
+                action: { label: 'Run setup wizard', to: '/studio/setup' },
+            });
+        }
+        if (state.documents.length === 0) {
+            gaps.push({
+                severity: 'warning',
+                message: 'No document types defined. Operators can\'t upload anything meaningful.',
+                action: { label: 'Add documents', to: '/studio/documents' },
+            });
+        }
+        const docsWithoutExtraction = state.documents.filter((d: any) => !(d.extraction_keys || []).length);
+        if (state.documents.length > 0 && docsWithoutExtraction.length > 0) {
+            gaps.push({
+                severity: 'info',
+                message: `${docsWithoutExtraction.length} document type${docsWithoutExtraction.length > 1 ? 's' : ''} have no extraction schema — they'll be extracted free-form.`,
+                action: { label: 'Configure extraction', to: '/studio/documents' },
+            });
+        }
+        const checklistsWithoutHandler = state.checklists.filter((c: any) =>
+            c.item_type !== 'manual' && !c.handler_name
+        );
+        if (checklistsWithoutHandler.length > 0) {
+            gaps.push({
+                severity: 'warning',
+                message: `${checklistsWithoutHandler.length} automated check${checklistsWithoutHandler.length > 1 ? 's' : ''} have no handler wired — they'll never run.`,
+                action: { label: 'Review checks', to: '/studio/checks' },
+            });
+        }
+        if (state.cvRules.length === 0 && state.documents.length > 1) {
+            gaps.push({
+                severity: 'info',
+                message: 'No cross-validation rules configured — document-to-document field matching is off.',
+                action: { label: 'Add rules', to: '/studio/documents' },
+            });
+        }
     }
 
     const hasAnyConfig =

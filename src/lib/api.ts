@@ -127,6 +127,16 @@ export const api = {
     user: {
         me: () => fetchApi('/user/me/'),
     },
+    users: {
+        list: () => fetchApi('/users/'),
+        create: (data: any) => fetchApi('/users/', { method: 'POST', body: JSON.stringify(data) }),
+        update: (id: number | string, data: any) => fetchApi(`/users/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+        delete: (id: number | string) => fetchApi(`/users/${id}/`, { method: 'DELETE' }),
+        resetPassword: (id: number | string, password: string) => fetchApi(`/users/${id}/reset-password/`, {
+            method: 'POST',
+            body: JSON.stringify({ password }),
+        }),
+    },
     notifications: {
         list: () => fetchApi('/notifications/'),
     },

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Settings as SettingsIcon, Bell, Monitor, Globe, Shield, CreditCard, Users, Link as LinkIcon, Database, Zap, Lock, Palette, Mail, Plus, RefreshCw, Trash2, CheckCircle2, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
+import { UsersPanel } from '@/components/settings/UsersPanel';
 import { api } from '@/lib/api';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -28,6 +29,11 @@ export default function Settings() {
     const [mailboxes, setMailboxes] = useState<MailboxAccount[]>([]);
     const [mailboxesLoading, setMailboxesLoading] = useState(false);
     const [polling, setPolling] = useState<string | null>(null);
+    const [me, setMe] = useState<{ id: number; role: string } | null>(null);
+
+    useEffect(() => {
+        api.user.me().then(setMe).catch(() => setMe(null));
+    }, []);
 
     const loadMailboxes = async () => {
         try {
@@ -105,6 +111,10 @@ export default function Settings() {
                     <TabsTrigger value="workspace" className="rounded-xl px-6 font-bold text-xs uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
                         <Globe className="h-4 w-4 mr-2" />
                         Workspace
+                    </TabsTrigger>
+                    <TabsTrigger value="users" className="rounded-xl px-6 font-bold text-xs uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
+                        <Users className="h-4 w-4 mr-2" />
+                        Users
                     </TabsTrigger>
                     <TabsTrigger value="api" className="rounded-xl px-6 font-bold text-xs uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
                         <Zap className="h-4 w-4 mr-2" />
@@ -242,6 +252,10 @@ export default function Settings() {
                         <p className="text-sm text-muted-foreground font-medium">Enterprise workspace controls are managed by your regional administrator. Apply for escalated permissions to edit team settings.</p>
                         <Button variant="outline" className="rounded-xl font-bold text-xs uppercase tracking-wider px-8 border-primary/20 hover:bg-primary/5">Contact Admin</Button>
                     </div>
+                </TabsContent>
+
+                <TabsContent value="users" className="space-y-6 max-w-4xl mx-auto">
+                    <UsersPanel currentUserId={me?.id} />
                 </TabsContent>
 
                 <TabsContent value="api" className="space-y-6">

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Workflow, FileStack, ClipboardCheck, Plug, Mail, Sparkles,
@@ -47,7 +46,7 @@ export default function StudioOverview() {
     useEffect(() => {
         (async () => {
             const errs: typeof loadErrors = {};
-            const tryLoad = async <K extends keyof StudioState>(key: K, fn: () => Promise<any>) => {
+            const tryLoad = async <K extends keyof StudioState,>(key: K, fn: () => Promise<any>) => {
                 try {
                     return asArray(await fn());
                 } catch (err: any) {
@@ -70,6 +69,13 @@ export default function StudioOverview() {
             setLoading(false);
         })();
     }, []);
+
+    // Computed once so the stat-card hints can reference them outside the
+    // gap-detection block below.
+    const docsWithoutExtraction = state.documents.filter((d: any) => !(d.extraction_keys || []).length);
+    const checklistsWithoutHandler = state.checklists.filter((c: any) =>
+        c.item_type !== 'manual' && !c.handler_name
+    );
 
     // Gap detection: only fire "no X" gaps when the fetch SUCCEEDED and the
     // result is genuinely empty. Otherwise surface a single "couldn't load"
@@ -97,7 +103,6 @@ export default function StudioOverview() {
                 action: { label: 'Add documents', to: '/studio/documents' },
             });
         }
-        const docsWithoutExtraction = state.documents.filter((d: any) => !(d.extraction_keys || []).length);
         if (state.documents.length > 0 && docsWithoutExtraction.length > 0) {
             gaps.push({
                 severity: 'info',
@@ -105,9 +110,6 @@ export default function StudioOverview() {
                 action: { label: 'Configure extraction', to: '/studio/documents' },
             });
         }
-        const checklistsWithoutHandler = state.checklists.filter((c: any) =>
-            c.item_type !== 'manual' && !c.handler_name
-        );
         if (checklistsWithoutHandler.length > 0) {
             gaps.push({
                 severity: 'warning',

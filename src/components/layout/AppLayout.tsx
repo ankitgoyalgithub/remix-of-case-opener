@@ -1,24 +1,21 @@
 import { useEffect, useRef } from 'react';
 import { Outlet } from 'react-router-dom';
-import { GlobalHeader } from './GlobalHeader';
+import { Sidebar } from './Sidebar';
+import { TopBar } from './TopBar';
 import { api } from '@/lib/api';
 
 const AUTO_POLL_INTERVAL_MS = 300_000;
 
 /**
- * Custom event emitted after every successful inbound-email auto-poll. Pages
- * (Inbox, Studio Inbound, Jobs) listen for it and refetch their data so new
- * matches appear without a manual refresh.
+ * Custom event emitted after every successful inbound-email auto-poll.
+ * Pages listen for it and refetch their data so new matches appear without
+ * a manual refresh.
  */
 export const INBOUND_POLL_EVENT = 'inbound-email:polled';
 
 export function AppLayout() {
     const inFlightRef = useRef(false);
 
-    // Background poll every 10 seconds while the user is signed in. We dedupe
-    // overlapping calls (the previous poll might still be running when the
-    // next tick fires) and stay quiet on errors so a flaky network doesn't
-    // spam toasts.
     useEffect(() => {
         const tick = async () => {
             if (inFlightRef.current) return;
@@ -30,24 +27,26 @@ export function AppLayout() {
                     new CustomEvent(INBOUND_POLL_EVENT, { detail: res }),
                 );
             } catch {
-                // Silent — endpoint is best-effort. The Jobs page surfaces failures.
+                // Silent — endpoint is best-effort.
             } finally {
                 inFlightRef.current = false;
             }
         };
 
         const id = window.setInterval(tick, AUTO_POLL_INTERVAL_MS);
-        // Kick off one immediate poll so users don't wait the first 10s.
         tick();
         return () => window.clearInterval(id);
     }, []);
 
     return (
-        <div className="h-screen flex flex-col bg-background">
-            <GlobalHeader />
-            <main className="flex-1 flex flex-col overflow-hidden relative">
-                <Outlet />
-            </main>
+        <div className="h-screen flex bg-background">
+            <Sidebar />
+            <div className="flex-1 min-w-0 flex flex-col">
+                <TopBar />
+                <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                    <Outlet />
+                </main>
+            </div>
         </div>
     );
 }

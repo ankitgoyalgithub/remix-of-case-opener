@@ -1,148 +1,351 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&family=Archivo+Black&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ────────────────────────────────────────────────────────────────────────────
+   Axiom-style Design System
+   Warm-cream light / true-black dark · single crimson accent
+   Heavy editorial display · mono ticker labels · hairline boxes
+   ──────────────────────────────────────────────────────────────────────── */
+
 @layer base {
   :root {
-    /* Refined Light Mode - Slate & Indigo */
-    --background: 210 40% 98.5%;
-    --foreground: 224 71.4% 4.1%;
+    /* Surfaces — warm cream (Axiom landing background) */
+    --background: 38 24% 96%;
+    --foreground: 0 0% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 224 71.4% 4.1%;
+    --card-foreground: 0 0% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 224 71.4% 4.1%;
+    --popover-foreground: 0 0% 8%;
 
-    --primary: 230 85% 55%;
-    --primary-foreground: 210 20% 98%;
+    /* Single accent — Axiom crimson */
+    --primary: 354 75% 52%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14.3% 95.9%;
-    --secondary-foreground: 220.9 39.3% 11%;
+    --secondary: 38 14% 92%;
+    --secondary-foreground: 0 0% 8%;
 
-    --muted: 220 14.3% 95.9%;
-    --muted-foreground: 220 8.9% 46.1%;
+    --muted: 38 14% 92%;
+    --muted-foreground: 0 0% 38%;
 
-    --accent: 230 85% 55% / 0.05;
-    --accent-foreground: 220.9 39.3% 11%;
+    --accent: 38 14% 92%;
+    --accent-foreground: 0 0% 8%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 20% 98%;
+    /* Semantic — destructive merges with primary (Axiom uses red for both
+       brand accent and critical state — context disambiguates) */
+    --destructive: 354 75% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 64% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 48%;
+    --warning-foreground: 0 0% 8%;
+    --info: 217 91% 50%;
+    --info-foreground: 0 0% 100%;
 
-    --success: 156 72% 38%;
-    --success-foreground: 210 20% 98%;
+    /* Hairlines — slightly warm */
+    --border: 38 12% 84%;
+    --input: 38 12% 84%;
+    --ring: 354 75% 52%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 210 20% 98%;
+    /* 6px default — Linear/Vercel sweet spot. Square enough to feel precise,
+       rounded enough to feel humane after 8 hours in the app. */
+    --radius: 0.375rem;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 230 85% 55%;
+    --sidebar-background: 38 24% 96%;
+    --sidebar-foreground: 0 0% 8%;
+    --sidebar-primary: 354 75% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 38 14% 92%;
+    --sidebar-accent-foreground: 0 0% 8%;
+    --sidebar-border: 38 12% 84%;
+    --sidebar-ring: 354 75% 52%;
 
-    --radius: 1rem;
+    --stage-complete: 142 64% 36%;
+    --stage-active: 354 75% 52%;
+    --stage-pending: 0 0% 60%;
+    --confidence-high: 142 64% 36%;
+    --confidence-medium: 38 92% 48%;
+    --confidence-low: 354 75% 52%;
 
-    /* Enterprise Tokens */
-    --glass-background: 0 0% 100% / 0.7;
-    --glass-border: 220 13% 91% / 0.5;
+    --glass-background: 38 24% 96% / 0.9;
+    --glass-border: 38 12% 84% / 0.6;
   }
 
   .dark {
-    /* Deep Oceanic Dark Mode */
-    --background: 224 62% 3.5%;
-    --foreground: 210 20% 98%;
+    /* Pure-ish black — Axiom dark surfaces */
+    --background: 0 0% 4%;
+    --foreground: 0 0% 96%;
 
-    --card: 224 62% 4.5%;
-    --card-foreground: 210 20% 98%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 96%;
 
-    --popover: 224 62% 4.5%;
-    --popover-foreground: 210 20% 98%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 96%;
 
-    --primary: 230 90% 65%;
-    --primary-foreground: 224 62% 3.5%;
+    --primary: 354 80% 58%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 224 62% 8%;
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 96%;
 
-    --muted: 224 62% 8%;
-    --muted-foreground: 217.9 10.6% 64.9%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 230 90% 65% / 0.1;
-    --accent-foreground: 210 20% 98%;
+    --accent: 0 0% 12%;
+    --accent-foreground: 0 0% 96%;
 
-    --destructive: 0 62.8% 40.6%;
-    --destructive-foreground: 210 20% 98%;
+    --destructive: 354 80% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 64% 42%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 0 0% 8%;
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
 
-    --success: 156 72% 35%;
-    --success-foreground: 210 20% 98%;
+    --border: 0 0% 14%;
+    --input: 0 0% 14%;
+    --ring: 354 80% 58%;
 
-    --warning: 48 96% 51%;
+    --sidebar-background: 0 0% 4%;
+    --sidebar-foreground: 0 0% 96%;
+    --sidebar-primary: 354 80% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent-foreground: 0 0% 96%;
+    --sidebar-border: 0 0% 14%;
+    --sidebar-ring: 354 80% 58%;
 
-    --border: 224 62% 10%;
-    --input: 224 62% 10%;
-    --ring: 230 90% 65%;
+    --stage-complete: 142 64% 42%;
+    --stage-active: 354 80% 58%;
+    --stage-pending: 0 0% 40%;
+    --confidence-high: 142 64% 42%;
+    --confidence-medium: 38 92% 55%;
+    --confidence-low: 354 80% 58%;
 
-    --glass-background: 224 62% 3.5% / 0.7;
-    --glass-border: 224 62% 15% / 0.5;
+    --glass-background: 0 0% 6% / 0.85;
+    --glass-border: 0 0% 14% / 0.6;
   }
 }
 
 @layer base {
   * {
-    @apply border-border outline-none;
+    @apply border-border;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring/60 ring-offset-2 ring-offset-background;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
-    font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
+    @apply bg-background text-foreground;
+    font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
     font-size: 14px;
     line-height: 1.5;
   }
 
-  /* Consistent type scale — use these classes, not raw font-bold overrides */
-  h1 { @apply text-xl font-semibold tracking-tight text-foreground; }
-  h2 { @apply text-base font-semibold tracking-tight text-foreground; }
+  code, kbd, pre, samp, .font-mono {
+    font-family: 'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    font-feature-settings: 'zero', 'ss01';
+  }
+
+  /* Type scale */
+  h1 { @apply text-xl font-semibold tracking-tight text-foreground; letter-spacing: -0.02em; }
+  h2 { @apply text-base font-semibold tracking-tight text-foreground; letter-spacing: -0.01em; }
   h3 { @apply text-sm font-semibold text-foreground; }
   h4, h5, h6 { @apply text-sm font-medium text-foreground; }
+
+  ::selection {
+    background-color: hsl(var(--primary) / 0.22);
+    color: hsl(var(--foreground));
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 6px;
+    border: 2px solid hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
+}
+
+@layer components {
+  /* ── Operational typography (the workhorse) ──────────────────────────── */
+
+  /* Page title — what every operational page uses. Calm, scannable. */
+  .page-title {
+    @apply text-[22px] font-semibold tracking-tight text-foreground;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+  }
+
+  /* Page eyebrow — tiny uppercase context label above the title */
+  .page-eyebrow {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+
+  /* Section title — for card/panel headers within a page */
+  .section-title {
+    @apply text-[13px] font-semibold tracking-tight text-foreground;
+  }
+
+  /* Numeric KPI display — for the dashboard KPI strip */
+  .kpi-value {
+    @apply text-[28px] font-semibold tabular-nums tracking-tight text-foreground;
+    line-height: 1;
+  }
+
+  /* ── Editorial display (reserved for marketing surfaces only) ───────── */
+
+  /* Heavy editorial display — used ONLY on /login (marketing-style hero).
+     Do NOT use on Dashboard, Inbox, Workbench, or any operational page —
+     it's too loud for users who work in the app all day. */
+  .ax-display {
+    font-family: 'Archivo Black', 'Geist', system-ui, sans-serif;
+    font-weight: 900;
+    letter-spacing: -0.035em;
+    line-height: 0.95;
+    color: hsl(var(--foreground));
+  }
+
+  /* ── Mono ticker labels (used sparingly) ────────────────────────────── */
+
+  .ax-ticker {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+  .ax-ticker-strong {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: hsl(var(--foreground));
+  }
+  .ax-ticker-accent {
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: hsl(var(--primary));
+  }
+
+  /* Section marker — "01 / SECTION NAME" pattern. Restored for compatibility
+     but use sparingly on operational pages. */
+  .ax-section-marker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Geist Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+  }
+  .ax-section-marker > .marker-num {
+    color: hsl(var(--primary));
+    font-weight: 600;
+  }
+
+  /* Underline — red emphasis under key headline words. Marketing only. */
+  .ax-underline {
+    position: relative;
+    display: inline-block;
+    color: hsl(var(--primary));
+  }
+  .ax-underline::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0.08em;
+    height: 0.12em;
+    background: hsl(var(--primary));
+    opacity: 0.95;
+  }
 }
 
 @layer utilities {
+  /* Faint grid backdrop — Axiom uses this on hero + dark sections */
+  .ax-grid {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 64px 64px;
+    background-position: -1px -1px;
+  }
+  .ax-grid-fine {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.35) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.35) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-position: -1px -1px;
+  }
+
+  /* Faint dot grid — for dark mode hero */
+  .ax-dots {
+    background-image: radial-gradient(circle, hsl(var(--border) / 0.55) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Subtle entrance */
+  @keyframes refined-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .refined-in {
+    animation: refined-in 320ms cubic-bezier(0.2, 0, 0.13, 1) both;
+  }
+
+  /* Legacy aliases — preserved so we don't break components we haven't reworked yet */
   .glass {
-    @apply bg-[hsl(var(--glass-background))] backdrop-blur-xl border border-[hsl(var(--glass-border))];
+    @apply bg-background border border-border;
   }
-
   .glass-card {
-    @apply bg-card/40 backdrop-blur-2xl border border-white/5;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    @apply bg-card border border-border;
   }
-
+  .neo-blur {
+    @apply bg-background;
+  }
+  .premium-shadow {
+    box-shadow: 0 1px 2px 0 hsl(0 0% 0% / 0.04);
+  }
   .bento-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.5rem;
+    gap: 1rem;
   }
 
-  .premium-shadow {
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.05);
-  }
-
-  /* Shimmer animation used by Skeleton via `before:animate-[shimmer_1.6s_infinite]`.
-     Translates a gradient overlay across the skeleton width. */
   @keyframes shimmer {
     0%   { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
   }
-
-  .neo-blur {
-    backdrop-filter: blur(16px) saturate(180%);
-    background-color: rgba(var(--background), 0.8);
-  }
 }
 
-/* PDF.js text layer (used by HighlightedPdfViewer) */
-/* Width / height are set inline by pdf.js as
-   `calc(var(--scale-factor) * pageWidthpx)` — don't override with CSS. */
+/* PDF.js text layer (unchanged) */
 .pdf-text-layer {
   position: absolute;
   top: 0;
@@ -164,7 +367,7 @@
 }
 
 .pdf-text-layer ::selection {
-  background: rgba(59, 130, 246, 0.35);
+  background: rgba(220, 38, 38, 0.35);
 }
 
 .pdf-highlight {
@@ -190,27 +393,17 @@
     background: #fff !important;
   }
 
-  /* The app root typically uses a height-constrained flex column. Unwind it
-     so the full evidence pack can flow across pages instead of being clipped
-     to the viewport. */
-  body * {
-    overflow: visible !important;
-  }
+  body * { overflow: visible !important; }
 
   .evidence-pack-root,
-  .evidence-pack-root * {
-    overflow: visible !important;
-  }
+  .evidence-pack-root * { overflow: visible !important; }
 
-  /* Radix ScrollArea viewports use a nested [data-radix-scroll-area-viewport]
-     with inline overflow styles that clip to visible area. Force them open. */
   [data-radix-scroll-area-viewport] {
     overflow: visible !important;
     height: auto !important;
     max-height: none !important;
   }
 
-  /* Don't page-break in the middle of a card / section. */
   .evidence-pack-root section,
   .evidence-pack-root [data-slot="card"],
   .evidence-pack-root .rounded-md,
@@ -219,19 +412,13 @@
     page-break-inside: avoid;
   }
 
-  /* Embedded PDF/image previews tend to stretch a full page. Cap their
-     height so surrounding content remains visible. */
-  .evidence-pack-root iframe {
-    display: none !important;
-  }
+  .evidence-pack-root iframe { display: none !important; }
 
   .evidence-pack-root img {
     max-height: 240px !important;
     object-fit: contain !important;
   }
 
-  /* The flattened document pages section renders full-size pages and must
-     not be capped like the thumbnail previews above. */
   .evidence-document-pages .doc-page img {
     max-height: none !important;
     width: 100% !important;

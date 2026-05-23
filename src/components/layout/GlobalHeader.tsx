@@ -52,24 +52,24 @@ export function GlobalHeader() {
             {NAV_ITEMS.map(item => {
                 const active = isActive(item.to);
                 return (
-                    <Link key={item.to} to={item.to} onClick={() => setIsMobileMenuOpen(false)} className="relative">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className={cn(
-                                'font-medium text-sm h-8 px-3 transition-colors',
-                                mobile && 'w-full justify-start',
-                                active
-                                    ? 'text-foreground hover:text-foreground hover:bg-muted/70'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-                            )}
-                        >
-                            {item.label}
-                        </Button>
-                        {/* Active underline — slides between items because we use the same
-                            shared class; keeps the nav feeling crisp without screaming. */}
+                    <Link
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className={cn(
+                            'relative inline-flex items-center text-[13px] font-medium transition-colors',
+                            mobile
+                                ? 'w-full h-10 px-3 rounded-md hover:bg-muted'
+                                : 'h-14 px-4',
+                            !mobile && (active
+                                ? 'text-foreground'
+                                : 'text-muted-foreground hover:text-foreground'),
+                        )}
+                    >
+                        {item.label}
+                        {/* Red underline indicator — Axiom-style active state */}
                         {active && !mobile && (
-                            <span className="absolute left-2.5 right-2.5 -bottom-[13px] h-[2px] rounded-t-full bg-gradient-to-r from-primary to-info" />
+                            <span className="absolute left-3 right-3 -bottom-px h-[2px] bg-primary" />
                         )}
                     </Link>
                 );
@@ -78,75 +78,68 @@ export function GlobalHeader() {
     );
 
     return (
-        <header className="h-14 border-b border-border bg-background flex items-center justify-between px-4 md:px-6 shrink-0 sticky top-0 z-50">
-            <div className="flex items-center gap-4">
+        <header className="h-14 border-b border-border bg-background flex items-center justify-between px-4 md:px-5 shrink-0 sticky top-0 z-50">
+            <div className="flex items-center h-full">
                 {/* Mobile Menu Trigger */}
-                <div className="md:hidden">
+                <div className="md:hidden mr-2">
                     <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                         <SheetTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button variant="ghost" size="icon" className="h-9 w-9">
                                 <Menu className="h-4 w-4" />
                             </Button>
                         </SheetTrigger>
                         <SheetContent side="left" className="w-[260px] p-0">
                             <SheetHeader className="px-5 py-4 border-b border-border">
                                 <SheetTitle className="flex items-center gap-2.5">
-                                    <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
-                                        <ShieldCheck className="w-4 h-4 text-white" />
-                                    </div>
-                                    <span className="text-base font-semibold">INSUREAUTO</span>
+                                    <Logomark />
+                                    <Wordmark />
                                 </SheetTitle>
                             </SheetHeader>
-                            <div className="flex flex-col p-3 gap-1">
+                            <div className="flex flex-col p-2 gap-0.5">
                                 <NavItems mobile />
                             </div>
                         </SheetContent>
                     </Sheet>
                 </div>
 
-                <Link to="/dashboard" className="flex items-center gap-2.5 group">
-                    <div className="w-7 h-7 rounded-md bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0 shadow-sm shadow-primary/20 group-hover:shadow-md group-hover:shadow-primary/30 transition-shadow">
-                        <ShieldCheck className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="hidden sm:inline text-sm font-semibold tracking-tight text-foreground">
-                        InsureAuto
-                    </span>
+                <Link to="/dashboard" className="flex items-center gap-2.5 pr-5 h-full">
+                    <Logomark />
+                    <Wordmark />
                 </Link>
 
-                <nav className="hidden md:flex items-center gap-1 ml-2">
+                <nav className="hidden md:flex items-center h-full">
                     <NavItems />
                 </nav>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
                 <button
                     type="button"
                     onClick={() => {
-                        // Trigger Cmd+K via synthesised event; CommandPalette listens for it.
                         const isMac = /Mac/i.test(navigator.platform);
                         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: isMac, ctrlKey: !isMac }));
                     }}
-                    className="hidden md:inline-flex h-8 items-center gap-2 rounded-md border border-border bg-muted/40 px-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                    className="hidden md:inline-flex h-8 items-center gap-2 border border-border bg-background pl-2.5 pr-1.5 ax-ticker hover:border-foreground/30 hover:text-foreground transition-colors"
                     title="Open command palette"
                 >
-                    <Search className="h-3.5 w-3.5" />
-                    <span>Search…</span>
-                    <kbd className="ml-1 rounded border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono">⌘K</kbd>
+                    <Search className="h-3 w-3" />
+                    <span>SEARCH</span>
+                    <kbd className="border border-border bg-background px-1.5 py-0.5 text-[10px] font-mono leading-none tracking-normal">⌘K</kbd>
                 </button>
 
-                <Button variant="ghost" size="icon" className="relative h-8 w-8 text-muted-foreground hover:text-foreground">
+                <Button variant="ghost" size="icon" className="relative h-9 w-9 text-muted-foreground hover:text-foreground">
                     <Bell className="h-4 w-4" />
                     {unreadCount > 0 && (
-                        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-destructive"></span>
+                        <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary ring-2 ring-background" />
                     )}
                 </Button>
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0 rounded-full">
+                        <Button variant="ghost" className="h-9 w-9 p-0 rounded-full">
                             <Avatar className="h-7 w-7">
                                 <AvatarImage src="/placeholder-avatar.jpg" />
-                                <AvatarFallback className="bg-muted text-foreground text-xs font-medium">{initials}</AvatarFallback>
+                                <AvatarFallback className="bg-foreground text-background text-[11px] font-mono font-semibold tracking-wider">{initials}</AvatarFallback>
                             </Avatar>
                         </Button>
                     </DropdownMenuTrigger>
@@ -177,5 +170,22 @@ export function GlobalHeader() {
                 </DropdownMenu>
             </div>
         </header>
+    );
+}
+
+function Logomark() {
+    return (
+        <div className="w-8 h-8 border-2 border-foreground flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-4 h-4 text-foreground" strokeWidth={2.4} />
+        </div>
+    );
+}
+
+function Wordmark() {
+    return (
+        <div className="flex items-baseline gap-1.5">
+            <span className="text-[15px] font-extrabold tracking-tight text-foreground">INSUREAUTO</span>
+            <span className="ax-ticker-strong">OPS</span>
+        </div>
     );
 }

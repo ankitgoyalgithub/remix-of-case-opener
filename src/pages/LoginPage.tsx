@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label';
 import { api } from '@/lib/api';
 import { setTokens } from '@/lib/auth';
 import {
-    ShieldCheck, Loader2, AlertCircle, Sparkles, LayoutDashboard,
-    Zap, Lock, ArrowRight,
+    ShieldCheck, Loader2, AlertCircle, ArrowRight,
+    LayoutDashboard, FileSearch, ListChecks,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -22,7 +22,6 @@ export default function LoginPage() {
         e.preventDefault();
         setLoading(true);
         setError(null);
-
         try {
             const data = await api.auth.login({ username, password });
             setTokens(data.access, data.refresh);
@@ -37,85 +36,83 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="h-screen w-full flex bg-background relative overflow-hidden">
-            {/* Soft animated accents */}
-            <div className="absolute -top-32 -left-32 w-[520px] h-[520px] bg-primary/15 rounded-full blur-[120px] pointer-events-none animate-[pulse_8s_ease-in-out_infinite]" />
-            <div className="absolute -bottom-32 -right-24 w-[460px] h-[460px] bg-info/15 rounded-full blur-[120px] pointer-events-none animate-[pulse_10s_ease-in-out_infinite]" />
-            <div className="absolute top-1/2 left-1/3 w-[320px] h-[320px] bg-warning/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="min-h-screen w-full bg-background flex flex-col">
+            {/* Slim top bar — mirrors the in-app TopBar so the transition into the
+                app feels continuous, not a marketing-to-tool jump. */}
+            <header className="h-14 border-b border-border px-4 md:px-6 flex items-center">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-md bg-foreground flex items-center justify-center">
+                        <ShieldCheck className="w-4 h-4 text-background" strokeWidth={2.4} />
+                    </div>
+                    <div className="flex items-baseline gap-1.5">
+                        <span className="text-[14px] font-semibold tracking-tight text-foreground">InsureAuto</span>
+                        <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground">ops</span>
+                    </div>
+                </div>
+                <div className="ml-auto hidden sm:flex items-center gap-2 text-[11px] text-muted-foreground">
+                    <span>SOC 2</span>
+                    <span className="text-border">·</span>
+                    <span>ISO 27001</span>
+                    <span className="text-border">·</span>
+                    <span>DIFC</span>
+                </div>
+            </header>
 
-            <div className="flex-1 flex items-center justify-center p-6 relative z-10">
-                <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-                    {/* Left: brand + value */}
-                    <div className="hidden lg:flex flex-col gap-8 animate-in fade-in slide-in-from-left-4 duration-500">
-                        <div className="flex items-center gap-3">
-                            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/25">
-                                <ShieldCheck className="h-5 w-5 text-white" />
-                            </div>
-                            <div>
-                                <p className="text-lg font-semibold tracking-tight">InsureAuto</p>
-                                <p className="text-[11px] text-muted-foreground uppercase tracking-[0.2em]">Operations platform</p>
-                            </div>
-                        </div>
+            <main className="flex-1 flex items-center justify-center px-4 md:px-6 py-10 md:py-14">
+                <div className="w-full max-w-[960px] grid grid-cols-1 lg:grid-cols-[1.05fr_1fr] gap-10 lg:gap-14 items-center">
+                    {/* Left — value prop, calm */}
+                    <div className="hidden lg:block">
+                        <p className="page-eyebrow mb-3">Underwriting operations</p>
+                        <h1 className="text-[28px] font-semibold tracking-tight text-foreground leading-[1.15] max-w-md">
+                            Document intake, extraction, and risk screening in one workbench.
+                        </h1>
+                        <p className="text-sm text-muted-foreground mt-4 max-w-md leading-relaxed">
+                            Sign in to triage today's queue, review AI-extracted documents, and clear cases with a paper trail your regulator will accept.
+                        </p>
 
-                        <div>
-                            <h1 className="text-4xl font-semibold tracking-tight text-foreground leading-tight">
-                                Automate the ops.<br />
-                                <span className="bg-gradient-to-r from-primary to-info bg-clip-text text-transparent">
-                                    Keep the judgment.
-                                </span>
-                            </h1>
-                            <p className="text-sm text-muted-foreground mt-3 max-w-md leading-relaxed">
-                                Document intake, extraction, verification, and risk screening in one workbench — with a paper trail your regulator will love.
-                            </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3 max-w-md">
+                        <ul className="mt-8 space-y-4 max-w-md">
                             <FeatureRow
                                 icon={LayoutDashboard}
-                                title="Live operations dashboard"
-                                description="SLA health, risk distribution, and agent performance in one view."
+                                title="Live operations view"
+                                description="SLA health, risk distribution, and decision latency — at a glance."
                             />
                             <FeatureRow
-                                icon={Zap}
+                                icon={FileSearch}
                                 title="AI-backed extraction"
                                 description="Documents turn into structured fields with confidence scoring."
                             />
                             <FeatureRow
-                                icon={Lock}
+                                icon={ListChecks}
                                 title="Auditable decisions"
-                                description="Every approve/reject carries the agent trace + operator comment."
+                                description="Every approve / reject carries the agent trace and operator comment."
                             />
-                        </div>
+                        </ul>
                     </div>
 
-                    {/* Right: login card */}
-                    <div className="w-full max-w-md mx-auto lg:mx-0 lg:ml-auto animate-in fade-in slide-in-from-right-4 duration-500">
-                        <div className="lg:hidden flex items-center gap-2.5 mb-6">
-                            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/25">
-                                <ShieldCheck className="h-4 w-4 text-white" />
-                            </div>
-                            <p className="text-base font-semibold tracking-tight">InsureAuto</p>
+                    {/* Right — sign-in card */}
+                    <div className="w-full max-w-md mx-auto lg:ml-auto">
+                        <div className="lg:hidden mb-6">
+                            <p className="page-eyebrow mb-2">Underwriting operations</p>
+                            <h1 className="text-[22px] font-semibold tracking-tight text-foreground">
+                                Sign in to InsureAuto
+                            </h1>
                         </div>
 
-                        <div className="rounded-2xl border border-border bg-card/70 backdrop-blur-xl shadow-xl shadow-black/5 overflow-hidden">
-                            <div className="px-7 pt-7 pb-2">
-                                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
-                                    <Sparkles className="h-3 w-3" />
-                                    Sign in
-                                </div>
-                                <h2 className="text-2xl font-semibold tracking-tight mt-2">Welcome back</h2>
+                        <div className="rounded-md border border-border bg-card">
+                            <div className="px-6 pt-6 pb-2">
+                                <h2 className="text-[18px] font-semibold tracking-tight text-foreground">Sign in</h2>
                                 <p className="text-sm text-muted-foreground mt-1">Pick up where you left off.</p>
                             </div>
 
-                            <form onSubmit={handleLogin} className="px-7 pt-5 pb-6 space-y-4">
+                            <form onSubmit={handleLogin} className="px-6 pt-5 pb-6 space-y-4">
                                 {error && (
-                                    <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm px-3 py-2 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                    <div className="rounded-md border border-destructive/30 bg-destructive/5 text-destructive text-sm px-3 py-2 flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
                                         <AlertCircle className="h-4 w-4 shrink-0" />
                                         {error}
                                     </div>
                                 )}
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="username" className="text-xs font-medium">Username</Label>
+                                    <Label htmlFor="username" className="text-xs font-medium text-muted-foreground">Username</Label>
                                     <Input
                                         id="username"
                                         type="text"
@@ -123,30 +120,23 @@ export default function LoginPage() {
                                         placeholder="admin"
                                         value={username}
                                         onChange={(e) => setUsername(e.target.value)}
-                                        className="h-10 bg-background"
                                         required
                                         autoFocus
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label htmlFor="password" className="text-xs font-medium">Password</Label>
+                                    <Label htmlFor="password" className="text-xs font-medium text-muted-foreground">Password</Label>
                                     <Input
                                         id="password"
                                         type="password"
                                         autoComplete="current-password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        className="h-10 bg-background"
                                         required
                                     />
                                 </div>
 
-                                <Button
-                                    type="submit"
-                                    className="w-full h-10 gap-1.5 shadow-md shadow-primary/25 group relative overflow-hidden"
-                                    disabled={loading}
-                                >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none" />
+                                <Button type="submit" className="w-full gap-1.5" disabled={loading}>
                                     {loading ? (
                                         <>
                                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -155,19 +145,24 @@ export default function LoginPage() {
                                     ) : (
                                         <>
                                             Sign in
-                                            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                                            <ArrowRight className="h-4 w-4" />
                                         </>
                                     )}
                                 </Button>
 
-                                <p className="text-[11px] text-center text-muted-foreground pt-2">
+                                <p className="text-xs text-center text-muted-foreground pt-1">
                                     Trouble signing in? Ask your administrator.
                                 </p>
                             </form>
                         </div>
                     </div>
                 </div>
-            </div>
+            </main>
+
+            <footer className="border-t border-border px-4 md:px-6 h-12 flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>© InsureAuto · Underwriting Ops</span>
+                <span className="font-mono">Build 2026.05</span>
+            </footer>
         </div>
     );
 }
@@ -178,14 +173,14 @@ function FeatureRow({
     icon: any; title: string; description: string;
 }) {
     return (
-        <div className="flex items-start gap-3">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary/15 to-primary/5 ring-1 ring-inset ring-primary/20 text-primary flex items-center justify-center shrink-0 mt-0.5">
+        <li className="flex items-start gap-3">
+            <div className="h-8 w-8 rounded-md border border-border bg-muted/40 text-foreground flex items-center justify-center shrink-0 mt-0.5">
                 <Icon className="h-4 w-4" />
             </div>
             <div>
-                <p className="text-sm font-medium text-foreground">{title}</p>
-                <p className="text-xs text-muted-foreground">{description}</p>
+                <p className="text-[13px] font-medium text-foreground">{title}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{description}</p>
             </div>
-        </div>
+        </li>
     );
 }

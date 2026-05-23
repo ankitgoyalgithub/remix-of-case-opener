@@ -20,7 +20,12 @@ import {
     ChevronDown,
     ChevronRight,
     GitCompare,
+    PanelLeftClose,
+    PanelLeftOpen,
+    Files,
+    ListChecks,
 } from 'lucide-react';
+import { useUiPref } from '@/hooks/useUiPref';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { RequiredDocumentsPanel } from '@/components/case/RequiredDocumentsPanel';
@@ -78,6 +83,9 @@ export function OperationsWorkbench({
     const [isReextractDialogOpen, setIsReextractDialogOpen] = React.useState(false);
     const [documentsCollapsed, setDocumentsCollapsed] = React.useState(false);
     const [checklistCollapsed, setChecklistCollapsed] = React.useState(false);
+    // Persisted collapse for the whole left pane — gives users more room for
+    // the details pane (PDF + extracted data, MOL comparison, etc.)
+    const [leftPaneCollapsed, setLeftPaneCollapsed] = useUiPref<boolean>('workbench.leftPane.collapsed', false);
     const [highlightText, setHighlightText] = React.useState<string | null>(null);
     const [activeFieldKey, setActiveFieldKey] = React.useState<string | null>(null);
     const [showDiffDialog, setShowDiffDialog] = React.useState(false);
@@ -185,7 +193,28 @@ export function OperationsWorkbench({
     return (
         <div className="flex-1 flex overflow-hidden bg-background">
             {/* Left column: documents + checklist */}
+            {leftPaneCollapsed ? (
+                <CollapsedLeftRail
+                    docCount={requestData.documents.length}
+                    docsTotal={caseRequiredDocTypes.length || requestData.documents.length}
+                    checklistTotal={requestData.checklist.length}
+                    onExpand={() => setLeftPaneCollapsed(false)}
+                />
+            ) : (
             <div className="w-full lg:w-[380px] xl:w-[420px] shrink-0 border-r border-border flex flex-col overflow-hidden">
+                {/* Pane chrome — title + collapse toggle */}
+                <div className="h-9 px-3 border-b border-border flex items-center justify-between shrink-0 bg-background">
+                    <span className="page-eyebrow">Case work</span>
+                    <button
+                        type="button"
+                        onClick={() => setLeftPaneCollapsed(true)}
+                        title="Collapse pane"
+                        className="h-6 w-6 inline-flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                        <PanelLeftClose className="h-3.5 w-3.5" />
+                    </button>
+                </div>
+
                 <div
                     className={cn(
                         'border-b border-border flex flex-col overflow-hidden shrink-0',
@@ -257,6 +286,7 @@ export function OperationsWorkbench({
                     )}
                 </div>
             </div>
+            )}
 
             {/* Right column: details */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -449,6 +479,56 @@ export function OperationsWorkbench({
                 previous={priorVersionOfSelected || undefined}
                 current={selectedDocument || undefined}
             />
+        </div>
+    );
+}
+
+/**
+ * Slim vertical rail shown when the workbench left pane is collapsed.
+ * Two glanceable counters (docs, checklist) plus an expand button — clicking
+ * any of them re-opens the full left pane.
+ */
+function CollapsedLeftRail({
+    docCount, docsTotal, checklistTotal, onExpand,
+}: {
+    docCount: number;
+    docsTotal: number;
+    checklistTotal: number;
+    onExpand: () => void;
+}) {
+    return (
+        <div className="w-12 shrink-0 border-r border-border bg-background flex flex-col items-center py-2 gap-1">
+            <button
+                type="button"
+                onClick={onExpand}
+                title="Expand pane"
+                className="h-8 w-8 inline-flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+                <PanelLeftOpen className="h-4 w-4" />
+            </button>
+            <div className="w-6 border-t border-border my-1" />
+            <button
+                type="button"
+                onClick={onExpand}
+                title="Documents"
+                className="relative h-9 w-9 inline-flex flex-col items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors group"
+            >
+                <Files className="h-4 w-4" />
+                <span className="text-[9px] font-mono tabular-nums mt-0.5 group-hover:text-foreground">
+                    {docCount}/{docsTotal}
+                </span>
+            </button>
+            <button
+                type="button"
+                onClick={onExpand}
+                title="Checklist"
+                className="relative h-9 w-9 inline-flex flex-col items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors group"
+            >
+                <ListChecks className="h-4 w-4" />
+                <span className="text-[9px] font-mono tabular-nums mt-0.5 group-hover:text-foreground">
+                    {checklistTotal}
+                </span>
+            </button>
         </div>
     );
 }

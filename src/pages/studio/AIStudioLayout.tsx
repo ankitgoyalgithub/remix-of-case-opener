@@ -61,10 +61,6 @@ export default function AIStudioLayout() {
   );
 }
 
-/**
- * Inner shell that reads sidebar state. Must live inside <SidebarProvider> so
- * the edge-anchored toggle and peek rail can reflect the current open state.
- */
 function StudioShell() {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === 'collapsed';
@@ -73,10 +69,10 @@ function StudioShell() {
     <div className="h-full flex w-full bg-background relative overflow-hidden">
       <StudioSidebar />
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Top bar — no trigger here; the edge button handles collapse. */}
-        <div className="h-14 border-b border-border bg-gradient-to-r from-primary/5 via-background to-info/5 flex items-center px-4 gap-3 sticky top-0 z-10">
+        {/* Top bar — calm hairline, no gradient */}
+        <div className="h-12 border-b border-border bg-background flex items-center px-4 gap-3 sticky top-0 z-10 shrink-0">
           <Link to="/requests">
-            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground h-8 text-xs px-3">
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-3.5 w-3.5" />
               Exit Studio
             </Button>
@@ -84,36 +80,33 @@ function StudioShell() {
 
           <div className="flex-1" />
 
-          <Badge variant="outline" className="gap-1.5 text-xs font-medium text-success border-success/30 bg-success/5">
-            <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+          <Badge variant="success" className="gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-success" />
             Live
           </Badge>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto">
-          <div className="max-w-[1400px] w-full mx-auto min-h-full p-6 lg:p-8">
+        {/* Content — same shell as PageShell so Studio pages feel like the rest */}
+        <div className="flex-1 overflow-auto bg-background">
+          <div className="mx-auto w-full max-w-[1400px] px-4 md:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
             <Outlet />
           </div>
         </div>
 
-        {/* Peek rail — thin hover strip on the left edge when the sidebar is hidden. */}
+        {/* Peek rail */}
         {collapsed && (
           <button
             type="button"
             onClick={toggleSidebar}
             aria-label="Open navigation"
-            className="absolute inset-y-0 left-0 w-1.5 hover:w-2 bg-transparent hover:bg-primary/20 transition-all z-20 group"
+            className="absolute inset-y-0 left-0 w-1.5 hover:w-2 bg-transparent hover:bg-foreground/10 transition-all z-20 group"
           >
             <span className="sr-only">Open navigation</span>
-            <span className="absolute top-1/2 -translate-y-1/2 left-full ml-1 opacity-0 group-hover:opacity-100 transition-opacity bg-foreground text-background text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap">
-              Open
-            </span>
           </button>
         )}
       </main>
 
-      {/* Edge-anchored toggle: always visible, hugs the sidebar/main boundary. */}
+      {/* Edge-anchored collapse toggle */}
       <TooltipProvider delayDuration={300}>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -122,17 +115,13 @@ function StudioShell() {
               onClick={toggleSidebar}
               aria-label={collapsed ? 'Open navigation' : 'Collapse navigation'}
               className={cn(
-                'fixed top-[70px] z-30 h-7 w-7 rounded-full border border-border bg-background shadow-sm',
-                'flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/40',
+                'fixed top-[70px] z-30 h-6 w-6 rounded-full border border-border bg-background',
+                'flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/30',
                 'transition-all',
-                collapsed ? 'left-1.5' : 'left-[calc(16rem-0.875rem)]',
+                collapsed ? 'left-1.5' : 'left-[calc(16rem-0.75rem)]',
               )}
             >
-              {collapsed ? (
-                <ChevronRight className="h-3.5 w-3.5" />
-              ) : (
-                <ChevronLeft className="h-3.5 w-3.5" />
-              )}
+              {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
             </button>
           </TooltipTrigger>
           <TooltipContent side="right" className="text-[11px]">
@@ -154,24 +143,24 @@ function StudioSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-border bg-card" collapsible="offcanvas">
+    <Sidebar className="border-r border-border bg-background" collapsible="offcanvas">
       <SidebarContent className="p-0">
-        {/* Branding */}
-        <div className="p-4 border-b border-border/60">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shrink-0 shadow-sm shadow-primary/20">
-              <Sparkles className="h-4 w-4 text-white" />
+        {/* Branding — solid logomark, matches global Sidebar pattern */}
+        <div className="px-4 h-12 border-b border-border flex items-center">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-md bg-foreground flex items-center justify-center shrink-0">
+              <Sparkles className="h-3.5 w-3.5 text-background" strokeWidth={2.4} />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground leading-none">AI Studio</p>
-              <p className="text-[11px] text-muted-foreground mt-1">Configuration</p>
+              <p className="text-[14px] font-semibold text-foreground leading-none tracking-tight">AI Studio</p>
+              <p className="page-eyebrow mt-1 normal-case tracking-wide">Configuration</p>
             </div>
           </div>
         </div>
 
         {/* Nav items */}
-        <SidebarGroup className="pt-3 px-3">
-          <SidebarGroupLabel className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-2 mb-2">
+        <SidebarGroup className="pt-3 px-2">
+          <SidebarGroupLabel className="page-eyebrow px-2 mb-1.5">
             Modules
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -184,28 +173,27 @@ function StudioSidebar() {
                       <NavLink
                         to={item.url}
                         className={cn(
-                          'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-150',
+                          'group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors duration-150',
                           active
-                            ? 'bg-primary text-white shadow-sm shadow-primary/20'
-                            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                            ? 'bg-muted text-foreground'
+                            : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
                         )}
                         activeClassName=""
                       >
+                        {/* Left accent bar — matches the pattern from the global Sidebar */}
+                        {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full bg-primary" />}
                         <item.icon className={cn(
                           'h-4 w-4 shrink-0',
-                          active ? 'text-white' : 'text-muted-foreground group-hover:text-foreground',
+                          active ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground',
                         )} />
                         <div className="flex-1 min-w-0">
                           <span className={cn(
-                            'block text-sm font-medium truncate leading-none',
-                            active ? 'text-white' : 'text-foreground',
+                            'block text-[13px] font-medium truncate leading-tight',
+                            active ? 'text-foreground' : 'text-foreground/90',
                           )}>
                             {item.title}
                           </span>
-                          <span className={cn(
-                            'block text-xs truncate leading-none mt-0.5',
-                            active ? 'text-white/70' : 'text-muted-foreground',
-                          )}>
+                          <span className="block text-[11px] truncate leading-tight text-muted-foreground mt-0.5">
                             {item.description}
                           </span>
                         </div>

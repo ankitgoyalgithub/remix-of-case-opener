@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/layout/PageShell';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -82,23 +83,18 @@ export default function WorkflowBuilder() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="mt-0.5 p-2 rounded-lg bg-primary/10 border border-primary/20 shrink-0">
-            <WorkflowIcon className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">Workflow Builder</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Configure request types and processing stages</p>
-          </div>
-        </div>
-        <Button onClick={handleSaveWorkflow} disabled={!hasChanges} size="sm" className="gap-2 shrink-0">
-          <Save className="h-3.5 w-3.5" />
-          Save Workflow
-        </Button>
-      </div>
+    <>
+      <PageHeader
+        eyebrow="Studio · Workflows"
+        title="Workflow builder"
+        description="Configure request types and processing stages."
+        actions={
+          <Button onClick={handleSaveWorkflow} disabled={!hasChanges} size="sm" className="gap-1.5">
+            <Save className="h-3.5 w-3.5" />
+            Save workflow
+          </Button>
+        }
+      />
 
       {/* Workflow Info */}
       <Card>
@@ -280,6 +276,6 @@ export default function WorkflowBuilder() {
         onOpenChange={setAddDialogOpen}
         onAdd={handleAddStage}
       />
-    </div>
+    </>
   );
 }

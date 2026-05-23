@@ -190,10 +190,25 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
 
   const matchRate = summary.total > 0 ? Math.round((summary.autoValidated / summary.total) * 100) : 0;
 
-  // Parse all rows once. Sorted: review first, then missing, then matched.
-  const parsedRows: ParsedRow[] = useMemo(() => {
+  // Parse all rows once.
+  const baseRows: ParsedRow[] = useMemo(() => {
     return employeeRows.map(buildParsedRow);
   }, [employeeRows]);
+
+  // Manual overrides — keyed by the census name (rule), value is the new
+  // status. Local-only for now; when the backend grows a "confirm MOL match"
+  // endpoint this should call it and persist. Keying by name is a small
+  // gamble on uniqueness — fine for typical cases, fix when API lands.
+  const [overrides, setOverrides] = useState<Record<string, RowStatus>>({});
+  const overrideKey = (r: ParsedRow) => r.source.rule || r.census.name || '';
+
+  // Apply overrides on top of the parsed rows.
+  const parsedRows: ParsedRow[] = useMemo(() => {
+    return baseRows.map(r => {
+      const ov = overrides[overrideKey(r)];
+      return ov ? { ...r, status: ov } : r;
+    });
+  }, [baseRows, overrides]);
 
   const [filter, setFilter] = useState<FilterKey>('all');
   const counts = useMemo(() => {
@@ -241,18 +256,51 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
   // ─── Review drawer state ──────────────────────────────────────────
   const [reviewingIdx, setReviewingIdx] = useState<number | null>(null);
 
-  // Bulk + single-row action stubs — wire to your API when ready.
-  // Status changes are visual-only for now and don't persist server-side.
-  const handleAction = (action: 'confirm' | 'override' | 'reject' | 'missing' | 'review', count: number) => {
-    const label =
-      action === 'confirm'  ? 'Confirmed'
-      : action === 'override' ? 'Confirmed (override)'
-      : action === 'reject'   ? 'Rejected'
-      : action === 'missing'  ? 'Marked missing in MOL'
-      : 'Sent for review';
-    toast.success(`${label} · ${count} record${count === 1 ? '' : 's'}`);
+  // Apply an override to a set of row keys (census names). Local-only for now;
+  // when the backend exposes a confirm-MOL-match endpoint, call it from here
+  // and reconcile from the server response.
+  type Action = 'confirm' | 'override' | 'reject' | 'missing' | 'review';
+  const ACTION_TO_STATUS: Record<Action, RowStatus> = {
+    confirm:  'auto',
+    override: 'auto',
+    reject:   'missing',
+    missing:  'missing',
+    review:   'review',
+  };
+  const ACTION_LABEL: Record<Action, string> = {
+    confirm:  'Confirmed',
+    override: 'Confirmed (override)',
+    reject:   'Rejected',
+    missing:  'Marked missing in MOL',
+    review:   'Sent for review',
+  };
+
+  const applyAction = (action: Action, rowKeys: string[]) => {
+    if (rowKeys.length === 0) return;
+    const newStatus = ACTION_TO_STATUS[action];
+    setOverrides(prev => {
+      const next = { ...prev };
+      for (const k of rowKeys) next[k] = newStatus;
+      return next;
+    });
+    toast.success(`${ACTION_LABEL[action]} · ${rowKeys.length} record${rowKeys.length === 1 ? '' : 's'}`);
     setSelectedIdx(new Set());
     setReviewingIdx(null);
+  };
+
+  // Bulk action — keys from the current selection.
+  const handleBulk = (action: Action) => {
+    const keys = Array.from(selectedIdx)
+      .map(i => visibleRows[i])
+      .filter(Boolean)
+      .map(overrideKey);
+    applyAction(action, keys);
+  };
+
+  // Single-row action — from the review dialog.
+  const handleSingle = (action: Action, row: ParsedRow | null) => {
+    if (!row) return;
+    applyAction(action, [overrideKey(row)]);
   };
 
   return (
@@ -330,11 +378,11 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
                 Clear
               </Button>
               <div className="flex-1" />
-              <BulkBtn icon={Check} label="Confirm all" onClick={() => handleAction('confirm', selectedIdx.size)} />
-              <BulkBtn icon={Check} label="Confirm (override)" onClick={() => handleAction('override', selectedIdx.size)} variant="ghost" />
-              <BulkBtn icon={XIcon} label="Reject all" onClick={() => handleAction('reject', selectedIdx.size)} variant="ghost" />
-              <BulkBtn icon={XCircle} label="Mark missing" onClick={() => handleAction('missing', selectedIdx.size)} variant="ghost" />
-              <BulkBtn icon={Send} label="Send for review" onClick={() => handleAction('review', selectedIdx.size)} variant="ghost" />
+              <BulkBtn icon={Check} label="Confirm all" onClick={() => handleBulk('confirm')} />
+              <BulkBtn icon={Check} label="Confirm (override)" onClick={() => handleBulk('override')} variant="ghost" />
+              <BulkBtn icon={XIcon} label="Reject all" onClick={() => handleBulk('reject')} variant="ghost" />
+              <BulkBtn icon={XCircle} label="Mark missing" onClick={() => handleBulk('missing')} variant="ghost" />
+              <BulkBtn icon={Send} label="Send for review" onClick={() => handleBulk('review')} variant="ghost" />
             </div>
           )}
 
@@ -523,7 +571,7 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
       <ReviewDialog
         row={reviewingIdx != null ? visibleRows[reviewingIdx] : null}
         onClose={() => setReviewingIdx(null)}
-        onAction={(action) => handleAction(action, 1)}
+        onAction={(action) => handleSingle(action, reviewingIdx != null ? visibleRows[reviewingIdx] : null)}
       />
     </div>
   );

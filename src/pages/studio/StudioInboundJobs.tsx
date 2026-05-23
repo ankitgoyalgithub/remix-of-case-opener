@@ -11,6 +11,7 @@ import {
     CheckCircle2, AlertTriangle, ExternalLink, Inbox,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { PageHeader } from '@/components/layout/PageShell';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -144,28 +145,18 @@ export default function StudioInboundJobs() {
     }, { fetched: 0, matched: 0, skipped: 0, failed: 0 });
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Hero */}
-            <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-info/10 via-background to-primary/5 p-6">
-                <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-info/10 blur-3xl pointer-events-none" />
-                <div className="relative flex items-start justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-info/80">
-                            <ListChecks className="h-3 w-3" />
-                            Polling jobs
-                        </div>
-                        <h1 className="text-3xl font-semibold text-foreground mt-2 tracking-tight">Inbound poll history</h1>
-                        <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl">
-                            Every poll cycle is recorded — see what was fetched, matched and skipped, with the per-email reasons.
-                            The auto-poller fires every 10 seconds in the background.
-                        </p>
-                    </div>
-                    <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={fetchJobs}>
+        <>
+            <PageHeader
+                eyebrow="Studio · Jobs"
+                title="Inbound poll history"
+                description="Every poll cycle is recorded — what was fetched, matched and skipped, with the per-email reasons."
+                actions={
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={fetchJobs}>
                         <RefreshCw className="h-3.5 w-3.5" />
                         Refresh
                     </Button>
-                </div>
-            </div>
+                }
+            />
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -337,7 +328,7 @@ export default function StudioInboundJobs() {
                     )}
                 </CardContent>
             </Card>
-        </div>
+        </>
     );
 }
 

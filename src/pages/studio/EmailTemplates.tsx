@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageHeader } from '@/components/layout/PageShell';
 import { 
   Mail, 
   Save, 
@@ -79,23 +80,18 @@ export default function EmailTemplates() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Mail className="h-6 w-6 text-primary" />
-            Email Templates
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Configure notification templates for ops workflows
-          </p>
-        </div>
-        <Button onClick={handleSave} disabled={!hasChanges} className="gap-2">
-          <Save className="h-4 w-4" />
-          Save Templates
-        </Button>
-      </div>
+    <>
+      <PageHeader
+        eyebrow="Studio · Messages"
+        title="Email templates"
+        description="Configure notification templates for ops workflows."
+        actions={
+          <Button onClick={handleSave} disabled={!hasChanges} size="sm" className="gap-1.5">
+            <Save className="h-3.5 w-3.5" />
+            Save templates
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-3 gap-6">
         {/* Template List */}
@@ -223,6 +219,6 @@ export default function EmailTemplates() {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { FileSpreadsheet, Plus, Loader2, Trash2, Save, AlertCircle } from 'lucide-react';
 import { api } from '@/lib/api';
+import { PageHeader } from '@/components/layout/PageShell';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -137,23 +138,15 @@ export default function OutputTemplates() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
-      <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-info/8 via-background to-primary/5 p-6">
-        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-info/10 blur-3xl pointer-events-none" />
-        <div className="relative flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-info/80">
-              <FileSpreadsheet className="h-3 w-3" />
-              Outputs
-            </div>
-            <h1 className="text-3xl font-semibold mt-2 tracking-tight">UW & output templates</h1>
-            <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl">
-              Upload an XLSX template (e.g. underwriting sheet); map cells to extracted fields; render per-request from the workbench.
-            </p>
-          </div>
+    <>
+      <PageHeader
+        eyebrow="Studio · Outputs"
+        title="UW & output templates"
+        description="Upload an XLSX template (e.g. underwriting sheet); map cells to extracted fields; render per-request from the workbench."
+        actions={
           <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 shadow-md shadow-primary/20 shrink-0">
+              <Button size="sm" className="gap-1.5">
                 <Plus className="h-3.5 w-3.5" />
                 New template
               </Button>
@@ -181,8 +174,8 @@ export default function OutputTemplates() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
-      </div>
+        }
+      />
 
       {templates.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed rounded-2xl bg-muted/10 border-border/50">
@@ -263,7 +256,7 @@ export default function OutputTemplates() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 

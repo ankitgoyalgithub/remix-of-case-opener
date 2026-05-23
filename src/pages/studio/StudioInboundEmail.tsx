@@ -13,6 +13,7 @@ import {
     Inbox, Settings as SettingsIcon, ExternalLink, FileText,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { PageHeader } from '@/components/layout/PageShell';
 import { INBOUND_POLL_EVENT } from '@/components/layout/AppLayout';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -173,27 +174,18 @@ export default function StudioInboundEmail() {
     };
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Hero */}
-            <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-primary/10 via-background to-info/5 p-6">
-                <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-                <div className="relative flex items-start justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary/80">
-                            <Mail className="h-3 w-3" />
-                            Inbound email
-                        </div>
-                        <h1 className="text-3xl font-semibold text-foreground mt-2 tracking-tight">Email-driven submissions</h1>
-                        <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl">
-                            Connect a Gmail mailbox. Brokers send submissions there with attachments; matching emails turn into requests automatically. Documents go into the existing extraction pipeline.
-                        </p>
-                    </div>
-                    <Button size="sm" className="gap-1.5 shadow-md shadow-primary/20 shrink-0" onClick={handleConnect}>
+        <>
+            <PageHeader
+                eyebrow="Studio · Inbound email"
+                title="Email-driven submissions"
+                description="Connect a Gmail mailbox. Brokers send submissions there with attachments; matching emails turn into requests automatically."
+                actions={
+                    <Button size="sm" className="gap-1.5" onClick={handleConnect}>
                         <Plus className="h-3.5 w-3.5" />
                         Connect Gmail
                     </Button>
-                </div>
-            </div>
+                }
+            />
 
             {/* Accounts */}
             {loading ? (
@@ -340,7 +332,7 @@ export default function StudioInboundEmail() {
                 onClose={() => setShowRuleDialog(null)}
                 onSaved={refresh}
             />
-        </div>
+        </>
     );
 }
 

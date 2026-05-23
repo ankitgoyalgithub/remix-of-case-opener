@@ -118,21 +118,25 @@ interface ParsedRow {
 }
 
 function buildParsedRow(source: ChecklistRuleResult): ParsedRow {
+  // Prefer structured fields when the backend supplies them (new MOL handler
+  // emits source_passport / source_nationality / target_passport /
+  // target_nationality / confidence). Fall back to regex parsing on note +
+  // target_value for older payloads.
   const mol = splitMolValue(source.target_value);
   const status = classifyRow(source);
   return {
     source,
     status,
-    conf: parseConfidence(source.note),
+    conf: source.confidence != null ? source.confidence : parseConfidence(source.note),
     census: {
       name: source.source_value || source.rule || '—',
-      passport: parsePassportFromNote(source.note),
-      nationality: parseNationalityFromNote(source.note),
+      passport: source.source_passport ?? parsePassportFromNote(source.note),
+      nationality: source.source_nationality ?? parseNationalityFromNote(source.note),
     },
     mol: {
       name: mol.latin || (source.target_value && source.target_value !== '—' ? source.target_value : ''),
-      passport: mol.passport,
-      nationality: null,
+      passport: source.target_passport ?? mol.passport,
+      nationality: source.target_nationality ?? null,
       idNum: mol.idNum,
       arabic: mol.arabic,
     },

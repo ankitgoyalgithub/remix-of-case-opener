@@ -126,6 +126,15 @@ export interface ChecklistRuleResult {
   comparison_type?: string;
   passed: boolean;
   note?: string | null;
+  /* Structured extras — currently emitted by the MOL validation handler so the
+     side-by-side comparison can show Name · Passport · Nationality on each
+     side without regex-parsing strings. Other handlers may or may not populate
+     these; treat them all as optional. */
+  source_passport?: string | null;
+  source_nationality?: string | null;
+  target_passport?: string | null;
+  target_nationality?: string | null;
+  confidence?: number | null;  // percentage int 0-100
 }
 
 export interface AgentTraceStep {
@@ -171,7 +180,7 @@ export interface ChecklistItem {
   checked: boolean;
   stageId: number;
   required: boolean;
-  itemType: 'extraction' | 'verification' | 'cross-validation' | 'third-party-api' | 'manual';
+  itemType: 'extraction' | 'verification' | 'cross-validation' | 'third-party-api' | 'manual' | 'mol-validation';
   documentType?: DocumentType[];
   taskDescription?: string;
   taskDetails?: string;

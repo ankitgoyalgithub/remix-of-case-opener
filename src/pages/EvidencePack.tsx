@@ -157,22 +157,36 @@ export default function EvidencePack() {
   return (
     <div className="h-full overflow-y-auto bg-background evidence-pack-root print:h-auto print:overflow-visible">
       {/* Header — hidden in print */}
-      <div className="bg-background border-b border-border px-6 py-3 print:hidden sticky top-0 z-10">
+      <div className="bg-background border-b border-border px-4 md:px-6 lg:px-8 py-3 print:hidden sticky top-0 z-10">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <Link to={`/request/${requestId}`}>
               <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <div>
-              <h1 className="text-lg font-semibold">Evidence Pack</h1>
-              <p className="text-xs text-muted-foreground">
-                {caseData.companyName} · {caseData.smartId || caseData.id.slice(0, 8)}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="page-eyebrow">Case · Evidence pack</p>
+                {/* Draft vs Final indicator — gives the reviewer a clear signal
+                    that pre-decision packs aren't yet audit-final. */}
+                {caseData.isIssued ? (
+                  <span className="inline-flex items-center px-1.5 h-4 rounded text-[9.5px] font-semibold uppercase tracking-wider bg-success/10 text-success">
+                    Final
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-1.5 h-4 rounded text-[9.5px] font-semibold uppercase tracking-wider bg-warning/10 text-warning">
+                    Draft
+                  </span>
+                )}
+              </div>
+              <h1 className="page-title truncate">{caseData.companyName}</h1>
+              <p className="text-xs text-muted-foreground truncate font-mono">
+                {caseData.smartId || caseData.id.slice(0, 8)}
               </p>
             </div>
           </div>
-          <Button onClick={handleExportPdf} size="sm" className="h-8 gap-1.5">
+          <Button onClick={handleExportPdf} size="sm" className="gap-1.5 shrink-0">
             <Download className="h-3.5 w-3.5" />
             Export PDF
           </Button>

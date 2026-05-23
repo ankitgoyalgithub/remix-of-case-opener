@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { PageShell, PageHeader } from '@/components/layout/PageShell';
 
 interface MailboxAccount {
     id: string;
@@ -78,36 +79,39 @@ export default function Settings() {
     };
 
     return (
-        <div className="p-8 max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                    <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
-                        System Settings
-                        <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 font-bold px-3">v2.4.0</Badge>
-                    </h1>
-                    <p className="text-muted-foreground font-medium text-sm">Configure your operational environment and workspace preferences.</p>
-                </div>
-                <Button className="rounded-xl font-black text-xs uppercase tracking-widest px-8 shadow-lg shadow-primary/20" onClick={handleUpdate}>
-                    Save All Changes
-                </Button>
-            </div>
+        <PageShell>
+            <PageHeader
+                eyebrow="Account · System"
+                title={
+                    <span className="inline-flex items-center gap-2">
+                        System settings
+                        <Badge variant="neutral" className="font-mono">v2.4.0</Badge>
+                    </span>
+                }
+                description="Configure your operational environment and workspace preferences."
+                actions={
+                    <Button size="sm" onClick={handleUpdate}>
+                        Save changes
+                    </Button>
+                }
+            />
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="bg-card/40 p-1 border border-border/50 rounded-2xl h-14 overflow-hidden">
-                    <TabsTrigger value="general" className="rounded-xl px-6 font-bold text-xs uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
-                        <Monitor className="h-4 w-4 mr-2" />
+                <TabsList className="bg-muted/40 p-0.5 border border-border h-9">
+                    <TabsTrigger value="general" className="px-3 text-[13px] font-medium gap-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground">
+                        <Monitor className="h-3.5 w-3.5" />
                         General
                     </TabsTrigger>
-                    <TabsTrigger value="notifications" className="rounded-xl px-6 font-bold text-xs uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
-                        <Bell className="h-4 w-4 mr-2" />
+                    <TabsTrigger value="notifications" className="px-3 text-[13px] font-medium gap-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground">
+                        <Bell className="h-3.5 w-3.5" />
                         Notifications
                     </TabsTrigger>
-                    <TabsTrigger value="workspace" className="rounded-xl px-6 font-bold text-xs uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
-                        <Globe className="h-4 w-4 mr-2" />
+                    <TabsTrigger value="workspace" className="px-3 text-[13px] font-medium gap-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground">
+                        <Globe className="h-3.5 w-3.5" />
                         Workspace
                     </TabsTrigger>
-                    <TabsTrigger value="api" className="rounded-xl px-6 font-bold text-xs uppercase tracking-wider data-[state=active]:bg-primary data-[state=active]:text-white transition-all">
-                        <Zap className="h-4 w-4 mr-2" />
+                    <TabsTrigger value="api" className="px-3 text-[13px] font-medium gap-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground">
+                        <Zap className="h-3.5 w-3.5" />
                         API & Integrations
                     </TabsTrigger>
                 </TabsList>
@@ -382,6 +386,6 @@ export default function Settings() {
                     </Card>
                 </TabsContent>
             </Tabs>
-        </div>
+        </PageShell>
     );
 }

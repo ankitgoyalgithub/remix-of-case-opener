@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { PageShell, PageHeader } from '@/components/layout/PageShell';
 
 export default function Profile() {
     const { data: user, isLoading } = useQuery({
@@ -38,40 +39,43 @@ export default function Profile() {
         ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
         : user?.username?.substring(0, 2).toUpperCase() || 'AD';
 
+    const fullName = user?.first_name ? `${user.first_name} ${user.last_name}` : user?.username || 'System Admin';
+
     return (
-        <div className="p-8 max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-                <div className="flex items-center gap-6">
-                    <div className="relative group">
-                        <Avatar className="h-24 w-24 border-4 border-background shadow-2xl rounded-3xl overflow-hidden ring-1 ring-primary/10">
-                            <AvatarImage src="/placeholder-avatar.jpg" />
-                            <AvatarFallback className="bg-primary/5 text-primary text-2xl font-black">{initials}</AvatarFallback>
-                        </Avatar>
-                        <button className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-xl shadow-lg hover:scale-110 transition-transform border-4 border-background">
-                            <Camera className="h-4 w-4" />
-                        </button>
-                    </div>
-                    <div className="space-y-1">
-                        <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
-                            {user?.first_name ? `${user.first_name} ${user.last_name}` : user?.username || 'System Admin'}
-                            <Badge className="bg-success/10 text-success border-success/20 font-bold uppercase tracking-widest text-xs px-2 py-0.5">Verified</Badge>
-                        </h1>
-                        <p className="text-muted-foreground font-medium flex items-center gap-2">
-                            <Briefcase className="h-4 w-4" />
-                            Senior Operations Lead · <span className="text-primary font-bold tracking-tight lowercase">stratiq.labs</span>
-                        </p>
-                    </div>
+        <PageShell>
+            <PageHeader
+                eyebrow="Account · Profile"
+                title={fullName}
+                description={
+                    <span className="inline-flex items-center gap-1.5">
+                        <Briefcase className="h-3.5 w-3.5" />
+                        Senior Operations Lead · stratiq.labs
+                    </span>
+                }
+                actions={
+                    <>
+                        <Button variant="outline" size="sm">Discard</Button>
+                        <Button size="sm" onClick={handleSave} disabled={isSaving} className="gap-1.5">
+                            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                            Save changes
+                        </Button>
+                    </>
+                }
+            />
+
+            {/* Avatar strip */}
+            <div className="flex items-center gap-4">
+                <div className="relative">
+                    <Avatar className="h-16 w-16 rounded-full border border-border">
+                        <AvatarImage src="/placeholder-avatar.jpg" />
+                        <AvatarFallback className="bg-muted text-foreground text-base font-semibold">{initials}</AvatarFallback>
+                    </Avatar>
+                    <button className="absolute -bottom-1 -right-1 h-6 w-6 inline-flex items-center justify-center rounded-full border border-border bg-background hover:bg-muted transition-colors">
+                        <Camera className="h-3 w-3 text-muted-foreground" />
+                    </button>
                 </div>
-                <div className="flex gap-3">
-                    <Button variant="outline" className="rounded-xl font-bold text-xs uppercase tracking-wider px-6 border-primary/20 hover:bg-primary/5">Discard</Button>
-                    <Button
-                        className="rounded-xl font-black text-xs uppercase tracking-widest px-8 shadow-lg shadow-primary/20"
-                        onClick={handleSave}
-                        disabled={isSaving}
-                    >
-                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
-                        Save Changes
-                    </Button>
+                <div>
+                    <Badge variant="success">Verified</Badge>
                 </div>
             </div>
 
@@ -199,7 +203,7 @@ export default function Profile() {
                     </Card>
                 </div>
             </div>
-        </div>
+        </PageShell>
     );
 }
 

@@ -22,6 +22,7 @@ import { OutputTemplatePicker } from '@/components/request/OutputTemplatePicker'
 import { AnimatedNumber } from '@/components/ui/animated-number';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ParallaxHero } from '@/components/ui/parallax-hero';
+import { PageShell } from '@/components/layout/PageShell';
 
 interface ReadinessSummary {
     overall: { status: 'ready' | 'blocked' | 'review' | 'waiting'; headline: string };
@@ -189,31 +190,29 @@ export default function RequestSummary() {
 
     if (loading) {
         return (
-            <div className="h-full overflow-y-auto bg-gradient-to-b from-muted/20 to-background">
-                <div className="max-w-4xl mx-auto p-6 space-y-5 animate-in fade-in duration-300">
-                    <div className="rounded-xl border border-border bg-muted/10 p-5">
-                        <Skeleton className="h-3 w-20 mb-3" />
-                        <Skeleton className="h-8 w-72" />
-                        <Skeleton className="h-3 w-48 mt-2" />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        {Array.from({ length: 3 }).map((_, i) => (
-                            <div key={i} className="rounded-lg border border-border bg-card p-5">
-                                <Skeleton className="h-3 w-16" />
-                                <Skeleton className="h-6 w-24 mt-3" />
-                                <Skeleton className="h-3 w-32 mt-2" />
-                            </div>
-                        ))}
-                    </div>
-                    <div className="rounded-lg border border-border bg-card p-5">
-                        <Skeleton className="h-4 w-40 mb-3" />
-                        <div className="space-y-2">
-                            <Skeleton className="h-9 w-full" />
-                            <Skeleton className="h-9 w-full" />
+            <PageShell>
+                <div className="rounded-md border border-border bg-muted/10 p-5">
+                    <Skeleton className="h-3 w-20 mb-3" />
+                    <Skeleton className="h-8 w-72" />
+                    <Skeleton className="h-3 w-48 mt-2" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="rounded-md border border-border bg-card p-5">
+                            <Skeleton className="h-3 w-16" />
+                            <Skeleton className="h-6 w-24 mt-3" />
+                            <Skeleton className="h-3 w-32 mt-2" />
                         </div>
+                    ))}
+                </div>
+                <div className="rounded-md border border-border bg-card p-5">
+                    <Skeleton className="h-4 w-40 mb-3" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-9 w-full" />
+                        <Skeleton className="h-9 w-full" />
                     </div>
                 </div>
-            </div>
+            </PageShell>
         );
     }
 
@@ -291,15 +290,13 @@ export default function RequestSummary() {
 
     const hasConversation = Array.isArray((request as any).inbound_emails) && (request as any).inbound_emails.length > 0;
 
+    // Hero gradient/orb decoration removed — operational page, not marketing.
+    void heroGradient;
+
     return (
-        <div className="h-full overflow-y-auto bg-gradient-to-b from-muted/20 to-background">
-            <div className="max-w-6xl mx-auto p-4 sm:p-5 space-y-3 animate-in fade-in duration-500">
+        <PageShell>
                 {/* Hero — identity + headline metrics + verification strip, all in one panel */}
-                <ParallaxHero
-                    gradientClass={heroGradient}
-                    orbClass={isComplete ? 'bg-success/15' : slaStatus === 'red' ? 'bg-destructive/15' : 'bg-primary/15'}
-                    className="p-5"
-                >
+                <div className="rounded-md border border-border bg-card p-5">
                     <Link to="/requests" className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground mb-2">
                         <ArrowLeft className="h-3 w-3" />
                         Back to inbox
@@ -438,7 +435,7 @@ export default function RequestSummary() {
                             subTone={rd.external_checks.failed > 0 ? 'destructive' : rd.external_checks.total > 0 && rd.external_checks.passed === rd.external_checks.total ? 'success' : 'muted'}
                         />
                     </div>
-                </ParallaxHero>
+                </div>
 
                 {/* Main 2-col layout: action items left, conversation right (when present) */}
                 <div className={cn('grid gap-3', hasConversation ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1')}>
@@ -648,8 +645,7 @@ export default function RequestSummary() {
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
+        </PageShell>
     );
 }
 

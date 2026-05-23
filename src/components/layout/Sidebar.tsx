@@ -25,7 +25,13 @@ const SECONDARY: NavItem[] = [
 
 export function Sidebar() {
     const location = useLocation();
-    const [collapsed, setCollapsed] = useUiPref<boolean>('sidebar.collapsed', false);
+    const [userCollapsed, setCollapsed] = useUiPref<boolean>('sidebar.collapsed', false);
+
+    // Studio is a sub-app with its own sidebar (modules, settings, integrations).
+    // Two parallel 240px rails feels broken — force-collapse the global one to
+    // an icon rail while inside /studio. User pref restores when they leave.
+    const onStudio = location.pathname.startsWith('/studio');
+    const collapsed = userCollapsed || onStudio;
 
     const isActive = (to: string) => {
         if (to === '/dashboard') return location.pathname === '/' || location.pathname.startsWith('/dashboard');
@@ -81,23 +87,25 @@ export function Sidebar() {
                 </ul>
             </nav>
 
-            {/* Collapse toggle */}
-            <div className="border-t border-border p-2">
-                <button
-                    type="button"
-                    onClick={() => setCollapsed(c => !c)}
-                    className={cn(
-                        'w-full h-9 rounded-md flex items-center gap-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors',
-                        collapsed ? 'justify-center px-0' : 'justify-start px-2.5',
-                    )}
-                    title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                >
-                    {collapsed
-                        ? <ChevronsRight className="h-4 w-4" />
-                        : <><ChevronsLeft className="h-4 w-4" /><span className="text-[13px]">Collapse</span></>
-                    }
-                </button>
-            </div>
+            {/* Collapse toggle — hidden on /studio since it's force-collapsed */}
+            {!onStudio && (
+                <div className="border-t border-border p-2">
+                    <button
+                        type="button"
+                        onClick={() => setCollapsed(c => !c)}
+                        className={cn(
+                            'w-full h-9 rounded-md flex items-center gap-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors',
+                            collapsed ? 'justify-center px-0' : 'justify-start px-2.5',
+                        )}
+                        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    >
+                        {collapsed
+                            ? <ChevronsRight className="h-4 w-4" />
+                            : <><ChevronsLeft className="h-4 w-4" /><span className="text-[13px]">Collapse</span></>
+                        }
+                    </button>
+                </div>
+            )}
         </aside>
     );
 }

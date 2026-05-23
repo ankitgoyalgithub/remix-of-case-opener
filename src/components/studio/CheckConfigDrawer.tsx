@@ -228,11 +228,14 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
     }
   }, [item, open]);
 
-  // True when any verification step (or legacy handler_name) is mol-validation.
+  // True when any verification step (or legacy handler_name) is the MOL
+  // validation handler. The backend registers it as `mol_validation`
+  // (underscore); accept the hyphenated form too in case older seeds use it.
   // Drives the conditional MOL matching rules editor below the basics form.
   const isMolValidation = useMemo(() => {
-    if (item?.handler_name === 'mol-validation') return true;
-    return verifications.some(v => v.handler === 'mol-validation');
+    const isMol = (h?: string) => h === 'mol_validation' || h === 'mol-validation';
+    if (isMol(item?.handler_name)) return true;
+    return verifications.some(v => isMol(v.handler));
   }, [item?.handler_name, verifications]);
 
   const groupedDocs = useMemo(() => {

@@ -54,8 +54,11 @@ const menuItems: MenuItem[] = [
 ];
 
 export default function AIStudioLayout() {
+  // shadcn's SidebarProvider hardcodes `min-h-svh` on its wrapper, which
+  // would force this sub-app to be viewport-tall and break the scroll
+  // chain from AppLayout. Override with our own claim on parent height.
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider defaultOpen={true} className="!min-h-0 flex-1 h-full">
       <StudioShell />
     </SidebarProvider>
   );
@@ -65,10 +68,13 @@ function StudioShell() {
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === 'collapsed';
 
+  // flex-1 + min-h-0 is the correct height claim inside the AppLayout's
+  // <main className="flex-1 min-h-0 flex flex-col">. h-full doesn't propagate
+  // reliably through a flex-col parent, which was breaking page scroll.
   return (
-    <div className="h-full flex w-full bg-background relative overflow-hidden">
+    <div className="flex-1 min-h-0 flex w-full bg-background relative overflow-hidden">
       <StudioSidebar />
-      <main className="flex-1 flex flex-col overflow-hidden relative">
+      <main className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
         {/* Top bar — calm hairline, no gradient */}
         <div className="h-12 border-b border-border bg-background flex items-center px-4 gap-3 sticky top-0 z-10 shrink-0">
           <Link to="/requests">

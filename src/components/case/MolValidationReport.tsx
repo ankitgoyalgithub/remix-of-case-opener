@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ChecklistValidationResult, ChecklistRuleResult } from '@/types/case';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { useUiPref } from '@/hooks/useUiPref';
 
 interface MolValidationReportProps {
   result: ChecklistValidationResult;
@@ -169,6 +170,7 @@ const STATUS_BADGE: Record<RowStatus, { label: string; cls: string; icon: React.
 };
 
 export function MolValidationReport({ result }: MolValidationReportProps) {
+  const { requestId } = useParams();
   const details = (result.details || []) as ChecklistRuleResult[];
   const summaryRow = details.find(r => r.rule === 'Summary');
   const employeeRows = details.filter(r => r.rule !== 'Summary' && r.rule !== 'Extraction warning');
@@ -196,10 +198,15 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
   }, [employeeRows]);
 
   // Manual overrides — keyed by the census name (rule), value is the new
-  // status. Local-only for now; when the backend grows a "confirm MOL match"
-  // endpoint this should call it and persist. Keying by name is a small
-  // gamble on uniqueness — fine for typical cases, fix when API lands.
-  const [overrides, setOverrides] = useState<Record<string, RowStatus>>({});
+  // status. Persisted per-request in localStorage so confirmations survive
+  // navigation between checklist items / tab switches / reloads. Swap the
+  // storage hook for an API call when the backend grows a "confirm MOL match"
+  // endpoint. Keying by name is a small gamble on uniqueness — fine for
+  // typical cases, fix server-side when API lands.
+  const [overrides, setOverrides] = useUiPref<Record<string, RowStatus>>(
+    `mol.overrides.${requestId || 'unknown'}`,
+    {},
+  );
   const overrideKey = (r: ParsedRow) => r.source.rule || r.census.name || '';
 
   // Apply overrides on top of the parsed rows.

@@ -1,15 +1,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { CaseStepper } from '@/components/case/CaseStepper';
 import { RequestDetailHeader } from '@/components/request/RequestDetailHeader';
+import { ReadinessPanel } from '@/components/request/ReadinessPanel';
 import { TimelineDrawer } from '@/components/case/TimelineDrawer';
 import { BypassReasonModal } from '@/components/case/BypassReasonModal';
 import { DecisionModal, DecisionAction } from '@/components/request/DecisionModal';
 import { MissingInfoEmailModal } from '@/components/request/MissingInfoEmailModal';
 import { AssignOwnerModal } from '@/components/request/AssignOwnerModal';
 import { OperationsWorkbench } from '@/components/workbench/OperationsWorkbench';
-import { CaseJourney } from '@/components/workbench/CaseJourney';
-import { CaseContextRail } from '@/components/workbench/CaseContextRail';
-import { useUiPref } from '@/hooks/useUiPref';
 import { api } from '@/lib/api';
 import {
   mapBackendRequestToListItem, mapBackendStageToStage,
@@ -334,9 +333,6 @@ export default function RequestDetail() {
 
   const [bypassItem, setBypassItem] = useState<{ id: string; label: string } | null>(null);
   const [decisionAction, setDecisionAction] = useState<DecisionAction | null>(null);
-  // Three-zone workbench collapse preferences — persisted across navigation.
-  const [journeyCollapsed, setJourneyCollapsed] = useUiPref<boolean>('workbench.journey.collapsed', false);
-  const [contextCollapsed, setContextCollapsed] = useUiPref<boolean>('workbench.context.collapsed', false);
 
   const submitDecision = async (comment: string) => {
     if (!requestData || !decisionAction) return;
@@ -636,72 +632,55 @@ export default function RequestDetail() {
         timelineDrawer={<TimelineDrawer events={requestData.timeline} />}
       />
 
-      {/* Three-zone workbench: case journey · focused center · contextual rail */}
-      <div className="flex-1 min-h-0 flex overflow-hidden">
-        <CaseJourney
-          stages={requestData.stages}
-          checklist={requestData.checklist}
-          documents={requestData.documents}
-          docDefs={requestData.docDefs}
-          activeStageId={activeViewStage}
-          selectedItemId={selectedChecklistItemId}
-          selectedDocId={selectedDocument?.id ?? null}
-          onSelectStage={handleStageClick}
-          onSelectItem={(id) => {
-            handleChecklistSelect(id);
-            setSelectedDocument(null);
-          }}
-          onSelectDoc={(doc) => {
-            setSelectedDocument(doc);
-            if (doc) setSelectedChecklistItemId(null);
-          }}
-          onUploadDoc={handleUploadDocument}
-          collapsed={journeyCollapsed}
-          onToggleCollapsed={() => setJourneyCollapsed(v => !v)}
-        />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Readiness overview */}
+        <ReadinessPanel requestId={requestData.id} refreshKey={readinessKey} />
 
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-          {/* Evidence Pack link sits as a thin sub-bar — secondary action,
-              not a stripe of chrome. */}
-          <div className="h-8 px-4 border-b border-border flex items-center justify-end shrink-0 bg-background">
+        {/* Stage progress rail */}
+        <div className="w-full border-b border-border bg-background flex py-2 px-6 shrink-0 items-center justify-between gap-4">
+          <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
+            <span className="text-xs font-medium text-muted-foreground shrink-0">
+              {requestData.stages.filter(s => s.status === 'complete').length} of {requestData.stages.length} stages done
+            </span>
+            <div className="flex overflow-x-auto flex-1 items-center">
+              <CaseStepper
+                stages={requestData.stages}
+                currentStage={activeViewStage}
+                onStageClick={handleStageClick}
+              />
+            </div>
+          </div>
+
+          <div className="hidden lg:flex shrink-0">
             <Link to={`/request/${requestData.id}/evidence-pack`}>
-              <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-muted-foreground hover:text-foreground">
+              <Button variant="outline" size="sm" className="h-8 gap-1.5">
                 <FileCheck className="h-3.5 w-3.5" />
-                Evidence pack
+                Evidence Pack
               </Button>
             </Link>
           </div>
-
-          <div className="flex-1 min-h-0 overflow-auto">
-            <OperationsWorkbench
-              centerOnly
-              requestData={requestData}
-              activeViewStage={activeViewStage}
-              selectedDocument={selectedDocument}
-              selectedChecklistItemId={selectedChecklistItemId}
-              onSelectChecklistItem={handleChecklistSelect}
-              onStageComplete={handleMarkStageComplete}
-              onChecklistToggle={handleChecklistToggle}
-              onRunValidation={handleRunValidation}
-              onUploadDocument={handleUploadDocument}
-              onReextract={handleReextract}
-              onSelectDocument={(doc) => {
-                setSelectedDocument(doc);
-                if (doc) setSelectedChecklistItemId(null);
-              }}
-              onExport={handleExport}
-              onMarkIssued={handleMarkIssued}
-            />
-          </div>
         </div>
 
-        <CaseContextRail
-          riskFlags={requestData.riskFlags}
-          inboundEmails={(requestData as any).inbound_emails || []}
-          timeline={requestData.timeline}
-          collapsed={contextCollapsed}
-          onToggleCollapsed={() => setContextCollapsed(v => !v)}
-        />
+        <div className="flex-1 min-h-0 overflow-auto">
+          <OperationsWorkbench
+            requestData={requestData}
+            activeViewStage={activeViewStage}
+            selectedDocument={selectedDocument}
+            selectedChecklistItemId={selectedChecklistItemId}
+            onSelectChecklistItem={handleChecklistSelect}
+            onStageComplete={handleMarkStageComplete}
+            onChecklistToggle={handleChecklistToggle}
+            onRunValidation={handleRunValidation}
+            onUploadDocument={handleUploadDocument}
+            onReextract={handleReextract}
+            onSelectDocument={(doc) => {
+              setSelectedDocument(doc);
+              if (doc) setSelectedChecklistItemId(null);
+            }}
+            onExport={handleExport}
+            onMarkIssued={handleMarkIssued}
+          />
+        </div>
       </div>
 
       {/* Modals */}

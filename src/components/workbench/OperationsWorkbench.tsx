@@ -57,12 +57,6 @@ interface OperationsWorkbenchProps {
     onReextract?: (docId: string, additionalPrompt?: string) => Promise<void>;
     onExport: () => void;
     onMarkIssued: () => void;
-    /**
-     * When true (the new three-zone workbench layout), skip the internal
-     * Documents + Checklist left pane — CaseJourney owns that real estate.
-     * The workbench renders only its center "details" pane.
-     */
-    centerOnly?: boolean;
 }
 
 const DEFAULT_HINTS = [
@@ -84,7 +78,6 @@ export function OperationsWorkbench({
     onUploadDocument,
     onReextract,
     onSelectDocument,
-    centerOnly = false,
 }: OperationsWorkbenchProps) {
     const [reextractPrompt, setReextractPrompt] = React.useState('');
     const [isReextractDialogOpen, setIsReextractDialogOpen] = React.useState(false);
@@ -199,9 +192,8 @@ export function OperationsWorkbench({
 
     return (
         <div className="flex-1 flex overflow-hidden bg-background">
-            {/* Left column: documents + checklist. Hidden when the parent uses
-                the three-zone layout (CaseJourney owns this). */}
-            {!centerOnly && (leftPaneCollapsed ? (
+            {/* Left column: documents + checklist */}
+            {leftPaneCollapsed ? (
                 <CollapsedLeftRail
                     docCount={requestData.documents.length}
                     docsTotal={caseRequiredDocTypes.length || requestData.documents.length}
@@ -294,7 +286,7 @@ export function OperationsWorkbench({
                     )}
                 </div>
             </div>
-            ))}
+            )}
 
             {/* Right column: details */}
             <div className="flex-1 flex flex-col overflow-hidden min-w-0">

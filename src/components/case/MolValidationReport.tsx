@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import {
   Users, CheckCircle2, XCircle, AlertTriangle, Clock, ShieldCheck, Eye,
-  Settings2, Check, X as XIcon, Send, ChevronRight,
+  Settings2, Check, X as XIcon, Send, ChevronRight, Download, FileText as FileTextIcon, Sheet,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,9 +18,18 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useUiPref } from '@/hooks/useUiPref';
+import { exportMolCsv, exportMolPdf, type MolExportRow } from '@/lib/molExport';
 
 interface MolValidationReportProps {
   result: ChecklistValidationResult;
@@ -145,6 +154,13 @@ function buildParsedRow(source: ChecklistRuleResult): ParsedRow {
 }
 
 type FilterKey = 'all' | 'matched' | 'review' | 'missing';
+
+const FILTER_LABEL: Record<FilterKey, string> = {
+  all: 'All',
+  matched: 'Matched',
+  review: 'Needs review',
+  missing: 'Missing in MOL',
+};
 
 const STATUS_BADGE: Record<RowStatus, { label: string; cls: string; icon: React.ReactNode }> = {
   auto: {
@@ -310,6 +326,44 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
     applyAction(action, [overrideKey(row)]);
   };
 
+  // ─── Export ───────────────────────────────────────────────────────
+  const toExportRow = (r: ParsedRow): MolExportRow => ({
+    censusName: r.census.name,
+    censusPassport: r.census.passport || '',
+    censusNationality: r.census.nationality || '',
+    molName: r.mol.name || '',
+    molPassport: r.mol.passport || r.mol.idNum || '',
+    molNationality: r.mol.nationality || '',
+    confidence: r.conf,
+    status: STATUS_BADGE[r.status].label,
+  });
+
+  const exportMeta = (scopeLabel: string) => ({
+    requestId: requestId,
+    scopeLabel,
+  });
+
+  // Actionable subset = needs-review + missing (what an operator must clear).
+  const unresolvedRows = useMemo(
+    () => parsedRows.filter(r => r.status === 'review' || r.status === 'missing'),
+    [parsedRows],
+  );
+
+  const doExport = (which: 'view' | 'unresolved', fmt: 'csv' | 'pdf') => {
+    const src = which === 'view' ? visibleRows : unresolvedRows;
+    if (src.length === 0) {
+      toast.error('Nothing to export in this set.');
+      return;
+    }
+    const rows = src.map(toExportRow);
+    const scopeLabel = which === 'view'
+      ? `Current view (${FILTER_LABEL[filter]})`
+      : 'Needs review + Missing in MOL';
+    if (fmt === 'csv') exportMolCsv(rows, exportMeta(scopeLabel));
+    else exportMolPdf(rows, exportMeta(scopeLabel));
+    toast.success(`Exported ${rows.length} record${rows.length === 1 ? '' : 's'} · ${fmt.toUpperCase()}`);
+  };
+
   return (
     <div className="space-y-4">
       {/* Verdict header */}
@@ -370,9 +424,45 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
             <FilterPill active={filter === 'matched'} onClick={() => setFilter('matched')} label="Matched" count={counts.matched} tone="success" />
             <FilterPill active={filter === 'review'} onClick={() => setFilter('review')} label="Needs review" count={counts.review} tone="warning" />
             <FilterPill active={filter === 'missing'} onClick={() => setFilter('missing')} label="Missing in MOL" count={counts.missing} tone="danger" />
+
             <span className="ml-auto text-xs text-muted-foreground tabular-nums">
               {visibleRows.length} {visibleRows.length === 1 ? 'record' : 'records'}
             </span>
+
+            {/* Export — current view, or the actionable review+missing subset */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-7 gap-1.5">
+                  <Download className="h-3.5 w-3.5" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                <DropdownMenuLabel className="text-[11px]">
+                  Needs review + Missing ({unresolvedRows.length})
+                </DropdownMenuLabel>
+                <DropdownMenuItem className="text-sm gap-2" onClick={() => doExport('unresolved', 'csv')}>
+                  <Sheet className="h-3.5 w-3.5 text-muted-foreground" />
+                  Export as Excel (CSV)
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-sm gap-2" onClick={() => doExport('unresolved', 'pdf')}>
+                  <FileTextIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  Export as PDF
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[11px]">
+                  Current view · {FILTER_LABEL[filter]} ({visibleRows.length})
+                </DropdownMenuLabel>
+                <DropdownMenuItem className="text-sm gap-2" onClick={() => doExport('view', 'csv')}>
+                  <Sheet className="h-3.5 w-3.5 text-muted-foreground" />
+                  Export as Excel (CSV)
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-sm gap-2" onClick={() => doExport('view', 'pdf')}>
+                  <FileTextIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  Export as PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Bulk action bar — only when rows are selected */}

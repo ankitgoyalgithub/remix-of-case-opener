@@ -1,7 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ClipboardCheck, Check, AlertCircle } from 'lucide-react';
+import { Check, AlertCircle } from 'lucide-react';
 import { Stage, ChecklistItem } from '@/types/case';
+import { cn } from '@/lib/utils';
 
 interface EvidencePackChecklistProps {
   stages: Stage[];
@@ -9,62 +8,60 @@ interface EvidencePackChecklistProps {
 }
 
 export function EvidencePackChecklist({ stages, checklist }: EvidencePackChecklistProps) {
+  const stagesWithItems = stages
+    .map(stage => ({ stage, items: checklist.filter(c => c.stageId === stage.id) }))
+    .filter(s => s.items.length > 0);
+
+  if (stagesWithItems.length === 0) {
+    return <p className="text-[13px] text-muted-foreground italic">No checklist items recorded.</p>;
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <ClipboardCheck className="h-5 w-5 text-primary" />
-          Checklist Snapshot
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {stages.map(stage => {
-            const items = checklist.filter(c => c.stageId === stage.id);
-            if (items.length === 0) return null;
-            
-            const completed = items.filter(i => i.checked).length;
-            const requiredItems = items.filter(i => i.required);
-            const requiredCompleted = requiredItems.filter(i => i.checked).length;
-            
-            return (
-              <div key={stage.id} className="border-b border-border pb-3 last:border-0">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-sm">{stage.name}</h4>
-                  <div className="flex items-center gap-2">
-                    <Badge 
-                      variant="outline" 
-                      className={completed === items.length ? 'bg-success/10 text-success border-success/30' : ''}
-                    >
-                      {completed}/{items.length}
-                    </Badge>
-                    {requiredItems.length > 0 && requiredCompleted < requiredItems.length && (
-                      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs">
-                        {requiredItems.length - requiredCompleted} required pending
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  {items.map(item => (
-                    <div key={item.id} className="flex items-center gap-2 text-sm">
-                      {item.checked ? (
-                        <Check className="h-4 w-4 text-success" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      <span className={item.checked ? 'text-muted-foreground' : ''}>
-                        {item.label}
-                        {item.required && <span className="text-destructive ml-1">*</span>}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+    <div className="space-y-5">
+      {stagesWithItems.map(({ stage, items }) => {
+        const completed = items.filter(i => i.checked).length;
+        const requiredItems = items.filter(i => i.required);
+        const requiredPending = requiredItems.length - requiredItems.filter(i => i.checked).length;
+        const allDone = completed === items.length;
+
+        return (
+          <div key={stage.id} className="break-inside-avoid">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-[13px] font-semibold text-foreground">{stage.name}</h4>
+              <div className="flex items-center gap-2 text-[11px]">
+                <span className={cn(
+                  'font-mono font-semibold',
+                  allDone ? 'text-success' : 'text-muted-foreground'
+                )}>
+                  {completed}/{items.length}
+                </span>
+                {requiredPending > 0 && (
+                  <span className="inline-flex items-center px-1.5 h-4 rounded bg-destructive/12 text-destructive text-[10px] font-semibold">
+                    {requiredPending} required pending
+                  </span>
+                )}
               </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+            </div>
+            <div className="border border-border rounded-md divide-y divide-border">
+              {items.map(item => (
+                <div key={item.id} className="flex items-center gap-2 px-3 py-1.5 text-[13px]">
+                  {item.checked ? (
+                    <Check className="h-3.5 w-3.5 text-success shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  )}
+                  <span className={cn('flex-1', item.checked && 'text-muted-foreground')}>
+                    {item.label}
+                  </span>
+                  {item.required && (
+                    <span className="text-[10px] font-mono font-semibold text-destructive">REQ</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

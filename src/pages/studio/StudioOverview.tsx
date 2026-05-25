@@ -71,6 +71,13 @@ export default function StudioOverview() {
         })();
     }, []);
 
+    const docsWithoutExtraction = state.documents.filter(
+        (d: any) => !(d.extraction_keys || []).length,
+    );
+    const checklistsWithoutHandler = state.checklists.filter(
+        (c: any) => c.item_type !== 'manual' && !c.handler_name,
+    );
+
     // Gap detection: only fire "no X" gaps when the fetch SUCCEEDED and the
     // result is genuinely empty. Otherwise surface a single "couldn't load"
     // warning so we don't shame the user for a wrapper / auth / network
@@ -97,7 +104,6 @@ export default function StudioOverview() {
                 action: { label: 'Add documents', to: '/studio/documents' },
             });
         }
-        const docsWithoutExtraction = state.documents.filter((d: any) => !(d.extraction_keys || []).length);
         if (state.documents.length > 0 && docsWithoutExtraction.length > 0) {
             gaps.push({
                 severity: 'info',
@@ -105,9 +111,6 @@ export default function StudioOverview() {
                 action: { label: 'Configure extraction', to: '/studio/documents' },
             });
         }
-        const checklistsWithoutHandler = state.checklists.filter((c: any) =>
-            c.item_type !== 'manual' && !c.handler_name
-        );
         if (checklistsWithoutHandler.length > 0) {
             gaps.push({
                 severity: 'warning',

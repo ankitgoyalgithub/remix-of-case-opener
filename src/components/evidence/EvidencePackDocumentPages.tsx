@@ -104,37 +104,37 @@ export function EvidencePackDocumentPages({ documents }: EvidencePackDocumentPag
     if (documents.length === 0) return null;
 
     return (
-        <section className="evidence-document-pages">
-            <div className="flex items-center gap-2 mb-3">
-                <FileText className="h-5 w-5 text-primary" />
-                <h2 className="text-sm font-semibold">Document pages</h2>
-                {loading && (
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Preparing pages…
-                    </span>
-                )}
-            </div>
-            <p className="text-xs text-muted-foreground mb-4 print:hidden">
-                Each uploaded document is flattened below so it flows into the printed PDF.
-            </p>
+        <div className="evidence-document-pages">
+            {loading && (
+                <div className="inline-flex items-center gap-1 text-[11px] text-muted-foreground mb-3">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Preparing pages…
+                </div>
+            )}
 
             <div className="space-y-6">
                 {rendered.map(({ doc, pageImages, error, kind }) => (
-                    <div key={doc.id} className="doc-render break-before-page first:break-before-auto">
-                        <div className="border border-border rounded-md px-3 py-2 mb-3 bg-muted/20">
-                            <p className="text-sm font-medium">{doc.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                                {DOCUMENT_TYPE_LABELS[doc.type] || doc.type} · uploaded {format(doc.uploadedAt, 'dd MMM yyyy HH:mm')}
-                            </p>
+                    <div
+                        key={doc.id}
+                        id={`doc-${doc.id}`}
+                        className="doc-render break-before-page first:break-before-auto scroll-mt-24"
+                    >
+                        <div className="border border-border rounded-md px-3 py-2 mb-3 bg-muted/30 flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-info shrink-0" />
+                            <div className="min-w-0">
+                                <p className="text-[13px] font-medium truncate">{doc.name}</p>
+                                <p className="text-[11px] text-muted-foreground">
+                                    {DOCUMENT_TYPE_LABELS[doc.type] || doc.type} · uploaded {format(doc.uploadedAt, 'dd MMM yyyy HH:mm')}
+                                </p>
+                            </div>
                         </div>
 
                         {error && (
-                            <p className="text-xs text-muted-foreground italic">{error}</p>
+                            <p className="text-[11px] text-muted-foreground italic">{error}</p>
                         )}
 
                         {!error && pageImages.length === 0 && !loading && (
-                            <p className="text-xs text-muted-foreground italic">No renderable pages.</p>
+                            <p className="text-[11px] text-muted-foreground italic">No renderable pages.</p>
                         )}
 
                         {pageImages.map((src, pageIdx) => (
@@ -157,6 +157,6 @@ export function EvidencePackDocumentPages({ documents }: EvidencePackDocumentPag
                     </div>
                 ))}
             </div>
-        </section>
+        </div>
     );
 }

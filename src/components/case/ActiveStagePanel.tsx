@@ -3,7 +3,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { Check, AlertCircle, Lock, AlertTriangle, CheckCircle2, FileText, Sparkles, ShieldCheck, ListTodo, RefreshCw, Loader2, Play, XCircle, Clock } from 'lucide-react';
+import { Check, AlertCircle, Lock, AlertTriangle, CheckCircle2, FileText, Sparkles, ShieldCheck, ListTodo, RefreshCw, Loader2, Play, XCircle, Clock, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { getDocumentsForStage } from '@/lib/stageDocumentMapping';
@@ -120,6 +120,7 @@ export function ActiveStagePanel({
       case 'extraction': return <Sparkles className="h-3 w-3 text-blue-500" />;
       case 'verification': return <ShieldCheck className="h-3 w-3 text-indigo-500" />;
       case 'cross-validation': return <CheckCircle2 className="h-3 w-3 text-purple-500" />;
+      case 'mol-validation': return <Users className="h-3 w-3 text-teal-500" />;
       default: return <ListTodo className="h-3 w-3 text-muted-foreground" />;
     }
   };

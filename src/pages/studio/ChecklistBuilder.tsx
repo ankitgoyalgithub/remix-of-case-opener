@@ -23,6 +23,7 @@ import { DOCUMENT_TYPE_LABELS } from '@/types/case';
 import { api } from '@/lib/api';
 import { CheckConfigDrawer } from '@/components/studio/CheckConfigDrawer';
 import { PageHeader } from '@/components/layout/PageShell';
+import { CheckLibraryDialog } from '@/components/studio/CheckLibraryDialog';
 
 type AutoCheckRule = 'manual' | 'document-present' | 'field-extracted' | 'cross-validation';
 
@@ -74,12 +75,6 @@ export default function ChecklistBuilder() {
   const [selectedStageId, setSelectedStageId] = useState<number | null>(null);
 
   const [addOpen, setAddOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newItemType, setNewItemType] = useState<string>('manual');
-  const [newAutoCheck, setNewAutoCheck] = useState<AutoCheckRule>('manual');
-  const [newRequired, setNewRequired] = useState(false);
-
   const [busyId, setBusyId] = useState<number | null>(null);
   const [drawerItem, setDrawerItem] = useState<ApiChecklistItem | null>(null);
 
@@ -132,31 +127,6 @@ export default function ChecklistBuilder() {
     }
   };
 
-  const handleAddItem = async () => {
-    const name = newName.trim();
-    if (!name) { toast.error('Name is required'); return; }
-    if (!selectedStageId) { toast.error('Pick a stage first'); return; }
-    setAdding(true);
-    try {
-      const created = await api.studio.checklists.create({
-        stage: selectedStageId,
-        name,
-        item_type: newItemType,
-        auto_check_rule: newAutoCheck,
-        required: newRequired,
-        manual_override_allowed: true,
-        linked_documents: [],
-      });
-      setItems(prev => [...prev, created as ApiChecklistItem]);
-      setAddOpen(false);
-      setNewName(''); setNewItemType('manual'); setNewAutoCheck('manual'); setNewRequired(false);
-      toast.success('Check added');
-    } catch {
-      toast.error('Failed to add check');
-    } finally {
-      setAdding(false);
-    }
-  };
 
   const handleDelete = async (item: ApiChecklistItem) => {
     setBusyId(item.id);
@@ -185,63 +155,12 @@ export default function ChecklistBuilder() {
       <PageHeader
         eyebrow="Studio · Checks"
         title="Checklist items"
-        description="Reusable checks the workflow runs on every request. Edits land on every open request automatically; closed requests are left untouched."
+        description="Reusable checks the workflow runs on every request. Pick a stage, then add, configure, or remove checks. Edits land on every open request automatically; closed requests are left untouched."
         actions={
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 shrink-0" disabled={!selectedStage}>
-                <Plus className="h-3.5 w-3.5" />
-                Add check
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Add check to {selectedStage?.name}</DialogTitle>
-                <DialogDescription>The check will be evaluated on every request that reaches this stage.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Name</Label>
-                  <Input placeholder="e.g. Trade licence is current" value={newName} onChange={e => setNewName(e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Type</Label>
-                  <Select value={newItemType} onValueChange={setNewItemType}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {ITEM_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Auto-check rule</Label>
-                  <Select value={newAutoCheck} onValueChange={(v) => setNewAutoCheck(v as AutoCheckRule)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="manual">Manual only</SelectItem>
-                      <SelectItem value="document-present">Document present</SelectItem>
-                      <SelectItem value="field-extracted">Field extracted</SelectItem>
-                      <SelectItem value="cross-validation">Cross-validation auto</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
-                  <div>
-                    <Label className="text-sm">Required</Label>
-                    <p className="text-[11px] text-muted-foreground">Block release until this passes</p>
-                  </div>
-                  <Switch checked={newRequired} onCheckedChange={setNewRequired} />
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => setAddOpen(false)}>Cancel</Button>
-                <Button size="sm" onClick={handleAddItem} disabled={adding}>
-                  {adding && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
-                  Add check
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button size="sm" className="gap-1.5 shrink-0" disabled={!selectedStage} onClick={() => setAddOpen(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            Add check
+          </Button>
         }
       />
 
@@ -418,7 +337,15 @@ export default function ChecklistBuilder() {
         </>
       )}
 
-      {/* Configure drawer */}
+      {/* Add-check dialog (template-driven) */}
+      <CheckLibraryDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        stage={selectedStage || null}
+        onCreated={fetchAll}
+      />
+
+      {/* Configure drawer (expert mode for editing existing checks) */}
       <CheckConfigDrawer
         open={drawerItem !== null}
         onOpenChange={(v) => { if (!v) setDrawerItem(null); }}

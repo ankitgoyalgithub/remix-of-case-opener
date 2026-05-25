@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Settings as SettingsIcon, Bell, Monitor, Globe, Shield, CreditCard, Users, Link as LinkIcon, Database, Zap, Lock, Palette, Mail, Plus, RefreshCw, Trash2, CheckCircle2, AlertTriangle, Loader2, ArrowRight } from 'lucide-react';
+import { UsersPanel } from '@/components/settings/UsersPanel';
 import { api } from '@/lib/api';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -29,6 +30,11 @@ export default function Settings() {
     const [mailboxes, setMailboxes] = useState<MailboxAccount[]>([]);
     const [mailboxesLoading, setMailboxesLoading] = useState(false);
     const [polling, setPolling] = useState<string | null>(null);
+    const [me, setMe] = useState<{ id: number; role: string } | null>(null);
+
+    useEffect(() => {
+        api.user.me().then(setMe).catch(() => setMe(null));
+    }, []);
 
     const loadMailboxes = async () => {
         try {
@@ -109,6 +115,10 @@ export default function Settings() {
                     <TabsTrigger value="workspace" className="px-3 text-[13px] font-medium gap-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground">
                         <Globe className="h-3.5 w-3.5" />
                         Workspace
+                    </TabsTrigger>
+                    <TabsTrigger value="users" className="px-3 text-[13px] font-medium gap-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground">
+                        <Users className="h-3.5 w-3.5" />
+                        Users
                     </TabsTrigger>
                     <TabsTrigger value="api" className="px-3 text-[13px] font-medium gap-1.5 data-[state=active]:bg-background data-[state=active]:text-foreground">
                         <Zap className="h-3.5 w-3.5" />
@@ -246,6 +256,10 @@ export default function Settings() {
                         <p className="text-sm text-muted-foreground font-medium">Enterprise workspace controls are managed by your regional administrator. Apply for escalated permissions to edit team settings.</p>
                         <Button variant="outline" className="rounded-xl font-bold text-xs uppercase tracking-wider px-8 border-primary/20 hover:bg-primary/5">Contact Admin</Button>
                     </div>
+                </TabsContent>
+
+                <TabsContent value="users" className="space-y-6 max-w-4xl mx-auto">
+                    <UsersPanel currentUserId={me?.id} />
                 </TabsContent>
 
                 <TabsContent value="api" className="space-y-6">

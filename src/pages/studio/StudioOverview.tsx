@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Workflow, FileStack, ClipboardCheck, Plug, Mail, Sparkles,
@@ -47,7 +46,7 @@ export default function StudioOverview() {
     useEffect(() => {
         (async () => {
             const errs: typeof loadErrors = {};
-            const tryLoad = async <K extends keyof StudioState>(key: K, fn: () => Promise<any>) => {
+            const tryLoad = async <K extends keyof StudioState,>(key: K, fn: () => Promise<any>) => {
                 try {
                     return asArray(await fn());
                 } catch (err: any) {
@@ -71,6 +70,8 @@ export default function StudioOverview() {
         })();
     }, []);
 
+    // Computed once so the stat-card hints can reference them outside the
+    // gap-detection block below.
     const docsWithoutExtraction = state.documents.filter(
         (d: any) => !(d.extraction_keys || []).length,
     );

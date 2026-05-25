@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Download, Check, AlertCircle, Loader2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -124,14 +124,44 @@ export default function EvidencePack() {
     })();
   }, [requestId]);
 
+  const [exporting, setExporting] = useState(false);
+
   const handleExportPdf = async () => {
-    // Wait a tick so any lazy-rendered PDF pages have had a chance to paint
-    // before the browser hands the DOM off to its print engine.
-    toast.loading('Preparing evidence pack…', { id: 'export-pdf' });
-    await new Promise(resolve => setTimeout(resolve, 150));
-    toast.dismiss('export-pdf');
-    window.print();
+    if (!caseData || exporting) return;
+    setExporting(true);
+    toast.loading('Generating evidence pack…', { id: 'export-pdf' });
+    try {
+      const { buildEvidencePackPdf, downloadEvidencePackPdf } = await import('@/lib/pdf/evidencePack');
+      const blob = await buildEvidencePackPdf({ caseData });
+      const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+      const safeName = (caseData.smartId || caseData.id).replace(/[^a-zA-Z0-9_-]/g, '_');
+      downloadEvidencePackPdf(blob, `evidence-pack_${safeName}_${stamp}.pdf`);
+      toast.success('Evidence pack downloaded', { id: 'export-pdf' });
+    } catch (err) {
+      console.error('Failed to build evidence pack PDF', err);
+      toast.error('Failed to generate PDF', { id: 'export-pdf' });
+    } finally {
+      setExporting(false);
+    }
   };
+
+  const sections = useMemo(() => {
+    const base = [
+      { id: 'summary', label: 'Summary' },
+      { id: 'decision', label: 'Decision' },
+      { id: 'stages', label: 'Stages' },
+      { id: 'checklist', label: 'Checklist' },
+      { id: 'extracted', label: 'Extracted data' },
+    ];
+    if (moaExtraction) base.push({ id: 'shareholding', label: 'Shareholding' });
+    base.push(
+      { id: 'overrides', label: 'Overrides' },
+      { id: 'timeline', label: 'Timeline' },
+      { id: 'documents', label: 'Documents' },
+      { id: 'document-pages', label: 'Document pages' },
+    );
+    return base.map((s, i) => ({ ...s, num: String(i + 1).padStart(2, '0') }));
+  }, [moaExtraction]);
 
   if (loading) {
     return (
@@ -154,82 +184,159 @@ export default function EvidencePack() {
     );
   }
 
+  const sectionWrap = (id: string, label: string, num: string, children: React.ReactNode) => (
+    <section id={id} className="scroll-mt-24 break-inside-avoid">
+      <div className="flex items-baseline gap-3 pb-2 mb-3 border-b border-border">
+        <span className="font-mono text-[10.5px] font-semibold tracking-[0.16em] uppercase text-primary">
+          {num}
+        </span>
+        <h2 className="text-[15px] font-semibold tracking-tight text-foreground">{label}</h2>
+      </div>
+      {children}
+    </section>
+  );
+
   return (
     <div className="h-full overflow-y-auto bg-background evidence-pack-root print:h-auto print:overflow-visible">
       {/* Header — hidden in print */}
-      <div className="bg-background border-b border-border px-6 py-3 print:hidden sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <div className="bg-background border-b border-border px-4 md:px-6 lg:px-8 py-3 print:hidden sticky top-0 z-10">
+        <div className="max-w-[1200px] mx-auto flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
             <Link to={`/request/${requestId}`}>
               <Button variant="ghost" size="icon" className="h-8 w-8 -ml-2">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
-            <div>
-              <h1 className="text-lg font-semibold">Evidence Pack</h1>
-              <p className="text-xs text-muted-foreground">
-                {caseData.companyName} · {caseData.smartId || caseData.id.slice(0, 8)}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="page-eyebrow">Case · Evidence pack</p>
+                {caseData.isIssued ? (
+                  <span className="inline-flex items-center px-1.5 h-4 rounded text-[9.5px] font-semibold uppercase tracking-wider bg-success/10 text-success">
+                    Final
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-1.5 h-4 rounded text-[9.5px] font-semibold uppercase tracking-wider bg-warning/10 text-warning">
+                    Draft
+                  </span>
+                )}
+              </div>
+              <h1 className="page-title truncate">{caseData.companyName}</h1>
+              <p className="text-xs text-muted-foreground truncate font-mono">
+                {caseData.smartId || caseData.id.slice(0, 8)}
               </p>
             </div>
           </div>
-          <Button onClick={handleExportPdf} size="sm" className="h-8 gap-1.5">
-            <Download className="h-3.5 w-3.5" />
-            Export PDF
+          <Button onClick={handleExportPdf} size="sm" className="gap-1.5 shrink-0" disabled={exporting}>
+            {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            {exporting ? 'Generating…' : 'Export PDF'}
           </Button>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-6 space-y-8 print:p-0 print:space-y-6 print:max-w-none">
-        <EvidencePackSummary caseData={caseData} />
+      <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 py-6 print:px-0 print:py-0 print:max-w-none">
+        <div className="grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)] gap-8 print:block">
+          {/* TOC sidebar — print-hidden */}
+          <aside className="hidden lg:block print:hidden">
+            <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-2">
+              <p className="font-mono text-[10px] font-semibold tracking-[0.16em] uppercase text-muted-foreground mb-3">
+                Contents
+              </p>
+              <nav className="flex flex-col gap-0.5">
+                {sections.map(s => (
+                  <div key={s.id}>
+                    <a
+                      href={`#${s.id}`}
+                      className="group flex items-baseline gap-2 py-1 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <span className="font-mono text-[10px] font-semibold tracking-wider text-muted-foreground/60 group-hover:text-primary transition-colors">
+                        {s.num}
+                      </span>
+                      <span className="truncate">{s.label}</span>
+                    </a>
+                    {s.id === 'document-pages' && caseData.documents.length > 0 && (
+                      <div className="ml-5 mt-0.5 mb-1 border-l border-border pl-2.5 flex flex-col gap-0.5">
+                        {caseData.documents.map(doc => (
+                          <a
+                            key={doc.id}
+                            href={`#doc-${doc.id}`}
+                            title={doc.name}
+                            className="flex items-baseline gap-1.5 py-0.5 text-[11.5px] text-muted-foreground hover:text-foreground transition-colors min-w-0"
+                          >
+                            <FileText className="h-2.5 w-2.5 shrink-0 text-muted-foreground/70" />
+                            <span className="truncate">{doc.name}</span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </nav>
+            </div>
+          </aside>
 
-        <EvidencePackDecision decision={caseData.decision} publication={caseData.publication} />
+          {/* Main content */}
+          <main className="space-y-8 print:space-y-6 min-w-0">
+            {sectionWrap('summary', 'Request summary', '01',
+              <EvidencePackSummary caseData={caseData} />)}
 
-        {/* Stage Completion */}
-        <section className="break-inside-avoid">
-          <h2 className="text-sm font-semibold text-foreground mb-3">Stage completion</h2>
-          <div className="border border-border rounded-md overflow-hidden">
-            {caseData.stages.map((stage, idx) => (
-              <div
-                key={stage.id}
-                className={cn(
-                  'flex items-center justify-between px-4 py-2.5',
-                  idx !== caseData.stages.length - 1 && 'border-b border-border'
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-mono text-muted-foreground w-8">S{stage.id}</span>
-                  <span className="text-sm text-foreground">{stage.name}</span>
-                </div>
-                <span className={cn(
-                  'inline-flex items-center gap-1 px-2 h-5 rounded text-[11px] font-medium',
-                  stage.status === 'complete' && 'bg-success/10 text-success',
-                  stage.status === 'needs-review' && 'bg-warning/10 text-warning',
-                  stage.status !== 'complete' && stage.status !== 'needs-review' && 'bg-muted text-muted-foreground'
-                )}>
-                  {stage.status === 'complete' && <Check className="h-3 w-3" />}
-                  {stage.status === 'needs-review' && <AlertCircle className="h-3 w-3" />}
-                  {stage.status.replace('-', ' ')}
-                </span>
+            {sectionWrap('decision', 'Decision & publication', '02',
+              <EvidencePackDecision decision={caseData.decision} publication={caseData.publication} />)}
+
+            {sectionWrap('stages', 'Stage completion', '03',
+              <div className="border border-border rounded-md overflow-hidden">
+                {caseData.stages.map((stage, idx) => (
+                  <div
+                    key={stage.id}
+                    className={cn(
+                      'flex items-center justify-between px-4 py-2.5',
+                      idx !== caseData.stages.length - 1 && 'border-b border-border'
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-mono text-muted-foreground w-8">S{stage.id}</span>
+                      <span className="text-sm text-foreground">{stage.name}</span>
+                    </div>
+                    <span className={cn(
+                      'inline-flex items-center gap-1 px-2 h-5 rounded text-[11px] font-medium',
+                      stage.status === 'complete' && 'bg-success/10 text-success',
+                      stage.status === 'needs-review' && 'bg-warning/10 text-warning',
+                      stage.status !== 'complete' && stage.status !== 'needs-review' && 'bg-muted text-muted-foreground'
+                    )}>
+                      {stage.status === 'complete' && <Check className="h-3 w-3" />}
+                      {stage.status === 'needs-review' && <AlertCircle className="h-3 w-3" />}
+                      {stage.status.replace('-', ' ')}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            )}
 
-        <EvidencePackChecklist stages={caseData.stages} checklist={caseData.checklist} />
-        <EvidencePackExtractedData extractedData={caseData.extractedData} />
-        {moaExtraction && (
-          <section className="rounded-xl border border-border bg-card p-5">
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              Shareholding structure
-              <span className="text-[11px] font-normal text-muted-foreground">From MoA extraction</span>
-            </h3>
-            <ShareholdingTree extraction={moaExtraction} />
-          </section>
-        )}
-        <EvidencePackOverrides workforceMismatch={caseData.workforceMismatch} />
-        <EvidencePackTimeline timeline={caseData.timeline} />
-        <EvidencePackDocuments documents={caseData.documents} />
-        <EvidencePackDocumentPages documents={caseData.documents} />
+            {sectionWrap('checklist', 'Checklist snapshot', '04',
+              <EvidencePackChecklist stages={caseData.stages} checklist={caseData.checklist} />)}
+
+            {sectionWrap('extracted', 'Extracted data', '05',
+              <EvidencePackExtractedData extractedData={caseData.extractedData} />)}
+
+            {moaExtraction && sectionWrap('shareholding', 'Shareholding structure', '06',
+              <div className="rounded-md border border-border bg-card p-4">
+                <p className="text-[11px] text-muted-foreground mb-3">From MoA extraction</p>
+                <ShareholdingTree extraction={moaExtraction} />
+              </div>
+            )}
+
+            {sectionWrap('overrides', 'Overrides', moaExtraction ? '07' : '06',
+              <EvidencePackOverrides workforceMismatch={caseData.workforceMismatch} />)}
+
+            {sectionWrap('timeline', 'Activity timeline', moaExtraction ? '08' : '07',
+              <EvidencePackTimeline timeline={caseData.timeline} />)}
+
+            {sectionWrap('documents', `Documents (${caseData.documents.length})`, moaExtraction ? '09' : '08',
+              <EvidencePackDocuments documents={caseData.documents} />)}
+
+            {sectionWrap('document-pages', 'Document pages', moaExtraction ? '10' : '09',
+              <EvidencePackDocumentPages documents={caseData.documents} />)}
+          </main>
+        </div>
       </div>
     </div>
   );

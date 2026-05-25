@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { DOCUMENT_TYPE_LABELS } from '@/types/case';
 import { api } from '@/lib/api';
 import { CheckConfigDrawer } from '@/components/studio/CheckConfigDrawer';
+import { PageHeader } from '@/components/layout/PageShell';
 import { CheckLibraryDialog } from '@/components/studio/CheckLibraryDialog';
 
 type AutoCheckRule = 'manual' | 'document-present' | 'field-extracted' | 'cross-validation';
@@ -150,33 +151,18 @@ export default function ChecklistBuilder() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-xl border border-border bg-gradient-to-br from-primary/8 via-background to-info/5 p-6">
-        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-        <div className="relative flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary/80">
-              <ClipboardCheck className="h-3 w-3" />
-              Checks
-            </div>
-            <h1 className="text-3xl font-semibold text-foreground mt-2 tracking-tight">Checklist items</h1>
-            <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl">
-              Reusable checks the workflow runs on every request. Pick a stage, then add, configure, or remove checks.
-              Edits land on every <strong>open</strong> request automatically — closed requests (approved / rejected / published) are left untouched.
-            </p>
-          </div>
-          <Button
-            size="sm"
-            className="gap-1.5 shadow-md shadow-primary/20 shrink-0"
-            disabled={!selectedStage}
-            onClick={() => setAddOpen(true)}
-          >
+    <>
+      <PageHeader
+        eyebrow="Studio · Checks"
+        title="Checklist items"
+        description="Reusable checks the workflow runs on every request. Pick a stage, then add, configure, or remove checks. Edits land on every open request automatically; closed requests are left untouched."
+        actions={
+          <Button size="sm" className="gap-1.5 shrink-0" disabled={!selectedStage} onClick={() => setAddOpen(true)}>
             <Plus className="h-3.5 w-3.5" />
             Add check
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Stage selector */}
       {stages.length === 0 ? (
@@ -382,7 +368,7 @@ export default function ChecklistBuilder() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </>
   );
 }
 

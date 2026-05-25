@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FileText, Check, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
@@ -134,21 +133,14 @@ function DocumentRow({ doc }: { doc: Document }) {
 }
 
 export function EvidencePackDocuments({ documents }: EvidencePackDocumentsProps) {
+    if (documents.length === 0) {
+        return <p className="text-[13px] text-muted-foreground italic">No documents uploaded.</p>;
+    }
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    Documents ({documents.length})
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-3">
-                    {documents.map(doc => (
-                        <DocumentRow key={doc.id} doc={doc} />
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
+        <div className="space-y-2">
+            {documents.map(doc => (
+                <DocumentRow key={doc.id} doc={doc} />
+            ))}
+        </div>
     );
 }

@@ -6,11 +6,12 @@ import { toast } from 'sonner';
 import {
   Check, X, Clock, AlertCircle, Play, ChevronRight,
   FileText, GitCompare, Globe, User, Loader2, Zap,
-  ArrowRight, Info, RefreshCw
+  ArrowRight, Info, RefreshCw, Users
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EntityScreeningReport } from './EntityScreeningReport';
+import { MolValidationReport } from './MolValidationReport';
 import { AgentTracePanel } from './AgentTracePanel';
 
 interface ChecklistDetailPanelProps {
@@ -54,6 +55,13 @@ const TYPE_CONFIG = {
     color: 'text-amber-500',
     bg: 'bg-amber-500/10',
     border: 'border-amber-500/20',
+  },
+  'mol-validation': {
+    icon: Users,
+    label: 'MOL Validation',
+    color: 'text-teal-500',
+    bg: 'bg-teal-500/10',
+    border: 'border-teal-500/20',
   },
 } as const;
 
@@ -202,8 +210,10 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
               </div>
             </div>
 
-            {/* Entity screening gets its own report-style view */}
-            {(item.handlerName === 'entity_screening' || (item.itemType as any) === 'entity-screening') && localResult.details && localResult.details.length > 0 ? (
+            {/* MOL validation gets its own workforce-focused report */}
+            {(item.handlerName === 'mol_validation' || item.itemType === 'mol-validation') && localResult.details && localResult.details.length > 0 ? (
+              <MolValidationReport result={localResult} />
+            ) : (item.handlerName === 'entity_screening' || (item.itemType as any) === 'entity-screening') && localResult.details && localResult.details.length > 0 ? (
               <EntityScreeningReport result={localResult} itemLabel={item.label} />
             ) : localResult.details && localResult.details.length > 0 && (() => {
               // Group rows by step_index so multi-handler checks render one

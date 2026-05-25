@@ -43,6 +43,40 @@ const ITEM_TYPES = [
   { value: 'risk-review', label: 'Risk review' },
 ];
 
+// ─── MOL validation per-field rules ───────────────────────────────────
+// Hardcoded defaults mirror what the legacy handler used. Editing these in
+// the drawer writes into config_payload.fields, and the backend handler
+// merges over the same defaults on the server side.
+
+type MolMode = 'exact' | 'fuzzy' | 'exact_fuzzy' | 'contains';
+type MolPriority = 'high' | 'medium' | 'low';
+
+interface MolField {
+  enabled: boolean;
+  mode: MolMode;
+  required: boolean;
+  priority: MolPriority;
+}
+
+const DEFAULT_MOL_FIELDS: Record<string, MolField> = {
+  passport_number: { enabled: true,  mode: 'exact_fuzzy', required: true,  priority: 'high'   },
+  full_name:       { enabled: true,  mode: 'fuzzy',       required: false, priority: 'high'   },
+  nationality:     { enabled: true,  mode: 'exact',       required: false, priority: 'medium' },
+};
+
+const MOL_FIELD_LABEL: Record<string, string> = {
+  passport_number: 'Passport',
+  full_name:       'Name',
+  nationality:     'Nationality',
+};
+
+const MOL_MODE_OPTIONS: Array<{ value: MolMode; label: string; hint: string }> = [
+  { value: 'exact',       label: 'Exact',           hint: 'Must match character-for-character' },
+  { value: 'fuzzy',       label: 'Fuzzy',           hint: 'Levenshtein-similar values count' },
+  { value: 'exact_fuzzy', label: 'Exact or fuzzy',  hint: 'Try exact first, fall back to fuzzy' },
+  { value: 'contains',    label: 'Contains',        hint: 'Census value is a substring of MOL value (or vice versa)' },
+];
+
 interface CheckItem {
   id: number;
   stage: number;
@@ -114,6 +148,10 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
   const [verifications, setVerifications] = useState<Array<{ handler: string; config: Record<string, any> }>>([]);
   const [configPayloadText, setConfigPayloadText] = useState('{}');
   const [apiConfigText, setApiConfigText] = useState('{}');
+
+  // MOL validation — per-field matching rules. Only renders when the check
+  // uses the mol-validation handler. Backend reads from config_payload.fields.
+  const [matchFields, setMatchFields] = useState<Record<string, MolField>>(DEFAULT_MOL_FIELDS);
   const [configPayloadError, setConfigPayloadError] = useState<string | null>(null);
   const [apiConfigError, setApiConfigError] = useState<string | null>(null);
 
@@ -167,7 +205,38 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
     setApiConfigText(formatJson(item.api_config));
     setConfigPayloadError(null);
     setApiConfigError(null);
+
+    // Load MOL per-field rules (if present) — merge over the defaults so any
+    // missing keys stay sensible.
+    const stored = (item.config_payload as any)?.fields;
+    if (stored && typeof stored === 'object') {
+      const merged: Record<string, MolField> = { ...DEFAULT_MOL_FIELDS };
+      for (const key of Object.keys(merged)) {
+        const partial = stored[key];
+        if (partial && typeof partial === 'object') {
+          merged[key] = {
+            enabled:  partial.enabled  ?? merged[key].enabled,
+            mode:     (partial.mode    ?? merged[key].mode) as MolMode,
+            required: partial.required ?? merged[key].required,
+            priority: (partial.priority ?? merged[key].priority) as MolPriority,
+          };
+        }
+      }
+      setMatchFields(merged);
+    } else {
+      setMatchFields(DEFAULT_MOL_FIELDS);
+    }
   }, [item, open]);
+
+  // True when any verification step (or legacy handler_name) is the MOL
+  // validation handler. The backend registers it as `mol_validation`
+  // (underscore); accept the hyphenated form too in case older seeds use it.
+  // Drives the conditional MOL matching rules editor below the basics form.
+  const isMolValidation = useMemo(() => {
+    const isMol = (h?: string) => h === 'mol_validation' || h === 'mol-validation';
+    if (isMol(item?.handler_name)) return true;
+    return verifications.some(v => isMol(v.handler));
+  }, [item?.handler_name, verifications]);
 
   const groupedDocs = useMemo(() => {
     const groups: Record<string, DocOption[]> = {};
@@ -262,7 +331,16 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
         /* ignore — the form is the source of truth, raw JSON is just for inspection */
       }
     }
-    const newConfigPayload = { ...basePayload, verifications: builtVerifications };
+    const newConfigPayload: Record<string, any> = { ...basePayload, verifications: builtVerifications };
+
+    // If this is the MOL validation check, persist the per-field rules so the
+    // backend handler can read them from config_payload.fields.
+    if (isMolValidation) {
+      newConfigPayload.fields = matchFields;
+    } else {
+      // Different check — strip a stale `fields` key if one was left behind.
+      delete newConfigPayload.fields;
+    }
 
     let parsedApi: Record<string, any> = {};
     try {
@@ -385,6 +463,91 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
                   </p>
                 </div>
               </details>
+
+              {/* MOL Validation — per-field matching rules.
+                  Only rendered when this check uses the mol-validation handler. */}
+              {isMolValidation && (
+                <div className="pt-3 mt-3 border-t border-border space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Network className="h-3.5 w-3.5 text-muted-foreground" />
+                    <p className="text-sm font-medium">Matching rules</p>
+                    <Badge variant="neutral" className="text-[10px]">MOL only</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground -mt-1.5">
+                    How each field is compared between the Census file and the MOL list. Stored on
+                    <code className="ml-1 px-1 py-px text-[10px] bg-muted rounded">config_payload.fields</code>.
+                  </p>
+
+                  <div className="rounded-md border border-border bg-card divide-y divide-border">
+                    {(['passport_number', 'full_name', 'nationality'] as const).map(key => {
+                      const f = matchFields[key];
+                      return (
+                        <div key={key} className="px-3 py-2.5 grid grid-cols-[110px_1fr_auto] gap-3 items-center">
+                          {/* Field name + enabled toggle */}
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Switch
+                              checked={f.enabled}
+                              onCheckedChange={(v) => setMatchFields(prev => ({
+                                ...prev,
+                                [key]: { ...prev[key], enabled: !!v },
+                              }))}
+                            />
+                            <Label className={cn(
+                              'text-[13px] font-medium truncate',
+                              !f.enabled && 'text-muted-foreground line-through',
+                            )}>
+                              {MOL_FIELD_LABEL[key]}
+                            </Label>
+                          </div>
+
+                          {/* Mode select */}
+                          <Select
+                            value={f.mode}
+                            onValueChange={(v) => setMatchFields(prev => ({
+                              ...prev,
+                              [key]: { ...prev[key], mode: v as MolMode },
+                            }))}
+                            disabled={!f.enabled}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {MOL_MODE_OPTIONS.map(o => (
+                                <SelectItem key={o.value} value={o.value} className="text-xs">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{o.label}</span>
+                                    <span className="text-[10px] text-muted-foreground">{o.hint}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          {/* Required */}
+                          <div className="flex items-center gap-1.5">
+                            <Switch
+                              checked={f.required}
+                              onCheckedChange={(v) => setMatchFields(prev => ({
+                                ...prev,
+                                [key]: { ...prev[key], required: !!v },
+                              }))}
+                              disabled={!f.enabled}
+                            />
+                            <Label className="text-[11px] text-muted-foreground">Required</Label>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    <strong>Required</strong> fields must match for the rule to consider a candidate at all.
+                    Non-required fields contribute to the confidence score when present, but their absence
+                    doesn't disqualify a match.
+                  </p>
+                </div>
+              )}
             </TabsContent>
 
             {/* PROMPTS */}

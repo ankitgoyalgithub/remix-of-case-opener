@@ -72,9 +72,11 @@ export default function StudioOverview() {
 
     // Computed once so the stat-card hints can reference them outside the
     // gap-detection block below.
-    const docsWithoutExtraction = state.documents.filter((d: any) => !(d.extraction_keys || []).length);
-    const checklistsWithoutHandler = state.checklists.filter((c: any) =>
-        c.item_type !== 'manual' && !c.handler_name
+    const docsWithoutExtraction = state.documents.filter(
+        (d: any) => !(d.extraction_keys || []).length,
+    );
+    const checklistsWithoutHandler = state.checklists.filter(
+        (c: any) => c.item_type !== 'manual' && !c.handler_name,
     );
 
     // Gap detection: only fire "no X" gaps when the fetch SUCCEEDED and the

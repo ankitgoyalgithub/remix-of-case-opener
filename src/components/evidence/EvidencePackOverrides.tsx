@@ -1,6 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, User, Clock, Check } from 'lucide-react';
+import { AlertTriangle, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { CaseData } from '@/types/case';
 
@@ -10,73 +8,49 @@ interface EvidencePackOverridesProps {
 
 export function EvidencePackOverrides({ workforceMismatch }: EvidencePackOverridesProps) {
   const hasOverrides = workforceMismatch.detected && workforceMismatch.accepted;
-  
+
+  if (!hasOverrides) {
+    return (
+      <p className="text-[13px] text-muted-foreground italic">
+        No overrides were applied. All validations passed without manual intervention.
+      </p>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5 text-primary" />
-          Override Reasons
-          {hasOverrides && (
-            <Badge className="ml-2 bg-warning/20 text-warning-foreground border-0 text-xs">
-              1 Override Applied
-            </Badge>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {hasOverrides ? (
-          <div className="space-y-3">
-            <div className="p-4 bg-warning/5 border border-warning/20 rounded-lg">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-warning mt-0.5" />
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-sm font-semibold">Workforce Mismatch Override</h4>
-                    <Badge className="bg-success/20 text-success border-0 text-xs gap-1">
-                      <Check className="h-3 w-3" />
-                      Accepted
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    MOL shows {workforceMismatch.molCount} employees, Census has {workforceMismatch.censusCount} members.
-                  </p>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Overridden by:</span>
-                      <span className="font-medium">Sarah Ahmed</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Override time:</span>
-                      <span className="font-medium">{format(new Date(), 'dd MMM yyyy HH:mm')}</span>
-                    </div>
-                  </div>
-                  
-                  {workforceMismatch.acceptReason && (
-                    <div className="mt-3 p-3 bg-background rounded border border-border">
-                      <p className="text-xs text-muted-foreground mb-1">Reason for acceptance:</p>
-                      <p className="text-sm italic">"{workforceMismatch.acceptReason}"</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+    <div className="border border-warning/30 bg-warning/5 rounded-md p-3">
+      <div className="flex items-start gap-2.5">
+        <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-[13px] font-semibold">Workforce mismatch override</h4>
+            <span className="inline-flex items-center gap-1 px-1.5 h-5 rounded bg-success/12 text-success text-[11px] font-semibold">
+              <Check className="h-3 w-3" /> Accepted
+            </span>
+          </div>
+          <p className="text-[12px] text-muted-foreground mb-2">
+            MOL shows {workforceMismatch.molCount} employees · Census has {workforceMismatch.censusCount} members.
+          </p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[12px]">
+            <div>
+              <span className="text-muted-foreground">Overridden by: </span>
+              <span className="font-medium">Sarah Ahmed</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Override time: </span>
+              <span className="font-medium">{format(new Date(), 'dd MMM yyyy HH:mm')}</span>
             </div>
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-6 text-center">
-            <Check className="h-10 w-10 text-success/50 mb-3" />
-            <p className="text-sm text-muted-foreground">
-              No overrides were applied during this request.
-            </p>
-            <p className="text-xs text-muted-foreground/60 mt-1">
-              All validations passed without manual intervention.
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          {workforceMismatch.acceptReason && (
+            <div className="mt-2 px-3 py-2 bg-background rounded border border-border">
+              <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">
+                Reason
+              </p>
+              <p className="text-[12px] italic">"{workforceMismatch.acceptReason}"</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

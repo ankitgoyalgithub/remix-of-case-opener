@@ -1,76 +1,158 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Building2 } from 'lucide-react';
 import { format } from 'date-fns';
+import { Building2, Hash, Calendar, User, Layers, AlertTriangle, Inbox } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { CaseData } from '@/types/case';
+import { cn } from '@/lib/utils';
 
 interface EvidencePackSummaryProps {
   caseData: CaseData;
 }
 
-export function EvidencePackSummary({ caseData }: EvidencePackSummaryProps) {
+function MetaCell({
+  icon,
+  label,
+  children,
+}: {
+  icon: ReactNode;
+  label: string;
+  children: ReactNode;
+}) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-primary" />
-          Request Summary
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm text-muted-foreground">Request ID</p>
-              <p className="font-medium">{caseData.id}</p>
+    <div className="flex gap-2.5 min-w-0">
+      <div className="h-7 w-7 rounded-md bg-muted/60 border border-border flex items-center justify-center shrink-0 text-muted-foreground">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-mono font-semibold tracking-[0.14em] uppercase text-muted-foreground leading-none mb-1.5">
+          {label}
+        </p>
+        <div className="text-[13px] font-medium text-foreground break-words leading-tight">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Pill({
+  tone,
+  children,
+  className,
+}: {
+  tone: 'info' | 'primary' | 'muted' | 'success';
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center px-1.5 h-5 rounded text-[11px] font-semibold',
+        tone === 'info' && 'bg-info/10 text-info',
+        tone === 'primary' && 'bg-primary/10 text-primary',
+        tone === 'muted' && 'bg-muted text-muted-foreground',
+        tone === 'success' && 'bg-success/10 text-success',
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+export function EvidencePackSummary({ caseData }: EvidencePackSummaryProps) {
+  const created = caseData.createdAt
+    ? format(new Date(caseData.createdAt), 'dd MMM yyyy HH:mm')
+    : caseData.timeline?.[0]?.timestamp
+      ? format(new Date(caseData.timeline[0].timestamp), 'dd MMM yyyy HH:mm')
+      : '—';
+
+  const stageName = caseData.stages.find(s => s.id === caseData.currentStage)?.name;
+
+  return (
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      {/* Headline strip — company name + key status pills */}
+      <div className="px-5 py-4 border-b border-border bg-muted/30">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <Building2 className="h-3.5 w-3.5 text-primary" />
+              <span className="text-[10.5px] font-mono font-semibold tracking-[0.16em] uppercase text-muted-foreground">
+                Subject company
+              </span>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Company Name</p>
-              <p className="font-medium">{caseData.companyName}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Request Status</p>
-              <Badge className="bg-info/20 text-info border-0">{caseData.status}</Badge>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Queue</p>
-              <p className="font-medium">{caseData.queue}</p>
-            </div>
+            <h3 className="text-[20px] font-semibold tracking-tight text-foreground leading-tight">
+              {caseData.companyName}
+            </h3>
+            <p className="text-[11.5px] font-mono text-muted-foreground mt-1 break-all">
+              {caseData.smartId || caseData.id}
+            </p>
           </div>
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm text-muted-foreground">Current Stage</p>
-              <p className="font-medium">Stage {caseData.currentStage} of {caseData.stages.length}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Created Date</p>
-              <p className="font-medium">
-                {caseData.createdAt
-                  ? format(new Date(caseData.createdAt), 'dd MMM yyyy HH:mm')
-                  : caseData.timeline?.[0]?.timestamp
-                    ? format(new Date(caseData.timeline[0].timestamp), 'dd MMM yyyy HH:mm')
-                    : '—'}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Assigned To</p>
-              <p className="font-medium">{caseData.owner}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Priority</p>
-              <Badge 
-                className={
-                  caseData.priority === 'Urgent' 
-                    ? 'bg-destructive/20 text-destructive border-0'
-                    : 'bg-muted text-muted-foreground border-0'
-                }
-              >
-                {caseData.priority}
-              </Badge>
-            </div>
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+            <Pill tone="info">{caseData.status}</Pill>
+            <Pill tone={caseData.priority === 'Urgent' ? 'primary' : 'muted'}>
+              {caseData.priority === 'Urgent' && <AlertTriangle className="h-3 w-3 mr-1" />}
+              {caseData.priority} priority
+            </Pill>
+            <Pill tone={caseData.isIssued ? 'success' : 'muted'}>
+              {caseData.isIssued ? 'Final pack' : 'Draft pack'}
+            </Pill>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Meta grid */}
+      <div className="px-5 py-4 grid grid-cols-2 md:grid-cols-4 gap-x-5 gap-y-4">
+        <MetaCell icon={<Layers className="h-3.5 w-3.5" />} label="Current stage">
+          <div className="leading-tight">
+            <div>Stage {caseData.currentStage} of {caseData.stages.length}</div>
+            {stageName && (
+              <div className="text-[11px] text-muted-foreground mt-0.5 truncate">{stageName}</div>
+            )}
+          </div>
+        </MetaCell>
+
+        <MetaCell icon={<Calendar className="h-3.5 w-3.5" />} label="Created">
+          {created}
+        </MetaCell>
+
+        <MetaCell icon={<User className="h-3.5 w-3.5" />} label="Assigned to">
+          {caseData.owner || (
+            <span className="text-muted-foreground italic">Unassigned</span>
+          )}
+        </MetaCell>
+
+        <MetaCell icon={<Inbox className="h-3.5 w-3.5" />} label="Queue">
+          {caseData.queue}
+        </MetaCell>
+
+        <MetaCell icon={<Hash className="h-3.5 w-3.5" />} label="Request ID">
+          <span className="font-mono text-[11.5px] break-all">{caseData.id}</span>
+        </MetaCell>
+
+        <MetaCell icon={<User className="h-3.5 w-3.5" />} label="Broker">
+          <span className="break-all">{caseData.brokerEmail || '—'}</span>
+        </MetaCell>
+
+        <MetaCell icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Open risk flags">
+          {caseData.riskFlags && caseData.riskFlags.length > 0 ? (
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono tabular-nums">
+                {caseData.riskFlags.filter(f => !f.resolved).length}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                of {caseData.riskFlags.length} total
+              </span>
+            </div>
+          ) : (
+            <span className="text-muted-foreground">None</span>
+          )}
+        </MetaCell>
+
+        <MetaCell icon={<Layers className="h-3.5 w-3.5" />} label="Documents">
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono tabular-nums">{caseData.documents.length}</span>
+            <span className="text-[11px] text-muted-foreground">uploaded</span>
+          </div>
+        </MetaCell>
+      </div>
+    </div>
   );
 }

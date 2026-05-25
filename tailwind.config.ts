@@ -7,12 +7,21 @@ export default {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: "1.5rem",
       screens: {
-        "2xl": "1400px",
+        "2xl": "1440px",
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Geist', 'Inter', 'system-ui', 'sans-serif'],
+        mono: ['Geist Mono', 'JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+      },
+      letterSpacing: {
+        tightest: '-0.04em',
+        tighter: '-0.025em',
+        tight: '-0.015em',
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -85,6 +94,19 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      boxShadow: {
+        // Crisp, single-layer shadows — no glow, no halo.
+        xs: "0 1px 2px 0 hsl(240 6% 10% / 0.04)",
+        sm: "0 1px 2px 0 hsl(240 6% 10% / 0.05), 0 1px 1px 0 hsl(240 6% 10% / 0.04)",
+        DEFAULT: "0 2px 4px -1px hsl(240 6% 10% / 0.06), 0 1px 2px -1px hsl(240 6% 10% / 0.04)",
+        md: "0 4px 8px -2px hsl(240 6% 10% / 0.08), 0 2px 4px -2px hsl(240 6% 10% / 0.04)",
+        lg: "0 10px 20px -4px hsl(240 6% 10% / 0.10), 0 4px 8px -4px hsl(240 6% 10% / 0.04)",
+        // For floating overlays (menus, popovers)
+        overlay: "0 8px 24px -8px hsl(240 6% 10% / 0.12), 0 4px 8px -4px hsl(240 6% 10% / 0.06)",
+      },
+      transitionTimingFunction: {
+        refined: "cubic-bezier(0.2, 0, 0.13, 1)",
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -110,8 +132,8 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "fade-in": "fade-in 0.3s ease-out",
-        "slide-in": "slide-in 0.3s ease-out",
+        "fade-in": "fade-in 0.28s cubic-bezier(0.2, 0, 0.13, 1)",
+        "slide-in": "slide-in 0.28s cubic-bezier(0.2, 0, 0.13, 1)",
         pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
     },

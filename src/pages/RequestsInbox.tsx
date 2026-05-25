@@ -18,9 +18,10 @@ import { mapBackendRequestToListItem } from '@/lib/mappers';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Filter, RefreshCw, Loader2, Plus, Trash2, AlertTriangle,
-  Check, X as XIcon, ChevronUp, ChevronDown, Keyboard, Sparkles,
-  Bookmark, Save, Send, ArrowUpDown,
+  Check, X as XIcon, ChevronUp, ChevronDown, ChevronRight, Keyboard, Sparkles,
+  Bookmark, Save, Send, ArrowUpDown, Rows, LayoutList,
 } from 'lucide-react';
+import { useUiPref } from '@/hooks/useUiPref';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -45,6 +46,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { PageShell, PageHeader } from '@/components/layout/PageShell';
 
 const STATUS_STYLES: Record<RequestListItem['status'], string> = {
   'New': 'bg-muted text-foreground',
@@ -118,6 +120,13 @@ export default function RequestsInbox() {
   const [bulkActing, setBulkActing] = useState(false);
   const [bulkCommentOpen, setBulkCommentOpen] = useState<null | 'approve' | 'reject'>(null);
   const [bulkComment, setBulkComment] = useState('');
+
+  // View mode — Triage groups by SLA (default, decision-grade) vs Flat sortable
+  // table (power-user). Persisted so the user's preference sticks.
+  const [viewMode, setViewMode] = useUiPref<'triage' | 'flat'>('inbox.viewMode', 'triage');
+  const [collapsedRed,   setCollapsedRed]   = useUiPref<boolean>('inbox.triage.red.collapsed', false);
+  const [collapsedAmber, setCollapsedAmber] = useUiPref<boolean>('inbox.triage.amber.collapsed', false);
+  const [collapsedGreen, setCollapsedGreen] = useUiPref<boolean>('inbox.triage.green.collapsed', false);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
@@ -196,6 +205,30 @@ export default function RequestsInbox() {
     });
     return sorted;
   }, [requests, filters, searchQuery, sortKey, sortDir]);
+
+  // ─── Triage groups (by SLA bucket) ──────────────────────────────
+  const groups = useMemo(() => {
+    const red:   RequestListItem[] = [];
+    const amber: RequestListItem[] = [];
+    const green: RequestListItem[] = [];
+    for (const r of filteredRequests) {
+      if (r.slaStatus === 'red') red.push(r);
+      else if (r.slaStatus === 'amber') amber.push(r);
+      else green.push(r);
+    }
+    return { red, amber, green };
+  }, [filteredRequests]);
+
+  // Rows actually visible in the table — flat mode shows all, triage mode
+  // omits rows from collapsed groups. Keyboard nav (j/k) and rowRefs walk this.
+  const visibleRows = useMemo(() => {
+    if (viewMode === 'flat') return filteredRequests;
+    return [
+      ...(collapsedRed   ? [] : groups.red),
+      ...(collapsedAmber ? [] : groups.amber),
+      ...(collapsedGreen ? [] : groups.green),
+    ];
+  }, [viewMode, filteredRequests, groups, collapsedRed, collapsedAmber, collapsedGreen]);
 
   // ─── Derived: counts ────────────────────────────────────────────
   const slaRisk = useMemo(() => {
@@ -382,11 +415,11 @@ export default function RequestsInbox() {
       if (isTyping) return;
 
       // j/k to move focus, Enter to open, Space to toggle select, x to delete
-      if (filteredRequests.length === 0) return;
+      if (visibleRows.length === 0) return;
       if (e.key === 'j' || e.key === 'ArrowDown') {
         e.preventDefault();
         setFocusedIndex(i => {
-          const next = i == null ? 0 : Math.min(i + 1, filteredRequests.length - 1);
+          const next = i == null ? 0 : Math.min(i + 1, visibleRows.length - 1);
           rowRefs.current[next]?.scrollIntoView({ block: 'nearest' });
           return next;
         });
@@ -399,15 +432,17 @@ export default function RequestsInbox() {
         });
       } else if (e.key === 'Enter' && focusedIndex != null) {
         e.preventDefault();
-        navigate(`/request/${filteredRequests[focusedIndex].id}`);
+        const row = visibleRows[focusedIndex];
+        if (row) navigate(`/request/${row.id}`);
       } else if (e.key === ' ' && focusedIndex != null) {
         e.preventDefault();
-        toggleRowSelect(filteredRequests[focusedIndex].id);
+        const row = visibleRows[focusedIndex];
+        if (row) toggleRowSelect(row.id);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [filteredRequests, focusedIndex, selectedIds, navigate]);
+  }, [visibleRows, focusedIndex, selectedIds, navigate]);
 
   const handleRowClick = (requestId: string) => {
     navigate(`/request/${requestId}`);
@@ -437,37 +472,29 @@ export default function RequestsInbox() {
   const selectionCount = selectedIds.size;
 
   return (
-    <div className="h-full flex flex-col bg-background">
-      {/* Page header */}
-      <div className="relative border-b border-border bg-gradient-to-r from-primary/5 via-background to-info/5 px-6 py-4 overflow-hidden">
-        <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
-        <div className="relative flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-lg font-semibold text-foreground tracking-tight">Requests</h1>
-            <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
-              <span>{loading ? 'Loading…' : `${filteredRequests.length} of ${requests.length}`}</span>
-              {slaRisk.red > 0 && (
-                <span className="inline-flex items-center gap-1 text-destructive">
-                  <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
-                  {slaRisk.red} overdue
-                </span>
-              )}
-              {slaRisk.amber > 0 && (
-                <span className="inline-flex items-center gap-1 text-warning">
-                  <span className="w-1.5 h-1.5 rounded-full bg-warning" />
-                  {slaRisk.amber} at risk
-                </span>
-              )}
-            </p>
-          </div>
-
-          <Dialog open={isNewRequestOpen} onOpenChange={setIsNewRequestOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 h-8">
-                <Plus className="h-4 w-4" />
-                New Request
-              </Button>
-            </DialogTrigger>
+    <PageShell fullBleed>
+      {/* Page header — calm, decision-grade */}
+      <div className="border-b border-border bg-background px-4 md:px-6 lg:px-8 py-5">
+        <PageHeader
+          eyebrow="Operations · Inbox"
+          title="Requests"
+          description={
+            loading
+              ? 'Loading…'
+              : slaRisk.red > 0
+                ? `${slaRisk.red} overdue · ${slaRisk.amber} at risk · ${requests.length} total`
+                : slaRisk.amber > 0
+                  ? `${slaRisk.amber} at risk · ${requests.length} total`
+                  : `${requests.length} total · all on track`
+          }
+          actions={
+            <Dialog open={isNewRequestOpen} onOpenChange={setIsNewRequestOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-1.5">
+                  <Plus className="h-4 w-4" />
+                  New request
+                </Button>
+              </DialogTrigger>
             <DialogContent className="sm:max-w-[420px]">
               <DialogHeader>
                 <DialogTitle>Create New Request</DialogTitle>
@@ -516,11 +543,12 @@ export default function RequestsInbox() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
+          }
+        />
       </div>
 
       {/* Toolbar */}
-      <div className="border-b border-border bg-background px-6 py-2.5 flex items-center gap-2 flex-wrap">
+      <div className="border-b border-border bg-background px-4 md:px-6 lg:px-8 py-2.5 flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Input
             ref={searchInputRef}
@@ -537,6 +565,42 @@ export default function RequestsInbox() {
               <XIcon className="h-3.5 w-3.5" />
             </button>
           )}
+        </div>
+
+        {/* View mode toggle — Triage (grouped by SLA) vs Flat (sortable table) */}
+        <div className="inline-flex items-center rounded-md border border-border bg-background overflow-hidden h-8" role="tablist" aria-label="View mode">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'triage'}
+            onClick={() => setViewMode('triage')}
+            className={cn(
+              'h-full px-2.5 inline-flex items-center gap-1.5 text-[12px] font-medium transition-colors',
+              viewMode === 'triage'
+                ? 'bg-foreground text-background'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+            )}
+            title="Triage view — grouped by SLA"
+          >
+            <LayoutList className="h-3.5 w-3.5" />
+            Triage
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'flat'}
+            onClick={() => setViewMode('flat')}
+            className={cn(
+              'h-full px-2.5 inline-flex items-center gap-1.5 text-[12px] font-medium transition-colors border-l border-border',
+              viewMode === 'flat'
+                ? 'bg-foreground text-background border-l-foreground'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+            )}
+            title="Flat view — single sortable table"
+          >
+            <Rows className="h-3.5 w-3.5" />
+            Flat
+          </button>
         </div>
 
         <Button
@@ -713,7 +777,7 @@ export default function RequestsInbox() {
 
       {/* Active filter chips */}
       {(activeFilterCount > 0 || nlExplain) && (
-        <div className="border-b border-border bg-muted/20 px-6 py-2 flex items-center gap-1.5 flex-wrap">
+        <div className="border-b border-border bg-muted/20 px-4 md:px-6 lg:px-8 py-2 flex items-center gap-1.5 flex-wrap">
           {filters.status.map(s => (
             <FilterChip key={`s-${s}`} label={s} onRemove={() => setFilters(f => ({ ...f, status: f.status.filter(x => x !== s) }))} />
           ))}
@@ -737,7 +801,7 @@ export default function RequestsInbox() {
 
       {/* Bulk actions bar */}
       {selectionCount > 0 && (
-        <div className="border-b border-border bg-primary/5 px-6 py-2 flex items-center gap-2 flex-wrap">
+        <div className="border-b border-border bg-muted/40 px-4 md:px-6 lg:px-8 py-2 flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium">{selectionCount} selected</span>
           <Button size="sm" variant="outline" className="h-7 gap-1" onClick={clearSelection}>
             Clear
@@ -753,7 +817,7 @@ export default function RequestsInbox() {
           </Button>
           <Button
             size="sm"
-            className="h-7 gap-1.5 bg-success hover:bg-success/90 text-white"
+            className="h-7 gap-1.5 bg-success hover:bg-success/90 text-success-foreground"
             onClick={() => { setBulkComment(''); setBulkCommentOpen('approve'); }}
             disabled={bulkActing}
           >
@@ -817,8 +881,8 @@ export default function RequestsInbox() {
               <TableRow>
                 <TableCell colSpan={9} className="h-48 text-center">
                   <div className="flex flex-col items-center justify-center gap-3 animate-in fade-in duration-300">
-                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/15 to-info/10 flex items-center justify-center">
-                      <Sparkles className="h-5 w-5 text-primary" />
+                    <div className="h-10 w-10 rounded-md border border-border bg-muted/40 flex items-center justify-center">
+                      <Sparkles className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-foreground">
@@ -833,80 +897,71 @@ export default function RequestsInbox() {
                   </div>
                 </TableCell>
               </TableRow>
+            ) : viewMode === 'triage' ? (
+              <>
+                <TriageGroup
+                  bucket="red"
+                  label="Overdue"
+                  rows={groups.red}
+                  startIdx={0}
+                  collapsed={collapsedRed}
+                  onToggle={() => setCollapsedRed(v => !v)}
+                  selectedIds={selectedIds}
+                  focusedIndex={focusedIndex}
+                  rowRefs={rowRefs}
+                  onRowClick={handleRowClick}
+                  onRowSelect={toggleRowSelect}
+                  onRowDelete={handleDeleteRequest}
+                  renderSlaDot={renderSlaDot}
+                  renderSlaTime={renderSlaTime}
+                />
+                <TriageGroup
+                  bucket="amber"
+                  label="Due 24h"
+                  rows={groups.amber}
+                  startIdx={collapsedRed ? 0 : groups.red.length}
+                  collapsed={collapsedAmber}
+                  onToggle={() => setCollapsedAmber(v => !v)}
+                  selectedIds={selectedIds}
+                  focusedIndex={focusedIndex}
+                  rowRefs={rowRefs}
+                  onRowClick={handleRowClick}
+                  onRowSelect={toggleRowSelect}
+                  onRowDelete={handleDeleteRequest}
+                  renderSlaDot={renderSlaDot}
+                  renderSlaTime={renderSlaTime}
+                />
+                <TriageGroup
+                  bucket="green"
+                  label="On track"
+                  rows={groups.green}
+                  startIdx={(collapsedRed ? 0 : groups.red.length) + (collapsedAmber ? 0 : groups.amber.length)}
+                  collapsed={collapsedGreen}
+                  onToggle={() => setCollapsedGreen(v => !v)}
+                  selectedIds={selectedIds}
+                  focusedIndex={focusedIndex}
+                  rowRefs={rowRefs}
+                  onRowClick={handleRowClick}
+                  onRowSelect={toggleRowSelect}
+                  onRowDelete={handleDeleteRequest}
+                  renderSlaDot={renderSlaDot}
+                  renderSlaTime={renderSlaTime}
+                />
+              </>
             ) : (
-              filteredRequests.map((request, idx) => {
-                const isSelected = selectedIds.has(request.id);
-                const isFocused = focusedIndex === idx;
-                return (
-                  <TableRow
-                    key={request.id}
-                    ref={(el) => (rowRefs.current[idx] = el)}
-                    className={cn(
-                      'group cursor-pointer border-border hover:bg-muted/40 transition-colors',
-                      request.slaStatus === 'red' && 'bg-destructive/[0.03]',
-                      isSelected && 'bg-primary/5',
-                      isFocused && 'ring-1 ring-inset ring-primary/50',
-                    )}
-                    onClick={() => handleRowClick(request.id)}
-                  >
-                    <TableCell className="py-2.5 w-10" onClick={(e) => { e.stopPropagation(); toggleRowSelect(request.id); }}>
-                      <Checkbox checked={isSelected} aria-label="Select row" />
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground py-2.5">
-                      {request.smartId || request.id.slice(0, 8)}
-                    </TableCell>
-                    <TableCell className="py-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-foreground truncate">{request.companyName}</span>
-                        {request.priority === 'Urgent' && (
-                          <Badge variant="outline" className="h-4 px-1 text-[10px] text-destructive border-destructive/30 bg-destructive/5">
-                            <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-                            Urgent
-                          </Badge>
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground lg:hidden">{request.brokerName}</span>
-                    </TableCell>
-                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground py-2.5">
-                      {request.brokerName}
-                    </TableCell>
-                    <TableCell className="py-2.5">
-                      <div className="flex items-center gap-2">
-                        {renderSlaDot(request.slaStatus)}
-                        <span className={cn(
-                          'text-xs',
-                          request.slaStatus === 'red' && 'text-destructive font-medium',
-                          request.slaStatus === 'amber' && 'text-warning',
-                          request.slaStatus === 'green' && 'text-muted-foreground'
-                        )}>
-                          {renderSlaTime(request.slaRemaining)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell text-sm text-muted-foreground py-2.5">
-                      {request.currentStage}
-                    </TableCell>
-                    <TableCell className="py-2.5">
-                      <span className={cn('inline-flex items-center px-2 h-5 rounded text-[11px] font-medium', STATUS_STYLES[request.status])}>
-                        {request.status}
-                      </span>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell py-2.5">
-                      <OwnerChip name={request.owner} />
-                    </TableCell>
-                    <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
-                        onClick={(e) => handleDeleteRequest(e, request.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+              filteredRequests.map((request, idx) =>
+                renderInboxRow({
+                  request, idx,
+                  isSelected: selectedIds.has(request.id),
+                  isFocused: focusedIndex === idx,
+                  rowRefs,
+                  onRowClick: handleRowClick,
+                  onRowSelect: toggleRowSelect,
+                  onRowDelete: handleDeleteRequest,
+                  renderSlaDot,
+                  renderSlaTime,
+                })
+              )
             )}
           </TableBody>
         </Table>
@@ -1004,7 +1059,7 @@ export default function RequestsInbox() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }
 
@@ -1034,19 +1089,21 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
   );
 }
 
+// Restrained palette — flat, low-saturation single colors. Avatars should
+// help distinguish rows at a glance without competing with status/priority.
 const AVATAR_PALETTE = [
-  'bg-gradient-to-br from-sky-400 to-blue-500 text-white',
-  'bg-gradient-to-br from-amber-400 to-orange-500 text-white',
-  'bg-gradient-to-br from-violet-400 to-purple-500 text-white',
-  'bg-gradient-to-br from-emerald-400 to-teal-500 text-white',
-  'bg-gradient-to-br from-rose-400 to-pink-500 text-white',
-  'bg-gradient-to-br from-indigo-400 to-indigo-600 text-white',
+  'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
+  'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
+  'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300',
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+  'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300',
+  'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300',
 ];
 
 function OwnerChip({ name }: { name: string }) {
   if (!name || name === 'Unassigned') {
     return (
-      <span className="inline-flex items-center gap-2 text-muted-foreground italic text-sm">
+      <span className="inline-flex items-center gap-2 text-muted-foreground text-sm">
         <span className="h-6 w-6 rounded-full border border-dashed border-border" />
         Unassigned
       </span>
@@ -1065,10 +1122,170 @@ function OwnerChip({ name }: { name: string }) {
   const palette = AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
   return (
     <span className="inline-flex items-center gap-2 text-sm text-foreground">
-      <span className={cn('h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold shadow-sm', palette)}>
+      <span className={cn('h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold', palette)}>
         {initials}
       </span>
       <span className="truncate">{name}</span>
     </span>
+  );
+}
+
+// ─── Triage rendering ──────────────────────────────────────────────
+// Group of rows that share an SLA bucket. Renders a sticky-style header row
+// (clickable to collapse) + the data rows. Fragment children flow up to the
+// enclosing <TableBody>.
+
+interface RowRender {
+  rowRefs: React.MutableRefObject<Array<HTMLTableRowElement | null>>;
+  onRowClick: (id: string) => void;
+  onRowSelect: (id: string) => void;
+  onRowDelete: (e: React.MouseEvent, id: string) => void;
+  renderSlaDot: (s: RequestListItem['slaStatus']) => React.ReactNode;
+  renderSlaTime: (n: number) => string;
+}
+
+interface GroupCtx extends RowRender {
+  selectedIds: Set<string>;
+  focusedIndex: number | null;
+}
+
+function TriageGroup({
+  bucket, label, rows, startIdx, collapsed, onToggle, ...ctx
+}: {
+  bucket: 'red' | 'amber' | 'green';
+  label: string;
+  rows: RequestListItem[];
+  startIdx: number;
+  collapsed: boolean;
+  onToggle: () => void;
+} & GroupCtx) {
+  if (rows.length === 0) return null;
+
+  const tone = {
+    red:   { dot: 'bg-destructive', text: 'text-destructive', tint: 'bg-destructive/[0.04]' },
+    amber: { dot: 'bg-warning',     text: 'text-warning',     tint: 'bg-warning/[0.04]' },
+    green: { dot: 'bg-success',     text: 'text-muted-foreground', tint: 'bg-muted/30' },
+  }[bucket];
+
+  return (
+    <>
+      <TableRow
+        className={cn('hover:bg-transparent border-border cursor-pointer', tone.tint)}
+        onClick={onToggle}
+      >
+        <TableCell colSpan={9} className="py-1.5">
+          <div className="flex items-center gap-2 px-1">
+            {collapsed ? (
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+            <span className={cn('w-1.5 h-1.5 rounded-full', tone.dot)} />
+            <span className={cn('text-[11px] font-semibold uppercase tracking-wider', tone.text)}>
+              {label}
+            </span>
+            <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
+              · {rows.length}
+            </span>
+          </div>
+        </TableCell>
+      </TableRow>
+
+      {!collapsed && rows.map((request, i) => {
+        const visibleIdx = startIdx + i;
+        return renderInboxRow({
+          request,
+          idx: visibleIdx,
+          isSelected: ctx.selectedIds.has(request.id),
+          isFocused: ctx.focusedIndex === visibleIdx,
+          rowRefs: ctx.rowRefs,
+          onRowClick: ctx.onRowClick,
+          onRowSelect: ctx.onRowSelect,
+          onRowDelete: ctx.onRowDelete,
+          renderSlaDot: ctx.renderSlaDot,
+          renderSlaTime: ctx.renderSlaTime,
+        });
+      })}
+    </>
+  );
+}
+
+function renderInboxRow({
+  request, idx, isSelected, isFocused, rowRefs,
+  onRowClick, onRowSelect, onRowDelete, renderSlaDot, renderSlaTime,
+}: {
+  request: RequestListItem;
+  idx: number;
+  isSelected: boolean;
+  isFocused: boolean;
+} & RowRender) {
+  return (
+    <TableRow
+      key={request.id}
+      ref={(el) => (rowRefs.current[idx] = el)}
+      className={cn(
+        'group cursor-pointer border-border hover:bg-muted/40 transition-colors',
+        request.slaStatus === 'red' && 'bg-destructive/[0.03]',
+        isSelected && 'bg-primary/5',
+        isFocused && 'ring-1 ring-inset ring-primary/50',
+      )}
+      onClick={() => onRowClick(request.id)}
+    >
+      <TableCell className="py-2.5 w-10" onClick={(e) => { e.stopPropagation(); onRowSelect(request.id); }}>
+        <Checkbox checked={isSelected} aria-label="Select row" />
+      </TableCell>
+      <TableCell className="font-mono text-xs text-muted-foreground py-2.5">
+        {request.smartId || request.id.slice(0, 8)}
+      </TableCell>
+      <TableCell className="py-2.5">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-foreground truncate">{request.companyName}</span>
+          {request.priority === 'Urgent' && (
+            <Badge variant="critical" className="h-4 px-1 text-[10px]">
+              <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+              Urgent
+            </Badge>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground lg:hidden">{request.brokerName}</span>
+      </TableCell>
+      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground py-2.5">
+        {request.brokerName}
+      </TableCell>
+      <TableCell className="py-2.5">
+        <div className="flex items-center gap-2">
+          {renderSlaDot(request.slaStatus)}
+          <span className={cn(
+            'text-xs',
+            request.slaStatus === 'red' && 'text-destructive font-medium',
+            request.slaStatus === 'amber' && 'text-warning',
+            request.slaStatus === 'green' && 'text-muted-foreground'
+          )}>
+            {renderSlaTime(request.slaRemaining)}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className="hidden md:table-cell text-sm text-muted-foreground py-2.5">
+        {request.currentStage}
+      </TableCell>
+      <TableCell className="py-2.5">
+        <span className={cn('inline-flex items-center px-2 h-5 rounded text-[11px] font-medium', STATUS_STYLES[request.status])}>
+          {request.status}
+        </span>
+      </TableCell>
+      <TableCell className="hidden sm:table-cell py-2.5">
+        <OwnerChip name={request.owner} />
+      </TableCell>
+      <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
+          onClick={(e) => onRowDelete(e, request.id)}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </TableCell>
+    </TableRow>
   );
 }

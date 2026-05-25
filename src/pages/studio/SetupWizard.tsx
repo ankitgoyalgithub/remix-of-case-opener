@@ -8,6 +8,7 @@ import { WizardStepEmails } from '@/components/studio/WizardStepEmails';
 import { WizardStepReview } from '@/components/studio/WizardStepReview';
 import { DocumentConfigDrawer } from '@/components/studio/DocumentConfigDrawer';
 import { DocumentDefinition } from '@/data/mockStudioData';
+import { PageHeader } from '@/components/layout/PageShell';
 import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -73,12 +74,13 @@ export default function SetupWizard() {
   };
 
   return (
-    <div className="max-w-[1700px] mx-auto py-10 px-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Studio Setup</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Configure your workspace preferences and standard operations.</p>
-      </div>
- 
+    <>
+      <PageHeader
+        eyebrow="Studio · Setup"
+        title="Studio setup"
+        description="Configure your workspace preferences and standard operations."
+      />
+
       <div className="flex flex-col md:flex-row gap-8 items-stretch relative">
         {/* Left Sidebar: Stepper */}
         <div className="md:w-64 shrink-0 md:sticky md:top-24 hidden md:block">
@@ -123,9 +125,9 @@ export default function SetupWizard() {
             ) : (
               <Button
                 onClick={handleComplete}
-                className="px-6 h-10 font-medium bg-gradient-to-r from-primary to-primary/80 hover:scale-[1.02] shadow-lg shadow-primary/20 transition-all"
+                className="px-6 h-10 font-medium"
               >
-                Complete Setup
+                Complete setup
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             )}
@@ -139,6 +141,6 @@ export default function SetupWizard() {
         onOpenChange={setDrawerOpen}
         document={drawerDoc}
       />
-    </div>
+    </>
   );
 }

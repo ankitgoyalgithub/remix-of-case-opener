@@ -108,13 +108,17 @@ export function mapBackendStageToStage(rs: any): Stage {
 }
 
 export function mapBackendRequestChecklistToChecklistItem(rc: any): ChecklistItem {
+    // If the backend handler is mol_validation, always use the dedicated frontend type
+    const resolvedItemType =
+        rc.handler_name === 'mol_validation' ? 'mol-validation' : (rc.item_type || 'manual');
+
     return {
         id: rc.id.toString(),
         label: rc.name,
         checked: rc.checked,
         stageId: rc.stage_id,
         required: rc.required,
-        itemType: rc.item_type || 'manual',
+        itemType: resolvedItemType,
         documentType: rc.document_type && rc.document_type.length > 0 ? rc.document_type as DocumentType[] : undefined,
         taskDescription: rc.task_description,
         taskDetails: rc.task_details,

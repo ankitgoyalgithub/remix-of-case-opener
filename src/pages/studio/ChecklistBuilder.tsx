@@ -1,14 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
-} from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -33,17 +28,6 @@ const AUTO_CHECK_LABELS: Record<AutoCheckRule, string> = {
   'field-extracted': 'Field Extracted',
   'cross-validation': 'Cross-validation Auto',
 };
-
-const ITEM_TYPES = [
-  { value: 'manual', label: 'Manual' },
-  { value: 'verification', label: 'Verification' },
-  { value: 'extraction', label: 'Extraction' },
-  { value: 'cross-validation', label: 'Cross-validation' },
-  { value: 'third-party-api', label: 'Third-party API' },
-  { value: 'agent-orchestrator', label: 'Agent (prompt-driven)' },
-  { value: 'entity-screening', label: 'Entity screening' },
-  { value: 'risk-review', label: 'Risk review' },
-] as const;
 
 interface ApiStage {
   id: number;
@@ -354,32 +338,6 @@ export default function ChecklistBuilder() {
         onSaved={() => { setDrawerItem(null); fetchAll(); }}
       />
 
-      {/* Legend */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Auto-check rules</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-            <LegendRow icon={Hand} title="Manual Only" body="Requires manual verification by ops user." />
-            <LegendRow icon={Zap} title="Document Present" body="Auto-checked when the linked document is uploaded." iconClass="text-warning" />
-            <LegendRow icon={Zap} title="Field Extracted" body="Auto-checked when AI extracts the required fields." iconClass="text-warning" />
-            <LegendRow icon={Zap} title="Cross-validation Auto" body="Auto-checked when fields match across linked documents." iconClass="text-warning" />
-          </div>
-        </CardContent>
-      </Card>
     </>
-  );
-}
-
-function LegendRow({ icon: Icon, title, body, iconClass }: { icon: any; title: string; body: string; iconClass?: string }) {
-  return (
-    <div className="flex items-start gap-2">
-      <Icon className={cn('h-4 w-4 mt-0.5', iconClass || 'text-muted-foreground')} />
-      <div>
-        <p className="font-medium text-sm">{title}</p>
-        <p className="text-[11px] text-muted-foreground">{body}</p>
-      </div>
-    </div>
   );
 }

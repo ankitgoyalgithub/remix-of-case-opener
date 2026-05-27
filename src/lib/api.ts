@@ -99,6 +99,20 @@ export const api = {
                 body: JSON.stringify(payload),
             }),
     },
+    // Public broker portal — token in URL is the auth, no Authorization header.
+    portal: {
+        summary: (token: string) => fetchApi(`/portal/${encodeURIComponent(token)}/`),
+        upload: (token: string, formData: FormData) =>
+            fetchApi(`/portal/${encodeURIComponent(token)}/upload/`, {
+                method: 'POST',
+                body: formData,
+            }),
+        note: (token: string, payload: { body: string; from_address?: string }) =>
+            fetchApi(`/portal/${encodeURIComponent(token)}/note/`, {
+                method: 'POST',
+                body: JSON.stringify(payload),
+            }),
+    },
     workflow: {
         stages: () => fetchApi('/workflow/stages/'),
         requestStages: (requestId?: string) =>

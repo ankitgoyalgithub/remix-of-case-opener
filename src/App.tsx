@@ -11,6 +11,7 @@ import EvidencePack from "./pages/EvidencePack";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import LoginPage from "./pages/LoginPage";
+import BrokerPortal from "./pages/BrokerPortal";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
@@ -41,6 +42,7 @@ const App = () => (
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/portal/:token" element={<BrokerPortal />} />
 
           {/* Protected Routes */}
           <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" replace /></ProtectedRoute>} />

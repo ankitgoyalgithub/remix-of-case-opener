@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { FileText, CheckSquare, Globe2, AlertTriangle, ChevronDown, Loader2, Check, X, Clock, CircleAlert } from 'lucide-react';
+import { FileText, CheckSquare, Globe2, AlertTriangle, ChevronDown, Loader2, Check, X, Clock, CircleAlert, Mail } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { NotifyBrokerDialog } from './NotifyBrokerDialog';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 
@@ -66,6 +68,7 @@ export function ReadinessPanel({ requestId, refreshKey }: ReadinessPanelProps) {
     const [data, setData] = useState<Readiness | null>(null);
     const [loading, setLoading] = useState(true);
     const [openPillar, setOpenPillar] = useState<PillarKey | null>(null);
+    const [notifyOpen, setNotifyOpen] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -98,6 +101,11 @@ export function ReadinessPanel({ requestId, refreshKey }: ReadinessPanelProps) {
 
     const togglePillar = (key: PillarKey) => setOpenPillar(prev => (prev === key ? null : key));
 
+    // "Notify broker" is most useful when there's at least one missing doc or
+    // an open risk — surface the button prominently in that case, but allow
+    // the operator to send a custom note even when everything looks clean.
+    const hasIssues = documents.required_missing > 0 || risk_flags.unresolved > 0;
+
     return (
         <div className="border-b border-border bg-background">
             {/* Headline bar */}
@@ -105,8 +113,23 @@ export function ReadinessPanel({ requestId, refreshKey }: ReadinessPanelProps) {
                 <span className={cn('inline-flex items-center px-2 h-6 rounded text-xs font-semibold uppercase tracking-wide', OVERALL_STYLE[overall.status].chip)}>
                     {OVERALL_STYLE[overall.status].label}
                 </span>
-                <p className="text-sm text-foreground font-medium">{overall.headline}</p>
+                <p className="text-sm text-foreground font-medium flex-1 min-w-0 truncate" title={overall.headline}>{overall.headline}</p>
+                <Button
+                    variant={hasIssues ? 'default' : 'outline'}
+                    size="sm"
+                    className="gap-1.5 shrink-0"
+                    onClick={() => setNotifyOpen(true)}
+                    title="Send the broker a note about open risks and missing documents"
+                >
+                    <Mail className="h-3.5 w-3.5" />
+                    Notify broker
+                </Button>
             </div>
+            <NotifyBrokerDialog
+                open={notifyOpen}
+                onOpenChange={setNotifyOpen}
+                requestId={requestId}
+            />
 
             {/* Pillar tiles */}
             <div className="grid grid-cols-2 md:grid-cols-4 border-t border-border">

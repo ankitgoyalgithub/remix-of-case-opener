@@ -5,7 +5,7 @@
  * no new tabs.
  */
 import {
-  FileCheck, Link2, Search, ShieldCheck, GitCompare,
+  FileCheck, Link2, Search, ShieldCheck, GitCompare, CheckSquare,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -108,6 +108,24 @@ export type RegistryProviderKey = keyof typeof REGISTRY_PROVIDERS;
 
 
 export const CHECK_TEMPLATES: CheckTemplate[] = [
+  // ── 0. Manual signoff ────────────────────────────────────────────
+  {
+    id: 'manual_signoff',
+    icon: CheckSquare,
+    title: 'Manual signoff',
+    description: 'An operator ticks this off — no automation runs.',
+    slots: [],
+    toPayload: (_s, sev) => ({
+      item_type: 'manual',
+      auto_check_rule: 'manual',
+      handler_name: '',
+      config_payload: {},
+      linked_documents: [],
+      ...sevFlags(sev),
+    }),
+    suggestName: () => '',
+  },
+
   // ── 1. Document received ─────────────────────────────────────────
   {
     id: 'document_received',
@@ -340,6 +358,12 @@ export function detectTemplate(item: ExistingCheckShape): DetectedTemplate | nul
         return { template: tpl, slots, severity };
       }
     }
+  }
+
+  // 6. manual_signoff — no handler + manual auto rule
+  if (!v && (!item.auto_check_rule || item.auto_check_rule === 'manual')) {
+    const tpl = T('manual_signoff');
+    if (tpl) return { template: tpl, slots: {}, severity };
   }
 
   return null;

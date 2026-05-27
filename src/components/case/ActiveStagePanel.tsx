@@ -184,16 +184,15 @@ export function ActiveStagePanel({
                     )}
                   />
                   <div className="flex flex-col min-w-0">
-                    <label
-                      htmlFor={item.id}
+                    <span
                       className={cn(
-                        "text-[13px] font-bold cursor-pointer truncate",
+                        "text-[13px] font-bold truncate",
                         isChecked ? "text-muted-foreground/60" : "text-foreground"
                       )}
                     >
                       {item.label}
                       {item.required && <span className="text-destructive ml-1">*</span>}
-                    </label>
+                    </span>
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <div className="flex items-center gap-1">
                         {getItemTypeIcon(item.itemType)}

@@ -807,14 +807,14 @@ function RiskRow({
 }) {
     const sevClass = SEVERITY_STYLES[flag.severity] || SEVERITY_STYLES.info;
     return (
-        <div className="flex items-start gap-2 px-2 py-1.5 rounded-md hover:bg-muted/30 transition-colors">
+        <div className="flex items-start gap-2 px-2 py-2 rounded-md hover:bg-muted/30 transition-colors">
             <Badge variant="outline" className={cn('text-[10px] uppercase shrink-0 mt-0.5', sevClass)}>
                 {flag.severity}
             </Badge>
             <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate">{flag.title}</p>
+                <p className="text-sm font-medium break-words">{flag.title}</p>
                 {(flag.description || flag.document_type) && (
-                    <p className="text-[11px] text-muted-foreground truncate">
+                    <p className="text-[11px] text-muted-foreground break-words leading-relaxed mt-0.5">
                         {flag.document_type && <span className="font-mono">{flag.document_type}</span>}
                         {flag.document_type && flag.description ? ' · ' : ''}
                         {flag.description}

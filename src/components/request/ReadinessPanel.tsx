@@ -253,7 +253,7 @@ function ChecksDrill({ items, emptyText }: { items: CheckItem[]; emptyText: stri
                             {item.status === 'pending' && ' · pending'}
                         </p>
                         {item.summary && (
-                            <p className="text-xs text-muted-foreground/90 mt-0.5 line-clamp-2">{item.summary}</p>
+                            <p className="text-xs text-muted-foreground/90 mt-0.5 break-words leading-relaxed">{item.summary}</p>
                         )}
                     </div>
                 </li>
@@ -291,7 +291,7 @@ function RiskFlagsDrill({ items }: { items: RiskFlagItem[] }) {
                             {item.resolved && <span className="text-[10px] uppercase font-semibold px-1.5 h-4 rounded bg-success/10 text-success inline-flex items-center">Resolved</span>}
                         </div>
                         {item.description && (
-                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.description}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5 break-words leading-relaxed">{item.description}</p>
                         )}
                         {item.document_type && (
                             <p className="text-[11px] text-muted-foreground/80 mt-0.5">From {item.document_type}</p>

@@ -251,6 +251,10 @@ export default function RequestDetail() {
     if (stageId === requestData?.stages[requestData.stages.length - 1]?.id) {
       setActiveTab('export');
     }
+    // Auto-load the first checklist item of this stage into the detail panel
+    // so the right pane is never empty after switching stages.
+    const firstItem = requestData?.checklist?.find(i => i.stageId === stageId);
+    setSelectedChecklistItemId(firstItem ? firstItem.id : null);
   };
 
   const handleUploadDocument = async (file: globalThis.File, docType: DocumentType = 'other', checklistId?: string) => {

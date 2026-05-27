@@ -28,7 +28,6 @@ import StudioIntegrations from "./pages/studio/StudioIntegrations";
 import StudioInboundEmail from "./pages/studio/StudioInboundEmail";
 import StudioInboundJobs from "./pages/studio/StudioInboundJobs";
 import StudioSettings from "./pages/studio/StudioSettings";
-import OutputTemplates from "./pages/studio/OutputTemplates";
 
 const queryClient = new QueryClient();
 
@@ -67,7 +66,6 @@ const App = () => (
               <Route path="inbound" element={<StudioInboundEmail />} />
               <Route path="jobs" element={<StudioInboundJobs />} />
               <Route path="messages" element={<EmailTemplates />} />
-              <Route path="outputs" element={<OutputTemplates />} />
               <Route path="settings" element={<StudioSettings />} />
 
               {/* Wizard kept as a deep-link target (used from Overview) */}

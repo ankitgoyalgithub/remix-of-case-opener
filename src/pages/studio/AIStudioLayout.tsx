@@ -30,7 +30,6 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
-  FileSpreadsheet,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -49,7 +48,6 @@ const menuItems: MenuItem[] = [
   { title: 'Inbound email', url: '/studio/inbound', icon: Inbox, description: 'Email-driven submissions' },
   { title: 'Jobs', url: '/studio/jobs', icon: ListChecks, description: 'Polling history + per-email outcomes' },
   { title: 'Messages', url: '/studio/messages', icon: Mail, description: 'Email + notification templates' },
-  { title: 'Outputs', url: '/studio/outputs', icon: FileSpreadsheet, description: 'UW sheet & XLSX templates' },
   { title: 'Settings', url: '/studio/settings', icon: Settings, description: 'SLA, queues, roles' },
 ];
 

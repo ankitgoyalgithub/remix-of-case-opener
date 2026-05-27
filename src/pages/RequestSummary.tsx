@@ -18,7 +18,6 @@ import { DOCUMENT_TYPE_LABELS, DocumentType, calculateSlaRemaining, getSlaStatus
 import { mapBackendRequestToListItem, mapBackendRequestDecision, mapBackendRequestPublication } from '@/lib/mappers';
 import { ConversationPanel, InboundEmail } from '@/components/request/ConversationPanel';
 import { BulkZipUploadButton } from '@/components/request/BulkZipUploadButton';
-import { OutputTemplatePicker } from '@/components/request/OutputTemplatePicker';
 import { AnimatedNumber } from '@/components/ui/animated-number';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ParallaxHero } from '@/components/ui/parallax-hero';
@@ -363,12 +362,6 @@ export default function RequestSummary() {
                                         : <PlayCircle className="h-3.5 w-3.5" />}
                                     Run checks now
                                 </Button>
-                                {requestId && (
-                                    <OutputTemplatePicker
-                                        requestId={requestId}
-                                        className="h-8 gap-1.5 bg-background/70 backdrop-blur"
-                                    />
-                                )}
                             </div>
                         </div>
 

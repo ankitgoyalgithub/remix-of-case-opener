@@ -1,5 +1,5 @@
-import { Stage } from '@/types/case';
-import { Check } from 'lucide-react';
+import { Stage, ChecklistItem } from '@/types/case';
+import { Check, AlertTriangle, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { STAGE_HELPER_TEXT } from '@/lib/stageDocumentMapping';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -8,9 +8,25 @@ interface CaseStepperProps {
   stages: Stage[];
   currentStage: number;
   onStageClick: (stageId: number) => void;
+  /** Per-stage progress is derived from these so the rail can render
+   *  orange "in progress, all good" vs red "has failures" states. */
+  checklist?: ChecklistItem[];
 }
 
-export function CaseStepper({ stages, currentStage, onStageClick }: CaseStepperProps) {
+export function CaseStepper({ stages, currentStage, onStageClick, checklist }: CaseStepperProps) {
+  // Returns the per-stage progress derived from checklist items
+  const getProgress = (stageId: number) => {
+    const items = (checklist || []).filter(i => i.stageId === stageId);
+    let failed = 0;
+    let passed = 0;
+    for (const it of items) {
+      const s = (it.result as any)?.status as ('pass' | 'fail' | 'pending' | 'error' | undefined);
+      if (s === 'fail' || s === 'error') failed += 1;
+      else if (s === 'pass' || it.checked) passed += 1;
+    }
+    return { total: items.length, failed, passed };
+  };
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex items-center gap-1">
@@ -19,6 +35,14 @@ export function CaseStepper({ stages, currentStage, onStageClick }: CaseStepperP
           const isComplete = stage.status === 'complete';
           const needsReview = stage.status === 'needs-review';
           const helperText = STAGE_HELPER_TEXT[stage.id];
+
+          // In-progress visual state: any failed check → red; otherwise
+          // some-passed-but-not-all → orange. Only applies when the stage
+          // hasn't been marked complete yet.
+          const progress = getProgress(stage.id);
+          const hasFailures = !isComplete && progress.failed > 0;
+          const inProgress = !isComplete && !hasFailures
+            && progress.passed > 0 && progress.passed < progress.total;
 
           return (
             <div key={stage.id} className="flex items-center shrink-0">
@@ -29,26 +53,36 @@ export function CaseStepper({ stages, currentStage, onStageClick }: CaseStepperP
                     onClick={() => onStageClick(stage.id)}
                     className={cn(
                       'group flex items-center gap-2 h-8 px-2.5 rounded-md text-xs transition-colors',
-                      // A complete stage stays green even when selected. The
-                      // active indicator is communicated by an extra ring + a
-                      // stronger green background, not by switching to primary.
-                      isComplete && isActive && 'bg-success/15 text-success font-medium ring-1 ring-success/40',
-                      isComplete && !isActive && 'text-success hover:bg-success/10',
-                      !isComplete && isActive && 'bg-primary/10 text-primary font-medium',
-                      !isComplete && !isActive && 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      // Precedence: complete (green) > has failures (red) >
+                      // in-progress with no failures (orange) > active (blue)
+                      // > untouched (muted). Active state adds a ring on top
+                      // of whatever color the stage already has.
+                      isComplete && 'text-success hover:bg-success/10',
+                      isComplete && isActive && 'bg-success/15 font-medium ring-1 ring-success/40',
+                      hasFailures && 'text-destructive hover:bg-destructive/10',
+                      hasFailures && isActive && 'bg-destructive/15 font-medium ring-1 ring-destructive/40',
+                      inProgress && 'text-warning hover:bg-warning/10',
+                      inProgress && isActive && 'bg-warning/15 font-medium ring-1 ring-warning/40',
+                      !isComplete && !hasFailures && !inProgress && isActive && 'bg-primary/10 text-primary font-medium',
+                      !isComplete && !hasFailures && !inProgress && !isActive && 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     )}
                   >
                     <span
                       className={cn(
                         'flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold shrink-0',
-                        // Complete always green, regardless of active state
+                        // Same precedence on the circle bubble
                         isComplete && 'bg-success text-success-foreground',
-                        !isComplete && isActive && 'bg-primary text-primary-foreground',
-                        !isComplete && needsReview && 'bg-warning text-warning-foreground',
-                        !isComplete && !isActive && !needsReview && 'bg-muted-foreground/20 text-muted-foreground'
+                        !isComplete && hasFailures && 'bg-destructive text-destructive-foreground',
+                        !isComplete && !hasFailures && inProgress && 'bg-warning text-warning-foreground',
+                        !isComplete && !hasFailures && !inProgress && isActive && 'bg-primary text-primary-foreground',
+                        !isComplete && !hasFailures && !inProgress && needsReview && 'bg-warning text-warning-foreground',
+                        !isComplete && !hasFailures && !inProgress && !isActive && !needsReview && 'bg-muted-foreground/20 text-muted-foreground'
                       )}
                     >
-                      {isComplete ? <Check className="h-3 w-3" /> : index + 1}
+                      {isComplete ? <Check className="h-3 w-3" />
+                        : hasFailures ? <XCircle className="h-3 w-3" />
+                        : inProgress ? <AlertTriangle className="h-3 w-3" />
+                        : index + 1}
                     </span>
                     <span className="whitespace-nowrap">{stage.name}</span>
                     {needsReview && !isActive && (

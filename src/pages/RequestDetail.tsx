@@ -651,6 +651,7 @@ export default function RequestDetail() {
                 stages={requestData.stages}
                 currentStage={activeViewStage}
                 onStageClick={handleStageClick}
+                checklist={requestData.checklist}
               />
             </div>
           </div>

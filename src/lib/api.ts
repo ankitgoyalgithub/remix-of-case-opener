@@ -27,7 +27,26 @@ export async function fetchApi(path: string, options: RequestInit = {}) {
     }
 
     if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+        // Try to surface the server's structured error so callers can show
+        // something more useful than "API Error: 502". DRF puts the message
+        // in `error`, `detail`, or `message`. Fall back to status text only
+        // when we can't parse a body.
+        let serverMsg = '';
+        try {
+            const ct = response.headers.get('content-type') || '';
+            if (ct.includes('application/json')) {
+                const body = await response.json();
+                serverMsg = body?.error || body?.detail || body?.message
+                    || (typeof body === 'string' ? body : '');
+            } else {
+                const text = await response.text();
+                if (text && text.length < 500) serverMsg = text;
+            }
+        } catch { /* ignore parse errors — fall through to generic message */ }
+        const msg = serverMsg
+            ? serverMsg
+            : `API Error: ${response.status} ${response.statusText}`;
+        throw new Error(msg);
     }
 
     if (response.status === 204) {

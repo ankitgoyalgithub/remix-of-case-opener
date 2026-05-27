@@ -21,6 +21,7 @@ interface Draft {
   body: string;
   account_email: string;
   has_account: boolean;
+  needs_reconnect?: boolean;
   risk_count: number;
   missing_doc_count: number;
 }
@@ -101,6 +102,26 @@ export function NotifyBrokerDialog({ open, onOpenChange, requestId, onSent }: Pr
             </div>
           )}
 
+          {!loading && draft && draft.has_account && draft.needs_reconnect && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 flex gap-2.5">
+              <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <div className="text-xs leading-relaxed flex-1">
+                <p className="font-medium text-foreground">Mailbox needs to be reconnected</p>
+                <p className="text-muted-foreground mt-1">
+                  <strong>{draft.account_email}</strong> was connected before send-email support was
+                  added, so the OAuth grant is missing the <code className="text-[10px] px-1 rounded bg-muted">gmail.send</code> scope.
+                  Reconnect once to allow outbound mail — Send will fail until then.
+                </p>
+                <a
+                  href="/studio/integrations"
+                  className="inline-flex items-center mt-1.5 text-destructive hover:underline font-medium"
+                >
+                  Open Studio → Integrations →
+                </a>
+              </div>
+            </div>
+          )}
+
           {!loading && draft && (draft.risk_count > 0 || draft.missing_doc_count > 0) && (
             <p className="text-[11px] text-muted-foreground">
               Bundled <strong>{draft.risk_count}</strong> open risk{draft.risk_count === 1 ? '' : 's'}
@@ -149,8 +170,9 @@ export function NotifyBrokerDialog({ open, onOpenChange, requestId, onSent }: Pr
           <Button
             size="sm"
             onClick={handleSend}
-            disabled={loading || sending || !to.trim() || !subject.trim() || !body.trim()}
+            disabled={loading || sending || !to.trim() || !subject.trim() || !body.trim() || !!draft?.needs_reconnect || (draft ? !draft.has_account : false)}
             className="gap-1.5"
+            title={draft?.needs_reconnect ? 'Reconnect the mailbox to grant the gmail.send scope' : undefined}
           >
             {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
             Send email

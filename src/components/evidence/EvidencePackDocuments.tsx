@@ -47,7 +47,7 @@ function DocumentRow({ doc }: { doc: Document }) {
                     )}
                     <FileText className="h-4 w-4 text-info shrink-0" />
                     <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{doc.name}</p>
+                        <p className="text-sm font-medium truncate" title={doc.name}>{doc.name}</p>
                         <p className="text-xs text-muted-foreground">
                             {DOCUMENT_TYPE_LABELS[doc.type] || doc.type} · uploaded {format(doc.uploadedAt, 'dd MMM yyyy HH:mm')}
                         </p>

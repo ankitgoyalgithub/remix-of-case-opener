@@ -154,9 +154,14 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-muted-foreground truncate max-w-[200px]">
-                            {v.config?.taskDescription || v.config?.target_document || (v.config?.target_documents?.join(', ')) || 'Standard Logic'}
-                          </div>
+                          {(() => {
+                            const txt = v.config?.taskDescription || v.config?.target_document || (v.config?.target_documents?.join(', ')) || 'Standard Logic';
+                            return (
+                              <div className="text-muted-foreground truncate max-w-[200px]" title={txt}>
+                                {txt}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <span className={cn(
@@ -241,7 +246,7 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                           <div className="flex items-center justify-between gap-3 px-4 py-2 bg-muted/40 border-b border-border/60">
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="text-[10px] font-semibold text-muted-foreground tabular-nums shrink-0">#{stepIdx + 1}</span>
-                              <span className="text-xs font-mono text-foreground truncate">{handlerName}</span>
+                              <span className="text-xs font-mono text-foreground truncate" title={handlerName}>{handlerName}</span>
                               {typeof stepMeta.duration_ms === 'number' && (
                                 <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">· {stepMeta.duration_ms}ms</span>
                               )}

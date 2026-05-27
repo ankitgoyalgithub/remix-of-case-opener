@@ -203,7 +203,7 @@ function PillarTile({
                     <ChevronDown className={cn('h-3 w-3 text-muted-foreground transition-transform', active && 'rotate-180')} />
                 </div>
                 <p className="text-sm font-semibold text-foreground leading-tight">{primary}</p>
-                <p className={cn('text-xs mt-0.5 truncate', toneClasses)}>{secondary}</p>
+                <p className={cn('text-xs mt-0.5 truncate', toneClasses)} title={secondary}>{secondary}</p>
             </div>
         </button>
     );
@@ -221,7 +221,7 @@ function DocumentsDrill({ items }: { items: DocumentItem[] }) {
                 <li key={item.doc_type} className="flex items-center gap-3 px-3 py-2">
                     <DocStateIcon state={item.state} />
                     <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground truncate">{item.name}</p>
+                        <p className="text-sm text-foreground truncate" title={item.name}>{item.name}</p>
                         <p className="text-xs text-muted-foreground">
                             {item.required ? 'Required' : 'Optional'}
                             {item.state === 'missing' && ' · not uploaded'}

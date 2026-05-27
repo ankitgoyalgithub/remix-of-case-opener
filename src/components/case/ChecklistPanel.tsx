@@ -156,7 +156,7 @@ export function ChecklistPanel({
                           isMissingDoc && "text-destructive font-medium"
                         )}
                       >
-                        <span className="truncate">
+                        <span className="truncate" title={item.label}>
                           {item.label}
                           {item.required && (
                             <span className="text-destructive ml-1">*</span>

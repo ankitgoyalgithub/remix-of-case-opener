@@ -104,7 +104,7 @@ export function CommandPalette() {
                                     className="gap-2"
                                 >
                                     <Building2 className="h-4 w-4 text-muted-foreground" />
-                                    <span className="flex-1 truncate">{r.companyName}</span>
+                                    <span className="flex-1 truncate" title={r.companyName}>{r.companyName}</span>
                                     <span className="text-[11px] text-muted-foreground font-mono">
                                         {r.smartId || r.id.slice(0, 8)}
                                     </span>

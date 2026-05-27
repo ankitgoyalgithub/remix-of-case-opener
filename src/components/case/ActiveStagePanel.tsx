@@ -189,6 +189,7 @@ export function ActiveStagePanel({
                         "text-[13px] font-bold truncate",
                         isChecked ? "text-muted-foreground/60" : "text-foreground"
                       )}
+                      title={item.label}
                     >
                       {item.label}
                       {item.required && <span className="text-destructive ml-1">*</span>}

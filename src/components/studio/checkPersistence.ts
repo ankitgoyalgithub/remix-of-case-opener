@@ -28,15 +28,27 @@ async function ensureSetEqualRule(field: string, docs: string[]): Promise<number
   };
 
   const existing = (await api.studio.cvRules.list().catch(() => [])) as CvRule[];
+  // For the empty-docs case (all-docs mode), match any rule with the same
+  // field name regardless of its stored participating_doc_types — we'll
+  // clear that list on the matched rule so it switches to all-docs mode.
   const match = existing.find(r =>
     r.mode === 'set-equal'
     && (r.extracted_field || '').toLowerCase() === field.toLowerCase()
-    && sameDocs(r.participating_doc_types),
+    && (docs.length === 0 || sameDocs(r.participating_doc_types)),
   );
-  if (match) return match.id;
+  if (match) {
+    // If we're enabling all-docs mode on a rule that has an old fixed list,
+    // clear that list so the runner switches behavior.
+    if (docs.length === 0 && (match.participating_doc_types || []).length > 0) {
+      await api.studio.cvRules.update(match.id, {
+        participating_doc_types: [],
+      }).catch(() => null);
+    }
+    return match.id;
+  }
 
   const created = (await api.studio.cvRules.create({
-    name: `${field} across ${docs.length} docs`,
+    name: docs.length === 0 ? `${field} across all documents` : `${field} across ${docs.length} docs`,
     mode: 'set-equal',
     extracted_field: field,
     participating_doc_types: docs,

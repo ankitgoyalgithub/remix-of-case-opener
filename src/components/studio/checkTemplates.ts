@@ -56,11 +56,6 @@ function sevFlags(s: Severity) {
   return { required: s === 'block', manual_override_allowed: true };
 }
 
-const ENTITY_DOC_TYPES = [
-  'trade-license', 'vat-certificate', 'establishment-card',
-  'customer-signed-quote', 'moa', 'certificate-of-incorporation',
-];
-
 // ── Registry-check provider map ──────────────────────────────────────
 // Each provider knows: which handler to invoke, which document feeds it,
 // and the one extra slot that's relevant (everything else is sensible defaults).
@@ -151,26 +146,26 @@ export const CHECK_TEMPLATES: CheckTemplate[] = [
     id: 'name_match_across_docs',
     icon: Link2,
     title: 'Name match across documents',
-    description: 'Every selected document must report the same value for the chosen field.',
+    description: 'Compare this field across every uploaded document. Re-runs when new docs arrive.',
     slots: [
       { key: 'field', label: 'Field name', type: 'string', required: true, default: 'Company Name',
         placeholder: 'Company Name' },
-      { key: 'docs', label: 'Documents to compare', type: 'doc-types', required: true,
-        default: ENTITY_DOC_TYPES },
     ],
     toPayload: (s, sev) => ({
       item_type: 'cross-validation',
       auto_check_rule: 'cross-validation',
       handler_name: 'cross_validation',
       config_payload: {},
-      linked_documents: s.docs || [],
+      linked_documents: [],
       set_equal_rule: {
         field: s.field || 'Company Name',
-        participating_doc_types: s.docs || [],
+        // Empty list = "all documents on the request". The backend handler
+        // discovers participants at run time and re-evaluates on every upload.
+        participating_doc_types: [],
       },
       ...sevFlags(sev),
     }),
-    suggestName: (s) => `${s.field || 'Company Name'} matches across ${(s.docs || []).length} docs`,
+    suggestName: (s) => `${s.field || 'Company Name'} matches across all documents`,
   },
 
   // ── 3. Compare specific fields ───────────────────────────────────
@@ -309,16 +304,15 @@ export function detectTemplate(item: ExistingCheckShape): DetectedTemplate | nul
     if (tpl) return { template: tpl, slots: { doc: slug }, severity };
   }
 
-  // 2. name_match_across_docs — cross_validation with a set-equal CV rule
+  // 2. name_match_across_docs — cross_validation with a set-equal CV rule.
+  // The template only carries the field name now ("all docs" mode); we ignore
+  // any legacy participating_doc_types on the rule (the runner will too).
   const setEqual = (item.cross_validation_rules || []).find(r => r.mode === 'set-equal');
   if (setEqual) {
     const tpl = T('name_match_across_docs');
     if (tpl) return {
       template: tpl,
-      slots: {
-        field: setEqual.extracted_field || 'Company Name',
-        docs: setEqual.participating_doc_types || item.linked_documents || [],
-      },
+      slots: { field: setEqual.extracted_field || 'Company Name' },
       severity,
     };
   }

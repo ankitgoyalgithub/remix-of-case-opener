@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   ClipboardCheck, Plus, Loader2, Zap, Hand, Link2, ShieldCheck, Trash2, Settings, Sparkles, Wand2,
+  Pencil, Check as CheckIcon, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -61,6 +63,28 @@ export default function ChecklistBuilder() {
   const [addOpen, setAddOpen] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [drawerItem, setDrawerItem] = useState<ApiChecklistItem | null>(null);
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const startRename = (item: ApiChecklistItem) => {
+    setRenamingId(item.id);
+    setRenameValue(item.name);
+  };
+
+  const commitRename = async () => {
+    if (renamingId === null) return;
+    const id = renamingId;
+    const original = items.find(i => i.id === id)?.name || '';
+    const next = renameValue.trim();
+    setRenamingId(null);
+    if (!next || next === original) return;
+    await patchItem(id, { name: next });
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue('');
+  };
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -213,17 +237,51 @@ export default function ChecklistBuilder() {
                         busyId === item.id && 'opacity-60 pointer-events-none',
                       )}
                     >
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 group">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h4 className="font-medium text-sm">{item.name}</h4>
-                          {item.required && (
-                            <Badge className="bg-destructive/10 text-destructive border-0 text-[10px] h-4 px-1.5">Required</Badge>
-                          )}
-                          <Badge variant="outline" className="text-[10px] h-4 px-1.5 capitalize">{item.item_type}</Badge>
-                          {isInapplicable && (
-                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-warning/40 text-warning bg-warning/5">
-                              Hidden — {inactiveLinked.join(', ')} disabled
-                            </Badge>
+                          {renamingId === item.id ? (
+                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                              <Input
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+                                  if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+                                }}
+                                autoFocus
+                                className="h-7 text-sm font-medium"
+                                placeholder="Check name"
+                              />
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-success hover:bg-success/10"
+                                onClick={commitRename} title="Save (Enter)">
+                                <CheckIcon className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:bg-muted"
+                                onClick={cancelRename} title="Cancel (Esc)">
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h4 className="font-medium text-sm">{item.name}</h4>
+                              <Button
+                                variant="ghost" size="icon"
+                                className="h-5 w-5 opacity-0 group-hover:opacity-60 hover:opacity-100 hover:bg-muted transition-opacity"
+                                onClick={() => startRename(item)}
+                                title="Rename"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              {item.required && (
+                                <Badge className="bg-destructive/10 text-destructive border-0 text-[10px] h-4 px-1.5">Required</Badge>
+                              )}
+                              <Badge variant="outline" className="text-[10px] h-4 px-1.5 capitalize">{item.item_type}</Badge>
+                              {isInapplicable && (
+                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-warning/40 text-warning bg-warning/5">
+                                  Hidden — {inactiveLinked.join(', ')} disabled
+                                </Badge>
+                              )}
+                            </>
                           )}
                         </div>
                         <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">

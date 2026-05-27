@@ -76,7 +76,9 @@ export function useStudioStages() {
         description,
         order: maxOrder + 1,
         mandatory: false,
-        workflow: 2 // Assign to Standard Insurance Intake (ID 2)
+        // workflow intentionally omitted: backend (StageViewSet.perform_create)
+        // assigns the is_default workflow, so this works across environments
+        // instead of relying on a hardcoded workflow id that may not exist locally.
       })
       .then(saved => {
         setStagesState(current => current.map(s => s.id === tempId ? { ...saved, slaHours: saved.sla_hours } : s));

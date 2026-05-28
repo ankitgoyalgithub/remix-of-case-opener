@@ -94,7 +94,7 @@ function StudioShell() {
 
         {/* Content — same shell as PageShell so Studio pages feel like the rest */}
         <div className="flex-1 overflow-auto bg-background">
-          <div className="mx-auto w-full max-w-[1400px] px-4 md:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
+          <div className="mx-auto w-full max-w-[1400px] px-4 md:px-6 lg:px-8 pt-4 lg:pt-5 pb-6 lg:pb-8 space-y-6">
             <Outlet />
           </div>
         </div>

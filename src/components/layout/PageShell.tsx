@@ -28,7 +28,7 @@ export function PageShell({
     }
     return (
         <div className="flex-1 min-h-0 overflow-auto bg-background">
-            <div className={cn('mx-auto w-full max-w-[1400px] px-4 md:px-6 lg:px-8 py-6 lg:py-8 space-y-6', className)}>
+            <div className={cn('mx-auto w-full max-w-[1400px] px-4 md:px-6 lg:px-8 pt-4 lg:pt-5 pb-6 lg:pb-8 space-y-6', className)}>
                 {children}
             </div>
         </div>

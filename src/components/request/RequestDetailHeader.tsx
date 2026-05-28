@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
     ArrowLeft, UserPlus, Mail, Trash2, MoreHorizontal,
-    AlertTriangle, Check, X, Send, ArrowRight,
+    AlertTriangle, Check, X, Send, ArrowRight, MessageSquare, ShieldAlert,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -36,6 +36,8 @@ interface RequestDetailHeaderProps {
   onReject?: () => void;
   onPublish?: () => void;
   timelineDrawer?: ReactNode;
+  openRiskCount?: number;
+  onOpenConversation?: () => void;
 }
 
 // Map raw status string → semantic Badge variant. One badge system everywhere.
@@ -68,6 +70,8 @@ export function RequestDetailHeader({
   onReject,
   onPublish,
   timelineDrawer,
+  openRiskCount = 0,
+  onOpenConversation,
 }: RequestDetailHeaderProps) {
   const navigate = useNavigate();
   const { requestId: routeRequestId } = useParams();
@@ -124,6 +128,12 @@ export function RequestDetailHeader({
               </Badge>
             )}
             <Badge variant={badgeVariantForStatus(status)}>{status}</Badge>
+            {openRiskCount > 0 && (
+              <Badge variant="critical" className="gap-1">
+                <ShieldAlert className="h-2.5 w-2.5" />
+                {openRiskCount} risk{openRiskCount === 1 ? '' : 's'}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap mt-1 text-xs text-muted-foreground">
             <span className="font-mono">{shortId}</span>
@@ -150,6 +160,12 @@ export function RequestDetailHeader({
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {onOpenConversation && (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={onOpenConversation}>
+              <MessageSquare className="h-3.5 w-3.5" />
+              Conversation
+            </Button>
+          )}
           {timelineDrawer}
 
           {/* Inline secondary action: surface "Request Info" only when blocked

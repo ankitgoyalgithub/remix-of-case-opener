@@ -194,6 +194,7 @@ export interface ChecklistItem {
   handlerName?: string;
   configPayload?: Record<string, any>;
   result?: ChecklistValidationResult | null;
+  overrideReason?: string;
 }
 
 export interface StageRequirements {
@@ -225,6 +226,11 @@ export interface RiskFlagSummary {
   resolutionNote?: string;
   createdAt?: Date;
   description?: string;
+  /** Linkage hints used by the workbench "Jump to flag" action to find the
+   * related checklist item. Populated from the backend RiskFlag serializer. */
+  documentType?: string;
+  flagType?: string;
+  fieldName?: string;
 }
 
 export interface CaseData {

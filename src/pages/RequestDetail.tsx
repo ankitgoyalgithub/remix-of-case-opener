@@ -2,7 +2,11 @@ import { useState, useMemo, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { CaseStepper } from '@/components/case/CaseStepper';
 import { RequestDetailHeader } from '@/components/request/RequestDetailHeader';
-import { ReadinessPanel } from '@/components/request/ReadinessPanel';
+import { AINextActionBanner } from '@/components/workbench/AINextActionBanner';
+import { RiskFlagsStrip } from '@/components/workbench/RiskFlagsStrip';
+import { ConversationDrawer } from '@/components/workbench/ConversationDrawer';
+import { deriveNextAction } from '@/lib/nextAction';
+import { findChecklistItemForFlag } from '@/lib/riskFlagLink';
 import { TimelineDrawer } from '@/components/case/TimelineDrawer';
 import { BypassReasonModal } from '@/components/case/BypassReasonModal';
 import { DecisionModal, DecisionAction } from '@/components/request/DecisionModal';
@@ -44,6 +48,7 @@ export default function RequestDetail() {
   const [selectedStageId, setSelectedStageId] = useState<number | null>(null);
   const [selectedChecklistItemId, setSelectedChecklistItemId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [convoOpen, setConvoOpen] = useState(false);
 
   const fetchRequestDetails = async (opts: { silent?: boolean } = {}) => {
     if (!requestId) return;
@@ -243,6 +248,41 @@ export default function RequestDetail() {
   const headerData = {
     brokerName: 'Gulf Insurance Brokers',
     currentStageName: requestData?.stages?.find(s => s.id === currentStage)?.name || 'Unknown',
+  };
+
+  const openRiskCount = useMemo(
+    () => (requestData?.riskFlags || []).filter(f => !f.resolved).length,
+    [requestData?.riskFlags],
+  );
+
+  const nextAction = useMemo(
+    () => deriveNextAction({
+      status: computedStatus,
+      hasMissingDocuments: allMissingDocs.length > 0,
+      slaStatus,
+    }),
+    [computedStatus, allMissingDocs.length, slaStatus],
+  );
+
+  // "Jump to flag" — find the checklist item a risk flag relates to, switch to its
+  // stage, expand it, and scroll it into view.
+  const handleJumpToFlag = (flag: any) => {
+    if (!requestData) return;
+    const item = findChecklistItemForFlag(flag, requestData.checklist);
+    if (!item) return;
+    setSelectedStageId(item.stageId);
+    setSelectedChecklistItemId(item.id);
+    setActiveTab('tasks');
+    setTimeout(() => {
+      document.getElementById(`checklist-item-${item.id}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 80);
+  };
+
+  const handleBrowseMissing = () => {
+    if (!requestData) return;
+    const first = [...requestData.stages].sort((a, b) => a.order - b.order)[0];
+    if (first) setSelectedStageId(first.id);
   };
 
   const handleStageClick = (stageId: number) => {
@@ -630,17 +670,27 @@ export default function RequestDetail() {
         onReject={() => setDecisionAction('reject')}
         onPublish={submitPublish}
         timelineDrawer={<TimelineDrawer events={requestData.timeline} />}
+        openRiskCount={openRiskCount}
+        onOpenConversation={() => setConvoOpen(true)}
       />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Readiness overview */}
-        <ReadinessPanel requestId={requestData.id} refreshKey={readinessKey} />
+      <div className="flex-1 overflow-y-auto">
+        {/* AI next-action + risk flags */}
+        <div className="px-4 md:px-6 lg:px-8 pt-4 space-y-3">
+          <AINextActionBanner
+            action={nextAction}
+            onCompose={() => setShowMissingInfoModal(true)}
+            onBrowse={handleBrowseMissing}
+            onPrimary={nextAction?.kind === 'publish' ? submitPublish : () => setDecisionAction('approve')}
+          />
+          <RiskFlagsStrip riskFlags={requestData.riskFlags || []} onJumpToFlag={handleJumpToFlag} />
+        </div>
 
-        {/* Stage progress rail */}
-        <div className="w-full border-b border-border bg-background flex py-2 px-6 shrink-0 items-center justify-between gap-4">
+        {/* Stage progress rail — sticky so it stays visible while scrolling the stage */}
+        <div className="sticky top-0 z-20 w-full border-b border-border bg-background/95 backdrop-blur flex py-2 px-6 items-center justify-between gap-4 mt-3">
           <div className="flex items-center gap-3 flex-1 min-w-0 overflow-hidden">
-            <span className="text-xs font-medium text-muted-foreground shrink-0">
-              {requestData.stages.filter(s => s.status === 'complete').length} of {requestData.stages.length} stages done
+            <span className="text-[10.5px] font-semibold uppercase tracking-widest text-muted-foreground shrink-0">
+              Stage {Math.max(1, [...requestData.stages].sort((a, b) => a.order - b.order).findIndex(s => s.id === activeViewStage) + 1)} of {requestData.stages.length}
             </span>
             <div className="flex overflow-x-auto flex-1 items-center">
               <CaseStepper
@@ -661,7 +711,7 @@ export default function RequestDetail() {
           </div>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-auto">
+        <div>
           <OperationsWorkbench
             requestData={requestData}
             activeViewStage={activeViewStage}
@@ -671,17 +721,22 @@ export default function RequestDetail() {
             onStageComplete={handleMarkStageComplete}
             onChecklistToggle={handleChecklistToggle}
             onRunValidation={handleRunValidation}
-            onUploadDocument={handleUploadDocument}
             onReextract={handleReextract}
             onSelectDocument={(doc) => {
               setSelectedDocument(doc);
               if (doc) setSelectedChecklistItemId(null);
             }}
-            onExport={handleExport}
-            onMarkIssued={handleMarkIssued}
+            onAskBroker={() => setConvoOpen(true)}
           />
         </div>
       </div>
+
+      <ConversationDrawer
+        open={convoOpen}
+        onOpenChange={setConvoOpen}
+        requestId={requestData.id}
+        onCompose={() => { setConvoOpen(false); setShowMissingInfoModal(true); }}
+      />
 
       {/* Modals */}
       <MissingInfoEmailModal

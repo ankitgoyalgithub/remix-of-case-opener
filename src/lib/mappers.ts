@@ -83,6 +83,9 @@ export function mapBackendRiskFlags(backendReq: any): RiskFlagSummary[] {
         resolutionNote: f.resolution_note || undefined,
         createdAt: f.created_at ? new Date(f.created_at) : undefined,
         description: f.description || undefined,
+        documentType: f.document_type || undefined,
+        flagType: f.flag_type || undefined,
+        fieldName: f.field_name || undefined,
     }));
 }
 

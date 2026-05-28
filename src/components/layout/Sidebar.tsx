@@ -31,7 +31,10 @@ export function Sidebar() {
     // Two parallel 240px rails feels broken — force-collapse the global one to
     // an icon rail while inside /studio. User pref restores when they leave.
     const onStudio = location.pathname.startsWith('/studio');
-    const collapsed = userCollapsed || onStudio;
+    // The workbench is a focused, full-width review surface — auto-collapse the
+    // global nav to an icon rail so it gets maximum horizontal room.
+    const onWorkbench = /^\/request\/[^/]+\/workbench$/.test(location.pathname);
+    const collapsed = userCollapsed || onStudio || onWorkbench;
 
     const isActive = (to: string) => {
         if (to === '/dashboard') return location.pathname === '/' || location.pathname.startsWith('/dashboard');
@@ -87,8 +90,8 @@ export function Sidebar() {
                 </ul>
             </nav>
 
-            {/* Collapse toggle — hidden on /studio since it's force-collapsed */}
-            {!onStudio && (
+            {/* Collapse toggle — hidden where the rail is force-collapsed (/studio, workbench) */}
+            {!onStudio && !onWorkbench && (
                 <div className="border-t border-border p-2">
                     <button
                         type="button"

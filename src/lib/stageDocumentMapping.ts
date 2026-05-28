@@ -49,3 +49,21 @@ export const STAGE_HELPER_TEXT: Record<number, string> = {
   24: 'Verify premium payment and invoicing',
   25: 'Deliver final policy schedule and kits',
 };
+
+// --- 8-stage workbench workflow ------------------------------------------------
+// Keyed by stage NAME (not PK) so it survives workflow/stage-id changes. The
+// legacy id-keyed maps above are retained only for older workflows.
+export const STAGE_HELPER_TEXT_BY_NAME: Record<string, string> = {
+  'Documents Availability': 'Confirm the required documents have been received from the broker',
+  'Name matching': 'Verify the company name is consistent across all entity documents',
+  'Individual Document Validation': 'Validate each document for dates, fields and authenticity',
+  'MOL Validation': 'Reconcile the workforce census against the Ministry of Labour list',
+  'AML': 'Screen the entity against sanctions, PEP and adverse media',
+  'Compliance': 'Verify ownership, UBOs and authorised signatories',
+  'Final Review': 'Aggregate open risk and decide whether the case can advance',
+  'Book': 'Capture key info and submit to the core system',
+};
+
+export function getStageHelperText(stageName: string): string | undefined {
+  return STAGE_HELPER_TEXT_BY_NAME[stageName];
+}

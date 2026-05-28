@@ -233,7 +233,7 @@ export default function EvidencePack() {
         </div>
       </div>
 
-      <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 py-6 print:px-0 print:py-0 print:max-w-none">
+      <div className="max-w-[1200px] mx-auto px-4 md:px-6 lg:px-8 pt-4 pb-6 print:px-0 print:py-0 print:max-w-none">
         <div className="grid grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)] gap-8 print:block">
           {/* TOC sidebar — print-hidden */}
           <aside className="hidden lg:block print:hidden">

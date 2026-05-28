@@ -1,7 +1,7 @@
 import { Stage, ChecklistItem } from '@/types/case';
 import { Check, AlertTriangle, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { STAGE_HELPER_TEXT } from '@/lib/stageDocumentMapping';
+import { getStageHelperText } from '@/lib/stageDocumentMapping';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface CaseStepperProps {
@@ -34,7 +34,7 @@ export function CaseStepper({ stages, currentStage, onStageClick, checklist }: C
           const isActive = currentStage === stage.id;
           const isComplete = stage.status === 'complete';
           const needsReview = stage.status === 'needs-review';
-          const helperText = STAGE_HELPER_TEXT[stage.id];
+          const helperText = getStageHelperText(stage.name);
 
           // In-progress visual state: any failed check → red; otherwise
           // some-passed-but-not-all → orange. Only applies when the stage

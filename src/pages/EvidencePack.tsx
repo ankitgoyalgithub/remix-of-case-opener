@@ -133,7 +133,7 @@ export default function EvidencePack() {
     try {
       const { buildEvidencePackPdf, downloadEvidencePackPdf } = await import('@/lib/pdf/evidencePack');
       const blob = await buildEvidencePackPdf({ caseData });
-      const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+      const stamp = new Date().toISOString().slice(0, 16).replace(/\D/g, '');
       const safeName = (caseData.smartId || caseData.id).replace(/[^a-zA-Z0-9_-]/g, '_');
       downloadEvidencePackPdf(blob, `evidence-pack_${safeName}_${stamp}.pdf`);
       toast.success('Evidence pack downloaded', { id: 'export-pdf' });

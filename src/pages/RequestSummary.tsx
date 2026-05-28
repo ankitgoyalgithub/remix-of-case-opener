@@ -377,7 +377,6 @@ export default function RequestSummary() {
                         <Button size="sm" className="gap-1.5" onClick={() => navigate(`/request/${requestId}/workbench`)}>Open workbench <ArrowRight className="h-3.5 w-3.5" /></Button>
                     </div>
                 </div>
-            </div>
 
             {/* KPI strip */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 stagger">
@@ -776,17 +775,13 @@ function GroupedRiskRow({ label, items, onReview, onDismiss }: { label: string; 
     const sample = items[0].description || items[0].title;
     const shown = items.slice(0, 30);
     return (
-        <div className="flex items-start gap-2 px-2 py-2 rounded-md hover:bg-muted/30 transition-colors">
-            <Badge variant="outline" className={cn('text-[10px] uppercase shrink-0 mt-0.5', sevClass)}>
-                {flag.severity}
-            </Badge>
-            <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium break-words">{flag.title}</p>
-                {(flag.description || flag.document_type) && (
-                    <p className="text-[11px] text-muted-foreground break-words leading-relaxed mt-0.5">
-                        {flag.document_type && <span className="font-mono">{flag.document_type}</span>}
-                        {flag.document_type && flag.description ? ' · ' : ''}
-                        {flag.description}
+        <div>
+            <div className="flex items-start gap-3 py-3">
+                <Badge variant="outline" className={cn('text-[10px] uppercase font-bold shrink-0 mt-0.5', SEVERITY_STYLES[severity])}>{severity}</Badge>
+                <button onClick={() => setOpen(o => !o)} className="min-w-0 flex-1 text-left">
+                    <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                        {open ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                        {items.length} {label}
                     </p>
                     {sample && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 pl-5">e.g. {sample}</p>}
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mt-1 pl-5">{open ? 'Collapse' : 'Tap to expand all'}</p>

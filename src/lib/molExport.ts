@@ -52,7 +52,7 @@ function triggerDownload(blob: Blob, filename: string) {
 
 function safeStamp(meta: MolExportMeta): string {
   const base = (meta.requestId || meta.company || 'mol-validation').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+  const stamp = new Date().toISOString().slice(0, 16).replace(/\D/g, '');
   return `mol_${base}_${stamp}`;
 }
 

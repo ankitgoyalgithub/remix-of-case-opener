@@ -1,14 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
-} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -16,6 +12,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   ClipboardCheck, Plus, Loader2, Zap, Hand, Link2, ShieldCheck, Trash2, Settings, Sparkles, Wand2,
+  Pencil, Check as CheckIcon, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -33,17 +30,6 @@ const AUTO_CHECK_LABELS: Record<AutoCheckRule, string> = {
   'field-extracted': 'Field Extracted',
   'cross-validation': 'Cross-validation Auto',
 };
-
-const ITEM_TYPES = [
-  { value: 'manual', label: 'Manual' },
-  { value: 'verification', label: 'Verification' },
-  { value: 'extraction', label: 'Extraction' },
-  { value: 'cross-validation', label: 'Cross-validation' },
-  { value: 'third-party-api', label: 'Third-party API' },
-  { value: 'agent-orchestrator', label: 'Agent (prompt-driven)' },
-  { value: 'entity-screening', label: 'Entity screening' },
-  { value: 'risk-review', label: 'Risk review' },
-] as const;
 
 interface ApiStage {
   id: number;
@@ -77,6 +63,28 @@ export default function ChecklistBuilder() {
   const [addOpen, setAddOpen] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [drawerItem, setDrawerItem] = useState<ApiChecklistItem | null>(null);
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const startRename = (item: ApiChecklistItem) => {
+    setRenamingId(item.id);
+    setRenameValue(item.name);
+  };
+
+  const commitRename = async () => {
+    if (renamingId === null) return;
+    const id = renamingId;
+    const original = items.find(i => i.id === id)?.name || '';
+    const next = renameValue.trim();
+    setRenamingId(null);
+    if (!next || next === original) return;
+    await patchItem(id, { name: next });
+  };
+
+  const cancelRename = () => {
+    setRenamingId(null);
+    setRenameValue('');
+  };
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -229,17 +237,51 @@ export default function ChecklistBuilder() {
                         busyId === item.id && 'opacity-60 pointer-events-none',
                       )}
                     >
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 group">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h4 className="font-medium text-sm">{item.name}</h4>
-                          {item.required && (
-                            <Badge className="bg-destructive/10 text-destructive border-0 text-[10px] h-4 px-1.5">Required</Badge>
-                          )}
-                          <Badge variant="outline" className="text-[10px] h-4 px-1.5 capitalize">{item.item_type}</Badge>
-                          {isInapplicable && (
-                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-warning/40 text-warning bg-warning/5">
-                              Hidden — {inactiveLinked.join(', ')} disabled
-                            </Badge>
+                          {renamingId === item.id ? (
+                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                              <Input
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+                                  if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+                                }}
+                                autoFocus
+                                className="h-7 text-sm font-medium"
+                                placeholder="Check name"
+                              />
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-success hover:bg-success/10"
+                                onClick={commitRename} title="Save (Enter)">
+                                <CheckIcon className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:bg-muted"
+                                onClick={cancelRename} title="Cancel (Esc)">
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h4 className="font-medium text-sm">{item.name}</h4>
+                              <Button
+                                variant="ghost" size="icon"
+                                className="h-5 w-5 opacity-0 group-hover:opacity-60 hover:opacity-100 hover:bg-muted transition-opacity"
+                                onClick={() => startRename(item)}
+                                title="Rename"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              {item.required && (
+                                <Badge className="bg-destructive/10 text-destructive border-0 text-[10px] h-4 px-1.5">Required</Badge>
+                              )}
+                              <Badge variant="outline" className="text-[10px] h-4 px-1.5 capitalize">{item.item_type}</Badge>
+                              {isInapplicable && (
+                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-warning/40 text-warning bg-warning/5">
+                                  Hidden — {inactiveLinked.join(', ')} disabled
+                                </Badge>
+                              )}
+                            </>
                           )}
                         </div>
                         <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
@@ -354,32 +396,6 @@ export default function ChecklistBuilder() {
         onSaved={() => { setDrawerItem(null); fetchAll(); }}
       />
 
-      {/* Legend */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Auto-check rules</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-            <LegendRow icon={Hand} title="Manual Only" body="Requires manual verification by ops user." />
-            <LegendRow icon={Zap} title="Document Present" body="Auto-checked when the linked document is uploaded." iconClass="text-warning" />
-            <LegendRow icon={Zap} title="Field Extracted" body="Auto-checked when AI extracts the required fields." iconClass="text-warning" />
-            <LegendRow icon={Zap} title="Cross-validation Auto" body="Auto-checked when fields match across linked documents." iconClass="text-warning" />
-          </div>
-        </CardContent>
-      </Card>
     </>
-  );
-}
-
-function LegendRow({ icon: Icon, title, body, iconClass }: { icon: any; title: string; body: string; iconClass?: string }) {
-  return (
-    <div className="flex items-start gap-2">
-      <Icon className={cn('h-4 w-4 mt-0.5', iconClass || 'text-muted-foreground')} />
-      <div>
-        <p className="font-medium text-sm">{title}</p>
-        <p className="text-[11px] text-muted-foreground">{body}</p>
-      </div>
-    </div>
   );
 }

@@ -161,7 +161,7 @@ export function DocumentsPanel({
                     {getDocIcon(doc.type)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={cn("text-xs font-bold truncate transition-colors", isSelected ? "text-primary" : "text-foreground")}>
+                    <p className={cn("text-xs font-bold truncate transition-colors", isSelected ? "text-primary" : "text-foreground")} title={doc.name}>
                       {doc.name}
                     </p>
                     <div className="flex items-center gap-2 mt-1">

@@ -1,28 +1,31 @@
 /**
- * Check templates — operator-facing presets that hide handler/config jargon.
+ * Check templates — the five things a check can do. One form per template.
  *
- * Each template:
- *   - is a plain-English thing an ops user wants to verify
- *   - has 0–3 simple slots (document picker, field name, etc.)
- *   - knows how to translate filled slots into the backend payload
- *     (handler_name, config_payload, auto_check_rule, linked_documents)
- *
- * Adding a new template = appending an entry below. No new component code.
+ * Adding a new check type = adding one entry below. No new component code,
+ * no new tabs.
  */
 import {
-  FileCheck, CalendarClock, Link2, Layers, ShieldCheck, FileSearch,
-  PenLine, Stamp, Mail, Search, Sparkles, Building2,
+  FileCheck, Link2, Search, ShieldCheck, GitCompare, CheckSquare,
   type LucideIcon,
 } from 'lucide-react';
 
 export type Severity = 'block' | 'warn' | 'note';
 
+export type SlotType =
+  | 'string' | 'multiline' | 'number' | 'boolean'
+  | 'doc-type' | 'doc-types' | 'select'
+  | 'field-pairs';        // custom widget for the field-match template
+
 export interface SlotDef {
   key: string;
   label: string;
-  type: 'doc-type' | 'doc-types' | 'string' | 'multiline';
-  placeholder?: string;
+  type: SlotType;
   required?: boolean;
+  placeholder?: string;
+  default?: any;
+  options?: Array<{ value: string; label: string; hint?: string }>;
+  /** Show this slot only when another slot has one of these values. */
+  visibleWhen?: { key: string; in: string[] };
 }
 
 export interface TemplatePayload {
@@ -34,373 +37,328 @@ export interface TemplatePayload {
   linked_documents?: string[];
   required?: boolean;
   manual_override_allowed?: boolean;
+  /** When the template needs a set-equal CV rule (set-equal mode), the server
+   *  ensures the rule exists and attaches it via cross_validation_rule_ids. */
+  set_equal_rule?: { field: string; participating_doc_types: string[] };
 }
 
 export interface CheckTemplate {
   id: string;
-  category: 'document' | 'consistency' | 'visual' | 'external' | 'compliance' | 'custom';
   icon: LucideIcon;
   title: string;
   description: string;
   slots: SlotDef[];
-  /** Returns the full backend payload for given slot values + severity. */
   toPayload: (slots: Record<string, any>, severity: Severity) => TemplatePayload;
-  /** Suggests a name based on the chosen slots. Operator can override. */
   suggestName?: (slots: Record<string, any>, docLabel: (slug: string) => string) => string;
 }
 
-export const CATEGORY_META: Record<CheckTemplate['category'], { label: string; description: string }> = {
-  document:    { label: 'About a single document', description: 'Confirm something is true about one document.' },
-  consistency: { label: 'Match across documents',  description: 'Confirm two or more documents agree.' },
-  visual:      { label: 'Visual checks',           description: 'Look at the document — signatures, stamps, letterheads.' },
-  external:    { label: 'External registry',       description: 'Confirm with a third-party authority.' },
-  compliance:  { label: 'Compliance & screening',  description: 'AML, sanctions, PEP and entity screening.' },
-  custom:      { label: 'Custom',                  description: 'Free-form AI check or expert mode.' },
-};
-
-// Helper — wrap a single handler invocation in the standard verifications shape
-function wrapVerification(handler: string, config: Record<string, any>) {
-  return {
-    verifications: [
-      { type: handler, handler, config },
-    ],
-  };
+function sevFlags(s: Severity) {
+  return { required: s === 'block', manual_override_allowed: true };
 }
 
-// Apply severity to required + override flags. "block" = required, no override
-// would be too strict; we keep override for ops escape hatch.
-function severityFlags(sev: Severity): { required: boolean; manual_override_allowed: boolean } {
-  if (sev === 'block') return { required: true,  manual_override_allowed: true };
-  if (sev === 'warn')  return { required: false, manual_override_allowed: true };
-  return                       { required: false, manual_override_allowed: true }; // note
-}
+// ── Registry-check provider map ──────────────────────────────────────
+// Each provider knows: which handler to invoke, which document feeds it,
+// and the one extra slot that's relevant (everything else is sensible defaults).
+export const REGISTRY_PROVIDERS = {
+  ner: {
+    label: 'NER / DED — Trade Licence',
+    handler: 'ner_trade_license',
+    document: 'trade-license',
+    extraSlot: { key: 'activities', label: 'Expected activity keywords', type: 'string' as const,
+                 placeholder: 'e.g. insurance, brokerage' },
+    toConfig: (s: Record<string, any>) => ({ expected_activity_keywords: s.activities || '' }),
+  },
+  fta: {
+    label: 'FTA — VAT Certificate',
+    handler: 'fta_vat_verify',
+    document: 'vat-certificate',
+    extraSlot: { key: 'entity_field', label: 'Entity-name field', type: 'string' as const,
+                 placeholder: 'Company Name', default: 'Company Name' },
+    toConfig: (s: Record<string, any>) => ({ expected_entity_field: s.entity_field || 'Company Name' }),
+  },
+  dnb: {
+    label: 'D&B UAE — MoA enrichment',
+    handler: 'dnb_uae_moa_enrich',
+    document: 'moa',
+    extraSlot: null,
+    toConfig: () => ({}),
+  },
+  uae_verify: {
+    label: 'UAE Verify — Establishment Card',
+    handler: 'uae_verify_establishment',
+    document: 'establishment-card',
+    extraSlot: null,
+    toConfig: () => ({}),
+  },
+  uae_pass: {
+    label: 'UAE PASS — Signatory ID',
+    handler: 'uae_pass_signatory',
+    document: 'kyc-signatory',
+    extraSlot: null,
+    toConfig: () => ({}),
+  },
+} as const;
+
+export type RegistryProviderKey = keyof typeof REGISTRY_PROVIDERS;
 
 
 export const CHECK_TEMPLATES: CheckTemplate[] = [
-  // ─── Documents ────────────────────────────────────────────────────
+  // ── 0. Manual signoff ────────────────────────────────────────────
   {
-    id: 'doc-present',
-    category: 'document',
+    id: 'manual_signoff',
+    icon: CheckSquare,
+    title: 'Manual signoff',
+    description: 'An operator ticks this off — no automation runs.',
+    slots: [],
+    toPayload: (_s, sev) => ({
+      item_type: 'manual',
+      auto_check_rule: 'manual',
+      handler_name: '',
+      config_payload: {},
+      linked_documents: [],
+      ...sevFlags(sev),
+    }),
+    suggestName: () => '',
+  },
+
+  // ── 1. Document received ─────────────────────────────────────────
+  {
+    id: 'document_received',
     icon: FileCheck,
-    title: 'Document was uploaded',
-    description: 'Passes when the document arrives and is extracted.',
-    slots: [{ key: 'doc', label: 'Which document', type: 'doc-type', required: true }],
+    title: 'Document received',
+    description: 'Pass when this document is uploaded for the request.',
+    slots: [
+      { key: 'doc', label: 'Which document', type: 'doc-type', required: true },
+    ],
     toPayload: (s, sev) => ({
       item_type: 'verification',
       auto_check_rule: 'document-present',
-      handler_name: '',
-      config_payload: {},
+      handler_name: 'document_present',
+      config_payload: { doc_types: s.doc ? [s.doc] : [] },
       linked_documents: s.doc ? [s.doc] : [],
-      ...severityFlags(sev),
+      ...sevFlags(sev),
     }),
-    suggestName: (s, label) => s.doc ? `${label(s.doc)} uploaded` : '',
-  },
-  {
-    id: 'doc-not-expired',
-    category: 'document',
-    icon: CalendarClock,
-    title: 'Document is not expired',
-    description: "Reads the document's expiry date and flags if it's past or near.",
-    slots: [{ key: 'doc', label: 'Which document', type: 'doc-type', required: true }],
-    toPayload: (s, sev) => ({
-      item_type: 'verification',
-      auto_check_rule: 'field-extracted',
-      handler_name: 'document_verification',
-      ...wrapVerification('document_verification', {
-        target_document: s.doc,
-        prompt:
-          `Confirm this document is currently valid. Flag if the expiry/validity ` +
-          `date has passed or is within 30 days of expiring. Cite the date you found.`,
-      }),
-      linked_documents: s.doc ? [s.doc] : [],
-      ...severityFlags(sev),
-    }),
-    suggestName: (s, label) => s.doc ? `${label(s.doc)} is current` : '',
-  },
-  {
-    id: 'doc-contains-fields',
-    category: 'document',
-    icon: FileSearch,
-    title: "Document has the key information",
-    description: 'AI verifies specific fields are present and look reasonable.',
-    slots: [
-      { key: 'doc', label: 'Which document', type: 'doc-type', required: true },
-      { key: 'fields', label: 'Fields to check (comma-separated)', type: 'string',
-        placeholder: 'e.g. TRN, Company Name, Effective Date', required: true },
-    ],
-    toPayload: (s, sev) => ({
-      item_type: 'verification',
-      auto_check_rule: 'field-extracted',
-      handler_name: 'document_verification',
-      ...wrapVerification('document_verification', {
-        target_document: s.doc,
-        prompt: `Verify the document contains valid values for: ${s.fields}. Flag missing or implausible values and cite what you found.`,
-      }),
-      linked_documents: s.doc ? [s.doc] : [],
-      ...severityFlags(sev),
-    }),
-    suggestName: (s, label) => s.doc ? `${label(s.doc)} key fields present` : '',
+    suggestName: (s, label) => s.doc ? `${label(s.doc)} received` : '',
   },
 
-  // ─── Consistency ──────────────────────────────────────────────────
+  // ── 2. Name match across documents ───────────────────────────────
   {
-    id: 'docs-agree',
-    category: 'consistency',
+    id: 'name_match_across_docs',
     icon: Link2,
-    title: 'Two or more documents agree on a field',
-    description: 'Picks the field on each document and confirms the value matches.',
+    title: 'Name match across documents',
+    description: 'Compare this field across every uploaded document. Re-runs when new docs arrive.',
     slots: [
-      { key: 'docs', label: 'Documents to compare', type: 'doc-types', required: true },
-      { key: 'field', label: 'Which field', type: 'string',
-        placeholder: 'e.g. Company Name', required: true },
+      { key: 'field', label: 'Field name', type: 'string', required: true, default: 'Company Name',
+        placeholder: 'Company Name' },
     ],
     toPayload: (s, sev) => ({
       item_type: 'cross-validation',
       auto_check_rule: 'cross-validation',
       handler_name: 'cross_validation',
-      ...wrapVerification('cross_validation', {
-        target_documents: s.docs || [],
-        fields: s.field ? [s.field] : [],
-      }),
-      linked_documents: s.docs || [],
-      ...severityFlags(sev),
+      config_payload: {},
+      linked_documents: [],
+      set_equal_rule: {
+        field: s.field || 'Company Name',
+        // Empty list = "all documents on the request". The backend handler
+        // discovers participants at run time and re-evaluates on every upload.
+        participating_doc_types: [],
+      },
+      ...sevFlags(sev),
     }),
-    suggestName: (s, label) => {
-      const docs = (s.docs || []).slice(0, 2).map(label).join(' ↔ ');
-      const more = (s.docs || []).length > 2 ? ` (+${s.docs.length - 2})` : '';
-      return docs ? `${docs}${more}: ${s.field || 'fields'} match` : '';
+    suggestName: (s) => `${s.field || 'Company Name'} matches across all documents`,
+  },
+
+  // ── 3. Compare specific fields ───────────────────────────────────
+  {
+    id: 'compare_fields',
+    icon: GitCompare,
+    title: 'Compare specific fields between documents',
+    description: 'Add one row per (source field ↔ target field) pair to compare.',
+    slots: [
+      { key: 'pairs', label: 'Field pairs', type: 'field-pairs', required: true },
+      { key: 'fuzziness', label: 'Fuzziness (0 = exact, 100 = loose)', type: 'number', default: 10 },
+    ],
+    toPayload: (s, sev) => {
+      const pairs = Array.isArray(s.pairs) ? s.pairs : [];
+      const docs = Array.from(new Set(pairs.flatMap((p: any) => [p.source_doc, p.target_doc]).filter(Boolean)));
+      return {
+        item_type: 'cross-validation',
+        auto_check_rule: 'cross-validation',
+        handler_name: 'field_pair_match',
+        config_payload: {
+          pairs,
+          fuzziness: typeof s.fuzziness === 'number' ? s.fuzziness : 10,
+        },
+        linked_documents: docs as string[],
+        ...sevFlags(sev),
+      };
+    },
+    suggestName: (s) => {
+      const pairs = Array.isArray(s.pairs) ? s.pairs : [];
+      if (!pairs.length) return 'Compare fields';
+      const first = pairs[0];
+      const extra = pairs.length > 1 ? ` (+${pairs.length - 1})` : '';
+      return `${first.source_doc || '?'} ↔ ${first.target_doc || '?'}: ${first.source_field || '?'} match${extra}`;
     },
   },
-  {
-    id: 'all-docs-same-company',
-    category: 'consistency',
-    icon: Layers,
-    title: 'All documents share the same company name',
-    description: 'Confirms every selected document reports the same Company Name.',
-    slots: [
-      { key: 'docs', label: 'Documents', type: 'doc-types', required: true },
-    ],
-    toPayload: (s, sev) => ({
-      item_type: 'cross-validation',
-      auto_check_rule: 'cross-validation',
-      handler_name: 'cross_validation',
-      ...wrapVerification('cross_validation', {
-        target_documents: s.docs || [],
-        fields: ['Company Name'],
-      }),
-      linked_documents: s.docs || [],
-      ...severityFlags(sev),
-    }),
-    suggestName: (s) => (s.docs || []).length ? `All entity docs share Company Name` : '',
-  },
 
-  // ─── Visual ───────────────────────────────────────────────────────
+  // ── 4. Web search / AML (Tavily) ─────────────────────────────────
   {
-    id: 'has-signature',
-    category: 'visual',
-    icon: PenLine,
-    title: 'Signatures match between two documents',
-    description: 'AI compares the signature on document A with the signatory record on document B.',
-    slots: [
-      { key: 'left_doc', label: 'Document with the signature', type: 'doc-type', required: true },
-      { key: 'right_doc', label: 'Reference document', type: 'doc-type', required: true },
-    ],
-    toPayload: (s, sev) => ({
-      item_type: 'verification',
-      auto_check_rule: 'manual',
-      handler_name: 'signature_match',
-      ...wrapVerification('signature_match', {
-        left_doc: s.left_doc,
-        right_doc: s.right_doc,
-      }),
-      linked_documents: [s.left_doc, s.right_doc].filter(Boolean),
-      ...severityFlags(sev),
-    }),
-    suggestName: (s, label) =>
-      (s.left_doc && s.right_doc) ? `Signature match: ${label(s.left_doc)} ↔ ${label(s.right_doc)}` : '',
-  },
-  {
-    id: 'has-stamp',
-    category: 'visual',
-    icon: Stamp,
-    title: 'Document has a company stamp',
-    description: 'AI checks the page for a clear company stamp / seal.',
-    slots: [{ key: 'doc', label: 'Which document', type: 'doc-type', required: true }],
-    toPayload: (s, sev) => ({
-      item_type: 'verification',
-      auto_check_rule: 'manual',
-      handler_name: 'stamp_present',
-      ...wrapVerification('stamp_present', { target_document: s.doc }),
-      linked_documents: s.doc ? [s.doc] : [],
-      ...severityFlags(sev),
-    }),
-    suggestName: (s, label) => s.doc ? `${label(s.doc)} stamp present` : '',
-  },
-  {
-    id: 'on-letterhead',
-    category: 'visual',
-    icon: Building2,
-    title: "Document is on the company's letterhead",
-    description: 'AI verifies the document is on the expected official letterhead.',
-    slots: [
-      { key: 'doc', label: 'Which document', type: 'doc-type', required: true },
-      { key: 'expected_company', label: 'Expected company name (optional)', type: 'string' },
-    ],
-    toPayload: (s, sev) => ({
-      item_type: 'verification',
-      auto_check_rule: 'manual',
-      handler_name: 'company_letterhead',
-      ...wrapVerification('company_letterhead', {
-        target_document: s.doc,
-        expected_company: s.expected_company || '',
-      }),
-      linked_documents: s.doc ? [s.doc] : [],
-      ...severityFlags(sev),
-    }),
-    suggestName: (s, label) => s.doc ? `${label(s.doc)} on letterhead` : '',
-  },
-  {
-    id: 'contains-wording',
-    category: 'visual',
-    icon: Mail,
-    title: 'Document contains required wording',
-    description: 'AI confirms the document expresses every required phrase (semantic match).',
-    slots: [
-      { key: 'doc', label: 'Which document', type: 'doc-type', required: true },
-      { key: 'phrases', label: 'Required phrases (one per line)', type: 'multiline', required: true,
-        placeholder: 'The employer agrees to…\nAll information provided is true…' },
-    ],
-    toPayload: (s, sev) => ({
-      item_type: 'verification',
-      auto_check_rule: 'manual',
-      handler_name: 'declaration_wordings',
-      ...wrapVerification('declaration_wordings', {
-        target_document: s.doc,
-        required_phrases: s.phrases || '',
-      }),
-      linked_documents: s.doc ? [s.doc] : [],
-      ...severityFlags(sev),
-    }),
-    suggestName: (s, label) => s.doc ? `${label(s.doc)} required wording` : '',
-  },
-
-  // ─── External ─────────────────────────────────────────────────────
-  {
-    id: 'fta-vat',
-    category: 'external',
-    icon: ShieldCheck,
-    title: 'Verify VAT TRN with FTA',
-    description: 'Calls the UAE Federal Tax Authority to confirm the TRN matches the entity.',
-    slots: [],
-    toPayload: (_s, sev) => ({
-      item_type: 'third-party-api',
-      auto_check_rule: 'manual',
-      handler_name: 'fta_vat_verify',
-      ...wrapVerification('fta_vat_verify', { expected_entity_field: 'Company Name' }),
-      linked_documents: ['vat-certificate'],
-      ...severityFlags(sev),
-    }),
-    suggestName: () => 'VAT TRN verified with FTA',
-  },
-  {
-    id: 'ner-trade-license',
-    category: 'external',
-    icon: ShieldCheck,
-    title: 'Verify Trade Licence with NER / DED',
-    description: 'Confirms the trade licence is active and lists the expected business activity.',
-    slots: [
-      { key: 'activities', label: 'Expected activity keywords (comma-separated)', type: 'string',
-        placeholder: 'e.g. insurance, brokerage' },
-    ],
-    toPayload: (s, sev) => ({
-      item_type: 'third-party-api',
-      auto_check_rule: 'manual',
-      handler_name: 'ner_trade_license',
-      ...wrapVerification('ner_trade_license', {
-        expected_activity_keywords: s.activities || '',
-      }),
-      linked_documents: ['trade-license'],
-      ...severityFlags(sev),
-    }),
-    suggestName: () => 'Trade Licence verified with NER',
-  },
-  {
-    id: 'establishment-card',
-    category: 'external',
-    icon: ShieldCheck,
-    title: 'Verify Establishment Card with UAE Verify',
-    description: 'Confirms the establishment card is registered for visas / labour.',
-    slots: [],
-    toPayload: (_s, sev) => ({
-      item_type: 'third-party-api',
-      auto_check_rule: 'manual',
-      handler_name: 'uae_verify_establishment',
-      ...wrapVerification('uae_verify_establishment', {}),
-      linked_documents: ['establishment-card'],
-      ...severityFlags(sev),
-    }),
-    suggestName: () => 'Establishment Card verified',
-  },
-
-  // ─── Compliance ───────────────────────────────────────────────────
-  {
-    id: 'aml-entity',
-    category: 'compliance',
+    id: 'tavily_screening',
     icon: Search,
-    title: 'AML / sanctions screening — request entity',
-    description: 'Screens the company on this request for sanctions, PEP and adverse media.',
-    slots: [],
-    toPayload: (_s, sev) => ({
+    title: 'Search the web (Tavily)',
+    description: 'AML / sanctions / PEP / adverse-media screening for the request entity.',
+    slots: [
+      { key: 'focus', label: 'Search focus (optional)', type: 'string',
+        placeholder: 'e.g. sanctions, PEP, adverse media' },
+    ],
+    toPayload: (s, sev) => ({
       item_type: 'entity-screening',
       auto_check_rule: 'manual',
       handler_name: 'entity_screening',
-      ...wrapVerification('entity_screening', {}),
+      config_payload: { focus: s.focus || '' },
       linked_documents: [],
-      ...severityFlags(sev),
+      ...sevFlags(sev),
     }),
-    suggestName: () => 'AML screening — company',
-  },
-  {
-    id: 'aml-ubo-cascade',
-    category: 'compliance',
-    icon: Search,
-    title: 'AML / sanctions screening — every UBO and signatory',
-    description: 'Pulls UBOs and authorised signatories from MoA / KYC / passports and screens each one.',
-    slots: [],
-    toPayload: (_s, sev) => ({
-      item_type: 'orchestrator',
-      auto_check_rule: 'manual',
-      handler_name: 'ubo_aml_cascade',
-      ...wrapVerification('ubo_aml_cascade', {
-        sources: ['moa', 'kyc-signatory', 'emirates-id-passport', 'passport',
-                  'shareholder-declaration', 'board-resolution'],
-      }),
-      linked_documents: ['moa', 'kyc-signatory'],
-      ...severityFlags(sev),
-    }),
-    suggestName: () => 'AML cascade — UBOs + signatories',
+    suggestName: () => 'AML / sanctions screening',
   },
 
-  // ─── Custom ───────────────────────────────────────────────────────
+  // ── 5. External API / registry ───────────────────────────────────
   {
-    id: 'custom-ai',
-    category: 'custom',
-    icon: Sparkles,
-    title: 'Custom AI check',
-    description: "Describe what to verify in plain English. The AI plans how to check it.",
+    id: 'registry_check',
+    icon: ShieldCheck,
+    title: 'Check with external API (registry)',
+    description: 'Calls the appropriate UAE registry / data provider for the chosen document.',
     slots: [
-      { key: 'prompt', label: 'What should the AI verify?', type: 'multiline', required: true,
-        placeholder:
-          'e.g. Confirm the broker fee on the signed quote matches the rate on the trade licence and is below 5% of the premium.' },
+      { key: 'provider', label: 'Provider', type: 'select', required: true,
+        options: (Object.entries(REGISTRY_PROVIDERS) as [RegistryProviderKey, typeof REGISTRY_PROVIDERS[RegistryProviderKey]][])
+          .map(([value, p]) => ({ value, label: p.label })) },
+      // Provider-specific extra slot — shown conditionally per provider
+      { key: 'activities', label: 'Expected activity keywords', type: 'string',
+        placeholder: 'e.g. insurance, brokerage',
+        visibleWhen: { key: 'provider', in: ['ner'] } },
+      { key: 'entity_field', label: 'Entity-name field on extraction', type: 'string',
+        placeholder: 'Company Name', default: 'Company Name',
+        visibleWhen: { key: 'provider', in: ['fta'] } },
     ],
-    toPayload: (s, sev) => ({
-      item_type: 'agent-orchestrator',
-      auto_check_rule: 'manual',
-      handler_name: 'agent_orchestrator',
-      ...wrapVerification('agent_orchestrator', { prompt: s.prompt || '' }),
-      linked_documents: [],
-      ...severityFlags(sev),
-    }),
-    suggestName: () => 'Custom AI check',
+    toPayload: (s, sev) => {
+      const p = REGISTRY_PROVIDERS[s.provider as RegistryProviderKey];
+      if (!p) {
+        return { item_type: 'third-party-api', auto_check_rule: 'manual', ...sevFlags(sev) };
+      }
+      return {
+        item_type: 'third-party-api',
+        auto_check_rule: 'manual',
+        handler_name: p.handler,
+        config_payload: p.toConfig(s),
+        linked_documents: [p.document],
+        ...sevFlags(sev),
+      };
+    },
+    suggestName: (s) => {
+      const p = REGISTRY_PROVIDERS[s.provider as RegistryProviderKey];
+      return p ? p.label : 'External registry check';
+    },
   },
 ];
+
+
+// ── Reverse mapping: detect which template fits an existing check ────
+
+export interface DetectedTemplate {
+  template: CheckTemplate;
+  slots: Record<string, any>;
+  severity: Severity;
+}
+
+export interface ExistingCheckShape {
+  handler_name?: string;
+  auto_check_rule?: string;
+  config_payload?: any;
+  linked_documents?: string[];
+  cross_validation_rules?: Array<{
+    id: number; mode?: string; extracted_field?: string;
+    participating_doc_types?: string[]; source_doc_type?: string; target_doc_type?: string;
+  }>;
+  required?: boolean;
+}
+
+function getVerificationCfg(item: ExistingCheckShape): { handler: string; config: Record<string, any> } | null {
+  const cfg = item.config_payload || {};
+  if (Array.isArray(cfg.verifications) && cfg.verifications.length) {
+    const v = cfg.verifications.find((x: any) => x?.handler && x.handler !== 'manual') || cfg.verifications[0];
+    if (v) return { handler: v.handler || v.type || '', config: v.config || {} };
+  }
+  if (item.handler_name) return { handler: item.handler_name, config: cfg };
+  return null;
+}
+
+export function detectTemplate(item: ExistingCheckShape): DetectedTemplate | null {
+  const severity: Severity = item.required ? 'block' : 'warn';
+  const T = (id: string) => CHECK_TEMPLATES.find(t => t.id === id);
+
+  // 1. document_received
+  if (item.handler_name === 'document_present' || item.auto_check_rule === 'document-present') {
+    const slug = (item.linked_documents || [])[0] || '';
+    const tpl = T('document_received');
+    if (tpl) return { template: tpl, slots: { doc: slug }, severity };
+  }
+
+  // 2. name_match_across_docs — cross_validation with a set-equal CV rule.
+  // The template only carries the field name now ("all docs" mode); we ignore
+  // any legacy participating_doc_types on the rule (the runner will too).
+  const setEqual = (item.cross_validation_rules || []).find(r => r.mode === 'set-equal');
+  if (setEqual) {
+    const tpl = T('name_match_across_docs');
+    if (tpl) return {
+      template: tpl,
+      slots: { field: setEqual.extracted_field || 'Company Name' },
+      severity,
+    };
+  }
+
+  const v = getVerificationCfg(item);
+
+  // 3. compare_fields — field_pair_match handler OR cross_validation with pairs in config
+  if (v && (v.handler === 'field_pair_match' || (v.config && Array.isArray(v.config.pairs)))) {
+    const tpl = T('compare_fields');
+    if (tpl) return {
+      template: tpl,
+      slots: { pairs: v.config.pairs || [], fuzziness: v.config.fuzziness ?? 10 },
+      severity,
+    };
+  }
+
+  // 4. tavily_screening
+  if (v?.handler === 'entity_screening') {
+    const tpl = T('tavily_screening');
+    if (tpl) return { template: tpl, slots: { focus: v.config?.focus || '' }, severity };
+  }
+
+  // 5. registry_check
+  if (v) {
+    const providerEntry = (Object.entries(REGISTRY_PROVIDERS) as [RegistryProviderKey, any][])
+      .find(([_, p]) => p.handler === v.handler);
+    if (providerEntry) {
+      const [provider, p] = providerEntry;
+      const tpl = T('registry_check');
+      if (tpl) {
+        const slots: Record<string, any> = { provider };
+        if (p.extraSlot) {
+          const key = p.extraSlot.key as string;
+          if (key === 'activities') slots.activities = v.config?.expected_activity_keywords || '';
+          if (key === 'entity_field') slots.entity_field = v.config?.expected_entity_field || 'Company Name';
+        }
+        return { template: tpl, slots, severity };
+      }
+    }
+  }
+
+  // 6. manual_signoff — no handler + manual auto rule
+  if (!v && (!item.auto_check_rule || item.auto_check_rule === 'manual')) {
+    const tpl = T('manual_signoff');
+    if (tpl) return { template: tpl, slots: {}, severity };
+  }
+
+  return null;
+}

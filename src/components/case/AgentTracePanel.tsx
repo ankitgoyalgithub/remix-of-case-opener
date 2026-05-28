@@ -54,7 +54,7 @@ function StepCard({ step, index }: { step: AgentTraceStep; index: number }) {
                         <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     )}
                     <Cpu className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-sm font-medium text-foreground truncate">
+                    <span className="text-sm font-medium text-foreground truncate" title={`Step ${index + 1} · ${step.handler || 'handler'}`}>
                         Step {index + 1} · {step.handler || 'handler'}
                     </span>
                     {step.status && (
@@ -163,6 +163,7 @@ function StepCard({ step, index }: { step: AgentTraceStep; index: number }) {
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     className="text-primary hover:underline inline-flex items-center gap-1 min-w-0"
+                                                    title={s.label ? `${s.label} — ${s.ref}` : s.ref}
                                                 >
                                                     <span className="truncate">{s.label || s.ref}</span>
                                                     <ExternalLink className="h-3 w-3 shrink-0" />

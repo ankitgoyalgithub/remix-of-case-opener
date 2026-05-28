@@ -12,7 +12,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EntityScreeningReport } from './EntityScreeningReport';
 import { MolValidationReport } from './MolValidationReport';
-import { AgentTracePanel } from './AgentTracePanel';
 
 interface ChecklistDetailPanelProps {
   item: ChecklistItem;
@@ -155,9 +154,14 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-muted-foreground truncate max-w-[200px]">
-                            {v.config?.taskDescription || v.config?.target_document || (v.config?.target_documents?.join(', ')) || 'Standard Logic'}
-                          </div>
+                          {(() => {
+                            const txt = v.config?.taskDescription || v.config?.target_document || (v.config?.target_documents?.join(', ')) || 'Standard Logic';
+                            return (
+                              <div className="text-muted-foreground truncate max-w-[200px]" title={txt}>
+                                {txt}
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <span className={cn(
@@ -242,7 +246,7 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                           <div className="flex items-center justify-between gap-3 px-4 py-2 bg-muted/40 border-b border-border/60">
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="text-[10px] font-semibold text-muted-foreground tabular-nums shrink-0">#{stepIdx + 1}</span>
-                              <span className="text-xs font-mono text-foreground truncate">{handlerName}</span>
+                              <span className="text-xs font-mono text-foreground truncate" title={handlerName}>{handlerName}</span>
                               {typeof stepMeta.duration_ms === 'number' && (
                                 <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">· {stepMeta.duration_ms}ms</span>
                               )}
@@ -294,32 +298,42 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                           <td className="px-4 py-3 align-top">
                             <div className="flex flex-col">
                               {rule.source_value != null ? (
-                                <div className="font-semibold text-foreground">{String(rule.source_value)}</div>
-                              ) : (
-                                <span className="text-muted-foreground/40 italic font-medium">-</span>
-                              )}
-                              <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mt-1 opacity-70">
-                                {rule.source_doc_type ? (DOCUMENT_TYPE_LABELS[rule.source_doc_type as keyof typeof DOCUMENT_TYPE_LABELS] || rule.source_field || 'Source') : 'Source'}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 align-top">
-                            <div className="flex flex-col">
-                              {rule.target_value != null || rule.target_field ? (
+                                <>
+                                  <div className="font-semibold text-foreground">{String(rule.source_value)}</div>
+                                  {rule.source_doc_type && (
+                                    <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mt-1 opacity-70">
+                                      {DOCUMENT_TYPE_LABELS[rule.source_doc_type as keyof typeof DOCUMENT_TYPE_LABELS] || rule.source_field || 'Source'}
+                                    </div>
+                                  )}
+                                </>
+                              ) : rule.source_doc_type ? (
                                 <div className="font-semibold text-foreground">
-                                  {rule.target_value != null ? String(rule.target_value) : (rule.target_field ? rule.target_field.replace(/_/g, ' ') : <span className="text-muted-foreground/40 italic font-medium">Not detected</span>)}
+                                  {DOCUMENT_TYPE_LABELS[rule.source_doc_type as keyof typeof DOCUMENT_TYPE_LABELS] || rule.source_doc_type}
                                 </div>
                               ) : (
                                 <span className="text-muted-foreground/40 italic font-medium">-</span>
                               )}
-                              <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mt-1 opacity-70">
-                                {rule.target_doc_type ? (
-                                  rule.target_doc_type.includes(',') 
-                                    ? rule.target_doc_type.split(',').map(s => DOCUMENT_TYPE_LABELS[s.trim() as keyof typeof DOCUMENT_TYPE_LABELS] || s.trim()).join(', ')
-                                    : (DOCUMENT_TYPE_LABELS[rule.target_doc_type as keyof typeof DOCUMENT_TYPE_LABELS] || rule.target_doc_type || 'Target')
-                                ) : (rule.target_field ? 'Mapped Field' : 'Target')}
-                              </div>
                             </div>
+                          </td>
+                          <td className="px-4 py-3 align-top">
+                            {rule.target_value != null || rule.target_field || rule.target_doc_type ? (
+                              <div className="flex flex-col">
+                                {rule.target_value != null || rule.target_field ? (
+                                  <div className="font-semibold text-foreground">
+                                    {rule.target_value != null ? String(rule.target_value) : (rule.target_field ? rule.target_field.replace(/_/g, ' ') : <span className="text-muted-foreground/40 italic font-medium">Not detected</span>)}
+                                  </div>
+                                ) : null}
+                                {rule.target_doc_type && (
+                                  <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mt-1 opacity-70">
+                                    {rule.target_doc_type.includes(',')
+                                      ? rule.target_doc_type.split(',').map(s => DOCUMENT_TYPE_LABELS[s.trim() as keyof typeof DOCUMENT_TYPE_LABELS] || s.trim()).join(', ')
+                                      : (DOCUMENT_TYPE_LABELS[rule.target_doc_type as keyof typeof DOCUMENT_TYPE_LABELS] || rule.target_doc_type)}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground/40 italic font-medium">—</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 align-top text-right">
                             <div className="flex items-center gap-2 justify-end">
@@ -367,8 +381,6 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                 </div>
               );
             })()}
-
-            <AgentTracePanel trace={localResult.trace} runAt={localResult.run_at} />
           </div>
         ) : (item.verifications?.some(v => v.type !== 'manual') || (item.handlerName && item.handlerName !== 'manual') || item.itemType === 'cross-validation') ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">

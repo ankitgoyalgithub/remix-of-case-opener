@@ -36,7 +36,7 @@ export function DocumentHighlightsPanel({ document, docDef, onClose }: DocumentH
             <FileText className="h-4 w-4 text-primary" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold truncate max-w-[200px]">{document.name}</h3>
+            <h3 className="text-sm font-semibold truncate max-w-[200px]" title={document.name}>{document.name}</h3>
             <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">
               {document.type.replace(/-/g, ' ')}
             </p>
@@ -134,12 +134,12 @@ export function DocumentHighlightsPanel({ document, docDef, onClose }: DocumentH
                   <div className="flex items-center justify-between gap-3 bg-muted/30 p-3 rounded-lg border border-border/50">
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Source Field</p>
-                      <p className="text-sm font-semibold truncate text-primary">{rule.source_field.replace(/_/g, ' ')}</p>
+                      <p className="text-sm font-semibold truncate text-primary" title={rule.source_field.replace(/_/g, ' ')}>{rule.source_field.replace(/_/g, ' ')}</p>
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Target Field ({rule.target_document_type})</p>
-                      <p className="text-sm font-semibold truncate text-orange-600 group-hover:text-orange-500">{rule.target_field.replace(/_/g, ' ')}</p>
+                      <p className="text-sm font-semibold truncate text-orange-600 group-hover:text-orange-500" title={rule.target_field.replace(/_/g, ' ')}>{rule.target_field.replace(/_/g, ' ')}</p>
                     </div>
                   </div>
                 </div>

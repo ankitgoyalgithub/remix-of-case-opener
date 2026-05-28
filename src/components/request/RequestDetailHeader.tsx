@@ -120,7 +120,7 @@ export function RequestDetailHeader({
         {/* Primary info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-[17px] font-semibold text-foreground truncate tracking-tight">{companyName}</h1>
+            <h1 className="text-[17px] font-semibold text-foreground truncate tracking-tight" title={companyName}>{companyName}</h1>
             {priority === 'Urgent' && (
               <Badge variant="critical" className="gap-1">
                 <AlertTriangle className="h-2.5 w-2.5" />
@@ -138,9 +138,9 @@ export function RequestDetailHeader({
           <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap mt-1 text-xs text-muted-foreground">
             <span className="font-mono">{shortId}</span>
             <span className="text-border">·</span>
-            <span className="truncate max-w-[180px]">{brokerName}</span>
+            <span className="truncate max-w-[180px]" title={brokerName}>{brokerName}</span>
             <span className="text-border">·</span>
-            <span className="truncate">{queue}</span>
+            <span className="truncate" title={queue}>{queue}</span>
             <span className="text-border">·</span>
             <span className={owner === 'Unassigned' ? 'italic' : ''}>{owner || 'Unassigned'}</span>
             <span className="text-border">·</span>

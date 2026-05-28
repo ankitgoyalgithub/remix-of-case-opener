@@ -11,6 +11,7 @@ import EvidencePack from "./pages/EvidencePack";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import LoginPage from "./pages/LoginPage";
+import BrokerPortal from "./pages/BrokerPortal";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { AppLayout } from "./components/layout/AppLayout";
@@ -28,7 +29,6 @@ import StudioIntegrations from "./pages/studio/StudioIntegrations";
 import StudioInboundEmail from "./pages/studio/StudioInboundEmail";
 import StudioInboundJobs from "./pages/studio/StudioInboundJobs";
 import StudioSettings from "./pages/studio/StudioSettings";
-import OutputTemplates from "./pages/studio/OutputTemplates";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +42,7 @@ const App = () => (
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/portal/:token" element={<BrokerPortal />} />
 
           {/* Protected Routes */}
           <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" replace /></ProtectedRoute>} />
@@ -67,7 +68,6 @@ const App = () => (
               <Route path="inbound" element={<StudioInboundEmail />} />
               <Route path="jobs" element={<StudioInboundJobs />} />
               <Route path="messages" element={<EmailTemplates />} />
-              <Route path="outputs" element={<OutputTemplates />} />
               <Route path="settings" element={<StudioSettings />} />
 
               {/* Wizard kept as a deep-link target (used from Overview) */}

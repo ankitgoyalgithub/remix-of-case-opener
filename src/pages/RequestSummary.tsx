@@ -17,7 +17,6 @@ import { mapBackendRequestToListItem, mapBackendRequestDecision, mapBackendReque
 import { ConversationDrawer } from '@/components/workbench/ConversationDrawer';
 import { MissingInfoEmailModal } from '@/components/request/MissingInfoEmailModal';
 import { BulkZipUploadButton } from '@/components/request/BulkZipUploadButton';
-import { AnimatedNumber } from '@/components/ui/animated-number';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageShell } from '@/components/layout/PageShell';
 
@@ -278,95 +277,26 @@ export default function RequestSummary() {
 
     return (
         <PageShell>
-                {/* Hero — identity + headline metrics + verification strip, all in one panel */}
-                <div className="rounded-md border border-border bg-card p-5">
-                    <Link to="/requests" className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground mb-2">
-                        <ArrowLeft className="h-3 w-3" />
-                        Back to inbox
-                    </Link>
-                    <div className="flex items-start justify-between gap-6">
-                        <div className="min-w-0 flex-1">
-                            <h1 className="text-2xl font-semibold text-foreground tracking-tight truncate">{request.company_name}</h1>
-                            <div className="flex items-center gap-1.5 flex-wrap mt-2">
-                                <span className={cn('inline-flex items-center px-2 h-5 rounded text-[11px] font-medium', STATUS_STYLES[request.status] || 'bg-muted text-foreground')}>
-                                    {STATUS_LABEL[request.status] || request.status}
-                                </span>
-                                <Badge variant="outline" className={cn('text-[10px] uppercase tracking-wide h-5', OVERALL_STYLE[rd.overall.status])}>
-                                    {rd.overall.status}
-                                </Badge>
-                                {request.priority === 'urgent' && (
-                                    <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10 text-[10px] h-5">
-                                        <AlertTriangle className="h-3 w-3 mr-1" />
-                                        Urgent
-                                    </Badge>
-                                )}
-                                {openRisks.length > 0 && (
-                                    <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10 text-[10px] h-5">
-                                        <ShieldAlert className="h-3 w-3 mr-1" />
-                                        {openRisks.length} open {openRisks.length === 1 ? 'risk' : 'risks'}
-                                    </Badge>
-                                )}
-                                {isComplete && (
-                                    <Badge className="bg-success/15 text-success border border-success/30 text-[10px] h-5 gap-1">
-                                        <Sparkles className="h-3 w-3" />
-                                        All clear
-                                    </Badge>
-                                )}
-                            </div>
-                            <p className="text-[11px] text-muted-foreground font-mono mt-2">
-                                {request.smart_id || request.id?.slice(0, 8)} · Created {format(listItem.createdAt, 'dd MMM yyyy HH:mm')}
-                            </p>
-                            <div className="flex items-center gap-2 mt-4 flex-wrap">
-                                <Button size="sm" className="h-8 gap-1.5 shadow-md shadow-primary/20" onClick={() => navigate(`/request/${requestId}/workbench`)}>
-                                    Open workbench
-                                    <ArrowRight className="h-3.5 w-3.5" />
-                                </Button>
-                                <Link to={`/request/${requestId}/evidence-pack`}>
-                                    <Button variant="outline" size="sm" className="h-8 gap-1.5 bg-background/70 backdrop-blur">
-                                        <FileCheck className="h-3.5 w-3.5" />
-                                        Evidence pack
-                                    </Button>
-                                </Link>
-                                {requestId && (
-                                    <BulkZipUploadButton
-                                        requestId={requestId}
-                                        onComplete={() => fetchData(true)}
-                                        className="h-8 bg-background/70 backdrop-blur"
-                                    />
-                                )}
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 gap-1.5 bg-background/70 backdrop-blur"
-                                    onClick={handleRunChecks}
-                                    disabled={runningChecks}
-                                >
-                                    {runningChecks
-                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                        : <PlayCircle className="h-3.5 w-3.5" />}
-                                    Run checks now
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Right-side stat panel: ring + SLA */}
-                        <div className="shrink-0 flex items-center gap-5 pl-5 sm:border-l sm:border-border/50">
-                            <div className="flex flex-col items-center gap-1">
-                                <CompletionRing pct={pct} size={84} stroke={8} textClass="text-lg" />
-                                <p className="text-[10px] text-muted-foreground tabular-nums">{completedItems}/{totalItems} ready</p>
-                            </div>
-                            <div className="flex flex-col items-start min-w-[88px]">
-                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">SLA</p>
-                                <p className={cn(
-                                    'text-lg font-semibold tabular-nums leading-tight mt-0.5',
-                                    slaStatus === 'red' && 'text-destructive',
-                                    slaStatus === 'amber' && 'text-warning',
-                                    slaStatus === 'green' && 'text-foreground',
-                                )}>
-                                    {slaText}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">Target {listItem.slaTargetHours}h</p>
-                            </div>
+            {/* Header */}
+            <div>
+                <Link to="/requests" className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground mb-2">
+                    <ArrowLeft className="h-3 w-3" /> All requests
+                </Link>
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div className="min-w-0">
+                        <p className="text-[11px] text-muted-foreground font-mono">
+                            {request.smart_id || request.id?.slice(0, 8)} · Created {format(listItem.createdAt, 'dd MMM yyyy · HH:mm')}
+                        </p>
+                        <h1 className="page-title mt-1 truncate">{request.company_name}</h1>
+                        <div className="flex items-center gap-x-2 gap-y-1 flex-wrap mt-2 text-xs text-muted-foreground">
+                            {statusBlocked && <Chip tone="destructive" dot>Blocked</Chip>}
+                            {rd.documents.required_missing > 0 && <Chip tone="warning">Missing info</Chip>}
+                            <Meta label="Broker" value={listItem.brokerEmail || 'Gulf Insurance Brokers'} />
+                            <Meta label="Queue" value={listItem.queue} />
+                            <Meta label="Assignee" value={listItem.owner || 'Unassigned'} />
+                            <span className={cn('inline-flex items-center gap-1', slaStatus === 'red' ? 'text-destructive font-medium' : slaStatus === 'amber' ? 'text-warning' : '')}>
+                                <Clock className="h-3 w-3" /> {slaText}
+                            </span>
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -377,6 +307,7 @@ export default function RequestSummary() {
                         <Button size="sm" className="gap-1.5" onClick={() => navigate(`/request/${requestId}/workbench`)}>Open workbench <ArrowRight className="h-3.5 w-3.5" /></Button>
                     </div>
                 </div>
+            </div>
 
             {/* KPI strip */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 stagger">

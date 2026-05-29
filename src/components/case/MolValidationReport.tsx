@@ -59,6 +59,32 @@ function parseSummaryNote(note: string): ParsedSummary {
   };
 }
 
+const MODE_LABEL: Record<string, string> = {
+  exact: 'exact',
+  exact_fuzzy: 'exact → fuzzy',
+  fuzzy: 'fuzzy',
+};
+
+// The MOL handler matches on these three fields. Defaults mirror the backend
+// (`MolValidationHandler._default_fields`) so results that predate the
+// rules-in-summary change still render the correct modes.
+const MOL_RULE_FIELDS: Array<{ key: string; label: string; defaultMode: string }> = [
+  { key: 'passport_number', label: 'Passport',    defaultMode: 'exact_fuzzy' },
+  { key: 'full_name',       label: 'Name',        defaultMode: 'fuzzy' },
+  { key: 'nationality',     label: 'Nationality', defaultMode: 'exact' },
+];
+
+function buildMatchRules(
+  fields?: Record<string, { enabled?: boolean; mode?: string }>,
+): Array<{ field: string; mode: string }> {
+  const f = fields || {};
+  return MOL_RULE_FIELDS.map(({ key, label, defaultMode }) => {
+    const cfg = f[key] || {};
+    const mode = cfg.enabled === false ? 'off' : (cfg.mode || defaultMode);
+    return { field: label, mode: MODE_LABEL[mode] || mode };
+  });
+}
+
 type RowStatus = 'auto' | 'review' | 'missing' | 'warning';
 
 function classifyRow(row: ChecklistRuleResult): RowStatus {
@@ -195,6 +221,9 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
   const summary: ParsedSummary = summaryRow
     ? parseSummaryNote(summaryRow.note || '')
     : { total: 0, autoValidated: 0, needsReview: 0, missing: 0, molTotal: 0, molMissing: 0 };
+
+  // Real per-field match modes used for this run (falls back to defaults).
+  const matchRules = buildMatchRules(summaryRow?.rules?.fields);
 
   const runAt = result.run_at ? new Date(result.run_at) : null;
   const overallPassed = result.status === 'pass';
@@ -401,9 +430,7 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
       <div className="rounded-md border border-border bg-card px-4 py-2.5 flex items-center justify-between gap-4 flex-wrap">
         <span className="page-eyebrow">Match rules</span>
         <div className="flex items-center gap-2 flex-wrap">
-          <RuleChip field="Passport" mode="exact" />
-          <RuleChip field="Nationality" mode="exact" />
-          <RuleChip field="Name" mode="fuzzy · contains" />
+          {matchRules.map(r => <RuleChip key={r.field} field={r.field} mode={r.mode} />)}
         </div>
       </div>
 

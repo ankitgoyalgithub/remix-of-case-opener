@@ -5,7 +5,7 @@
  * no new tabs.
  */
 import {
-  FileCheck, Link2, Search, ShieldCheck, GitCompare, CheckSquare,
+  FileCheck, Link2, Search, ShieldCheck, GitCompare, CheckSquare, Users,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -100,6 +100,14 @@ export const REGISTRY_PROVIDERS = {
 } as const;
 
 export type RegistryProviderKey = keyof typeof REGISTRY_PROVIDERS;
+
+// Per-field match modes for the MOL workforce check. Mirrors the backend
+// MolValidationHandler (`exact` / `exact_fuzzy` / `fuzzy`).
+const MATCH_MODE_OPTIONS = [
+  { value: 'exact',       label: 'Exact only',        hint: 'must match character-for-character' },
+  { value: 'exact_fuzzy', label: 'Exact, then fuzzy', hint: 'exact first, fall back to similarity' },
+  { value: 'fuzzy',       label: 'Fuzzy',             hint: 'similarity score only' },
+];
 
 
 export const CHECK_TEMPLATES: CheckTemplate[] = [
@@ -260,6 +268,60 @@ export const CHECK_TEMPLATES: CheckTemplate[] = [
       return p ? p.label : 'External registry check';
     },
   },
+
+  // ── 6. MOL workforce validation (census vs MOL list) ─────────────
+  {
+    id: 'mol_validation',
+    icon: Users,
+    title: 'MOL workforce validation',
+    description: 'Match every census employee against the MOL employee list by passport, name, and nationality.',
+    slots: [
+      { key: 'passport_mode', label: 'Passport match', type: 'select', default: 'exact_fuzzy',
+        options: MATCH_MODE_OPTIONS },
+      { key: 'name_mode', label: 'Name match', type: 'select', default: 'fuzzy',
+        options: MATCH_MODE_OPTIONS },
+      { key: 'nationality_mode', label: 'Nationality match', type: 'select', default: 'exact',
+        options: MATCH_MODE_OPTIONS },
+      { key: 'passport_required', label: 'Passport is required', type: 'boolean', default: true,
+        placeholder: 'Treat a row with no passport match as missing' },
+      { key: 'auto_thresh', label: 'Auto-validate threshold (%)', type: 'number', default: 90,
+        placeholder: 'Above this confidence → auto-validated' },
+      { key: 'review_thresh', label: 'Review threshold (%)', type: 'number', default: 65,
+        placeholder: 'Above this but below auto → needs review' },
+      { key: 'block_on_missing', label: 'Block on missing employees', type: 'boolean', default: true,
+        placeholder: 'Fail the check if any employee is not found in the MOL list' },
+      { key: 'block_on_needs_review', label: 'Block on low-confidence matches', type: 'boolean', default: false,
+        placeholder: 'Fail the check if any match needs manual review' },
+    ],
+    toPayload: (s, sev) => {
+      const num = (v: any, d: number) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : d; };
+      return {
+        item_type: 'verification',
+        auto_check_rule: 'manual',
+        handler_name: 'mol_validation',
+        config_payload: {
+          verifications: [{
+            type: 'mol_validation',
+            handler: 'mol_validation',
+            config: {
+              auto_thresh: num(s.auto_thresh, 90),
+              review_thresh: num(s.review_thresh, 65),
+              block_on_missing: s.block_on_missing !== false,
+              block_on_needs_review: s.block_on_needs_review === true,
+              fields: {
+                passport_number: { enabled: true, mode: s.passport_mode || 'exact_fuzzy', required: s.passport_required !== false, priority: 'high' },
+                full_name:       { enabled: true, mode: s.name_mode || 'fuzzy', required: false, priority: 'high' },
+                nationality:     { enabled: true, mode: s.nationality_mode || 'exact', required: false, priority: 'medium' },
+              },
+            },
+          }],
+        },
+        linked_documents: ['census', 'mol-list'],
+        ...sevFlags(sev),
+      };
+    },
+    suggestName: () => 'MOL Validation (census vs MOL list)',
+  },
 ];
 
 
@@ -333,6 +395,32 @@ export function detectTemplate(item: ExistingCheckShape): DetectedTemplate | nul
   if (v?.handler === 'entity_screening') {
     const tpl = T('tavily_screening');
     if (tpl) return { template: tpl, slots: { focus: v.config?.focus || '' }, severity };
+  }
+
+  // 4b. mol_validation — census vs MOL list workforce match
+  if (v?.handler === 'mol_validation') {
+    const tpl = T('mol_validation');
+    if (tpl) {
+      const c = v.config || {};
+      const f = (c.fields && typeof c.fields === 'object') ? c.fields : {};
+      const pass = f.passport_number || {};
+      const nm = f.full_name || {};
+      const nat = f.nationality || {};
+      return {
+        template: tpl,
+        slots: {
+          auto_thresh: c.auto_thresh ?? 90,
+          review_thresh: c.review_thresh ?? 65,
+          passport_mode: pass.mode || 'exact_fuzzy',
+          name_mode: nm.mode || 'fuzzy',
+          nationality_mode: nat.mode || 'exact',
+          passport_required: pass.required ?? true,
+          block_on_missing: c.block_on_missing ?? true,
+          block_on_needs_review: c.block_on_needs_review ?? false,
+        },
+        severity,
+      };
+    }
   }
 
   // 5. registry_check

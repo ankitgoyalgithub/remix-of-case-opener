@@ -226,6 +226,12 @@ function SlotInput({
           </SelectContent>
         </Select>
       )}
+      {slot.type === 'boolean' && (
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <Checkbox checked={!!value} onCheckedChange={(c) => onChange(c === true)} />
+          <span className="text-xs text-muted-foreground">{slot.placeholder || 'Enabled'}</span>
+        </label>
+      )}
       {slot.type === 'doc-type' && (
         <Select value={value ?? ''} onValueChange={(v) => onChange(v)}>
           <SelectTrigger><SelectValue placeholder="Pick a document" /></SelectTrigger>

@@ -135,6 +135,13 @@ export interface ChecklistRuleResult {
   target_passport?: string | null;
   target_nationality?: string | null;
   confidence?: number | null;  // percentage int 0-100
+  /* MOL Summary row only — the matching rules actually applied to this run,
+     so the report's "Match rules" chips reflect the real config. */
+  rules?: {
+    auto_thresh?: number;
+    review_thresh?: number;
+    fields?: Record<string, { enabled?: boolean; mode?: string; required?: boolean; priority?: string }>;
+  };
 }
 
 export interface AgentTraceStep {

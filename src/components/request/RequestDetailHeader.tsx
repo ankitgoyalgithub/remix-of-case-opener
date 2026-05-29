@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { NotifyBrokerDialog } from './NotifyBrokerDialog';
 
 interface RequestDetailHeaderProps {
   requestId: string;
@@ -75,6 +76,7 @@ export function RequestDetailHeader({
 }: RequestDetailHeaderProps) {
   const navigate = useNavigate();
   const { requestId: routeRequestId } = useParams();
+  const [notifyOpen, setNotifyOpen] = useState(false);
 
   const slaText = slaRemaining > 0
     ? `${slaRemaining}h left`
@@ -166,6 +168,19 @@ export function RequestDetailHeader({
               Conversation
             </Button>
           )}
+
+          {/* Notify broker — sends a real email (HTML body + broker portal link).
+              `default` variant when there's something to convey, `outline` otherwise. */}
+          <Button
+            variant={hasMissingDocuments || openRiskCount > 0 ? 'default' : 'outline'}
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setNotifyOpen(true)}
+            title="Email the broker the open risks + missing documents with a portal link"
+          >
+            <Mail className="h-3.5 w-3.5" />
+            Notify broker
+          </Button>
           {timelineDrawer}
 
           {/* Inline secondary action: surface "Request Info" only when blocked
@@ -242,6 +257,12 @@ export function RequestDetailHeader({
           </DropdownMenu>
         </div>
       </div>
+
+      <NotifyBrokerDialog
+        open={notifyOpen}
+        onOpenChange={setNotifyOpen}
+        requestId={requestId || routeRequestId || ''}
+      />
     </div>
   );
 }

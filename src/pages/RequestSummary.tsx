@@ -341,7 +341,7 @@ export default function RequestSummary() {
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                         <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => toast('Snoozed')}><Snail className="h-3.5 w-3.5" /> Snooze</Button>
-                        <Button size="sm" className="gap-1.5" onClick={() => setComposeOpen(true)}><MessageSquare className="h-3.5 w-3.5" /> Compose request</Button>
+                        <Button size="sm" className="gap-1.5" onClick={() => setNotifyOpen(true)}><Send className="h-3.5 w-3.5" /> Notify broker</Button>
                     </div>
                 </div>
             )}

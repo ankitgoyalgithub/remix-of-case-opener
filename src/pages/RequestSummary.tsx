@@ -16,6 +16,7 @@ import { DOCUMENT_TYPE_LABELS, DocumentType, calculateSlaRemaining, getSlaStatus
 import { mapBackendRequestToListItem, mapBackendRequestDecision, mapBackendRequestPublication } from '@/lib/mappers';
 import { ConversationDrawer } from '@/components/workbench/ConversationDrawer';
 import { MissingInfoEmailModal } from '@/components/request/MissingInfoEmailModal';
+import { NotifyBrokerDialog } from '@/components/request/NotifyBrokerDialog';
 import { BulkZipUploadButton } from '@/components/request/BulkZipUploadButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageShell } from '@/components/layout/PageShell';
@@ -95,6 +96,7 @@ export default function RequestSummary() {
     const [riskFilter, setRiskFilter] = useState<'all' | 'critical' | 'high'>('all');
     const [convoOpen, setConvoOpen] = useState(false);
     const [composeOpen, setComposeOpen] = useState(false);
+    const [notifyOpen, setNotifyOpen] = useState(false);
     const [busy, setBusy] = useState(false);
 
     const fetchData = async (silent = false) => {
@@ -301,6 +303,15 @@ export default function RequestSummary() {
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setConvoOpen(true)}><MessageSquare className="h-3.5 w-3.5" /> Message</Button>
+                        <Button
+                            variant={(rd.documents.required_missing > 0 || openRisks.length > 0) ? 'default' : 'outline'}
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() => setNotifyOpen(true)}
+                            title="Email the broker with open risks + missing docs and a secure portal link"
+                        >
+                            <Send className="h-3.5 w-3.5" /> Notify broker
+                        </Button>
                         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate(`/request/${requestId}/workbench`)}><UserPlus className="h-3.5 w-3.5" /> Assign</Button>
                         <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDecision('reject')} disabled={busy}><X className="h-3.5 w-3.5" /> Reject</Button>
                         <Button variant="success" size="sm" className="gap-1.5" onClick={() => handleDecision('approve')} disabled={busy}><Check className="h-3.5 w-3.5" /> Approve</Button>
@@ -552,6 +563,7 @@ export default function RequestSummary() {
 
             <ConversationDrawer open={convoOpen} onOpenChange={setConvoOpen} requestId={requestId!} onCompose={() => { setConvoOpen(false); setComposeOpen(true); }} />
             <MissingInfoEmailModal open={composeOpen} onOpenChange={setComposeOpen} requestId={requestId!} companyName={request.company_name} brokerEmail={listItem.brokerEmail} missingDocuments={missingDocs.map(d => d.doc_type as DocumentType)} onMarkAsSent={() => fetchData(true)} />
+            <NotifyBrokerDialog open={notifyOpen} onOpenChange={setNotifyOpen} requestId={requestId!} />
         </PageShell>
     );
 }

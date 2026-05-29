@@ -303,15 +303,6 @@ export default function RequestSummary() {
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setConvoOpen(true)}><MessageSquare className="h-3.5 w-3.5" /> Message</Button>
-                        <Button
-                            variant={(rd.documents.required_missing > 0 || openRisks.length > 0) ? 'default' : 'outline'}
-                            size="sm"
-                            className="gap-1.5"
-                            onClick={() => setNotifyOpen(true)}
-                            title="Email the broker with open risks + missing docs and a secure portal link"
-                        >
-                            <Send className="h-3.5 w-3.5" /> Notify broker
-                        </Button>
                         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate(`/request/${requestId}/workbench`)}><UserPlus className="h-3.5 w-3.5" /> Assign</Button>
                         <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDecision('reject')} disabled={busy}><X className="h-3.5 w-3.5" /> Reject</Button>
                         <Button variant="success" size="sm" className="gap-1.5" onClick={() => handleDecision('approve')} disabled={busy}><Check className="h-3.5 w-3.5" /> Approve</Button>

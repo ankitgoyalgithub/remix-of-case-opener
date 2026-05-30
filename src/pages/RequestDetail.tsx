@@ -80,7 +80,11 @@ export default function RequestDetail() {
         }))
       );
 
-      const requestStages = (req.request_stages || []).map(mapBackendStageToStage);
+      // Sort by stage.order so the workbench always shows the pipeline in
+      // sequence regardless of the API's row ordering.
+      const requestStages = (req.request_stages || [])
+        .map(mapBackendStageToStage)
+        .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
 
       // Map documents and filter by current request (defensive — server already filters)
       const target = String(requestId).toLowerCase();

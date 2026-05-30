@@ -183,15 +183,6 @@ export function RequestDetailHeader({
           </Button>
           {timelineDrawer}
 
-          {/* Inline secondary action: surface "Request Info" only when blocked
-              by missing docs — otherwise it lives in the overflow menu. */}
-          {hasMissingDocuments && !canPublish && (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={onRequestMissingInfo}>
-              <Mail className="h-3.5 w-3.5" />
-              Request info
-            </Button>
-          )}
-
           {canApproveOrReject && (
             <>
               <Button
@@ -235,12 +226,6 @@ export function RequestDetailHeader({
                 <UserPlus className="h-3.5 w-3.5 mr-2" />
                 Assign owner
               </DropdownMenuItem>
-              {!hasMissingDocuments && (
-                <DropdownMenuItem className="cursor-pointer text-sm" onClick={onRequestMissingInfo}>
-                  <Mail className="h-3.5 w-3.5 mr-2" />
-                  Request info from broker
-                </DropdownMenuItem>
-              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive cursor-pointer text-sm"

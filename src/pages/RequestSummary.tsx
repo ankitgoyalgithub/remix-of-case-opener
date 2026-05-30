@@ -20,6 +20,7 @@ import { NotifyBrokerDialog } from '@/components/request/NotifyBrokerDialog';
 import { BulkZipUploadButton } from '@/components/request/BulkZipUploadButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageShell } from '@/components/layout/PageShell';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 interface CheckItem {
     id: string; name: string; item_type: string; handler: string;
@@ -92,7 +93,8 @@ export default function RequestSummary() {
     const [docDefs, setDocDefs] = useState<any[]>([]);
     const [uploadingType, setUploadingType] = useState<string | null>(null);
     const [tab, setTab] = useState<TabKey>('overview');
-    const [docFilter, setDocFilter] = useState<'pending' | 'mapped' | 'optional'>('pending');
+    const [docFilter, setDocFilter] = useState<'pending' | 'mapped' | 'unmapped' | 'optional'>('pending');
+    const [remappingId, setRemappingId] = useState<string | null>(null);
     const [riskFilter, setRiskFilter] = useState<'all' | 'critical' | 'high'>('all');
     const [convoOpen, setConvoOpen] = useState(false);
     const [composeOpen, setComposeOpen] = useState(false);
@@ -120,6 +122,7 @@ export default function RequestSummary() {
             }));
         }
         if (defsResult.status === 'fulfilled') setDocDefs(defsResult.value);
+        else if (!silent) toast.error('Document catalog failed to load — mapping may be unavailable');
         if (!silent) setLoading(false);
     };
 
@@ -141,6 +144,20 @@ export default function RequestSummary() {
         } catch (err: any) {
             toast.error(err?.message || 'Upload failed', { id: t });
         } finally { setUploadingType(null); }
+    };
+
+    // Manually map a document that auto-classification left unmapped. PATCHing doc_type
+    // makes the backend re-run extraction for the new type and fire its checklist checks.
+    const handleRemap = async (docId: string, docType: string) => {
+        setRemappingId(docId);
+        const t = toast.loading('Mapping document…');
+        try {
+            await api.documents.update(docId, { doc_type: docType });
+            toast.success('Document mapped — re-running extraction', { id: t });
+            await fetchData(true);
+        } catch (err: any) {
+            toast.error(err?.message || 'Could not map document', { id: t });
+        } finally { setRemappingId(null); }
     };
 
     const handleDecision = async (kind: 'approve' | 'reject') => {
@@ -236,7 +253,21 @@ export default function RequestSummary() {
     const optionalDocs = rd.documents.items.filter(d => d.state === 'missing' && !d.required);
     const failingDocs = rd.documents.items.filter(d => d.state === 'failed');
     const knownTypes = new Set(docDefs.map((d: any) => d.doc_type));
-    const mappedDocs = documents.filter((d: any) => d.doc_type && d.doc_type !== 'other' && knownTypes.has(d.doc_type));
+    const isMapped = (d: any) => d.doc_type && d.doc_type !== 'other' && knownTypes.has(d.doc_type);
+    const mappedDocs = documents.filter(isMapped);
+    // Files that auto-classification left unmapped (doc_type 'other', empty, or not in the
+    // studio catalog) — uploaded but satisfying no requirement until an operator assigns a type.
+    // Guard on a loaded catalog: if docDefs failed to load, knownTypes is empty and EVERY doc
+    // would look unmapped — suppress the bucket rather than show a false flood with no options.
+    const catalogReady = docDefs.length > 0;
+    const unmappedDocs = catalogReady ? documents.filter((d: any) => !isMapped(d)) : [];
+    // Re-mapping targets: the configured studio doc types (the exact set that makes a
+    // document count as "mapped"). Deduped by slug, sorted by label.
+    const docTypeOptions = Array.from(
+        new Map(docDefs.map((d: any) => [d.doc_type, d.name || DOCUMENT_TYPE_LABELS[d.doc_type as DocumentType] || d.doc_type])).entries()
+    ).map(([value, label]) => ({ value: value as string, label: label as string }))
+        .filter((o) => o.value) // Radix SelectItem rejects an empty value
+        .sort((a, b) => a.label.localeCompare(b.label));
 
     // Activity feed (newest first)
     const activity: Array<{ id: string; icon: typeof Check; tone: string; title: string; actor?: string; at: Date }> = [];
@@ -455,11 +486,12 @@ export default function RequestSummary() {
 
             {/* ── DOCUMENTS ── */}
             {tab === 'documents' && (
-                <Section title="Documents" right={`${mappedDocs.length} mapped · ${missingDocs.length + failingDocs.length} pending`}>
+                <Section title="Documents" right={`${mappedDocs.length} mapped${unmappedDocs.length ? ` · ${unmappedDocs.length} unmapped` : ''} · ${missingDocs.length + failingDocs.length} pending`}>
                     <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                         <div className="flex items-center gap-1.5">
                             <FilterPill active={docFilter === 'pending'} onClick={() => setDocFilter('pending')} count={missingDocs.length + failingDocs.length}>Pending</FilterPill>
                             <FilterPill active={docFilter === 'mapped'} onClick={() => setDocFilter('mapped')} count={mappedDocs.length}>Mapped</FilterPill>
+                            <FilterPill active={docFilter === 'unmapped'} onClick={() => setDocFilter('unmapped')} count={unmappedDocs.length}>Unmapped</FilterPill>
                             <FilterPill active={docFilter === 'optional'} onClick={() => setDocFilter('optional')} count={optionalDocs.length}>Optional</FilterPill>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -476,6 +508,16 @@ export default function RequestSummary() {
                     ))}
                     {docFilter === 'mapped' && (mappedDocs.length === 0 ? <Empty icon={Files} tone="muted">Nothing uploaded yet.</Empty> : (
                         <div className="divide-y divide-border max-h-[58vh] overflow-y-auto">{mappedDocs.map((d: any) => <MappedRow key={d.id} doc={d} />)}</div>
+                    ))}
+                    {docFilter === 'unmapped' && (unmappedDocs.length === 0 ? <Empty icon={CheckCircle2} tone="success">Every uploaded document was auto-classified.</Empty> : (
+                        <>
+                            <p className="text-[11px] text-muted-foreground mb-2">Uploaded but auto-classification couldn't map these to a document type. Assign the correct type to run its checks.</p>
+                            <div className="divide-y divide-border max-h-[58vh] overflow-y-auto">
+                                {unmappedDocs.map((d: any) => (
+                                    <UnmappedRow key={d.id} doc={d} options={docTypeOptions} busy={remappingId === String(d.id)} onRemap={(docType) => handleRemap(String(d.id), docType)} />
+                                ))}
+                            </div>
+                        </>
                     ))}
                     {docFilter === 'optional' && (optionalDocs.length === 0 ? <Empty icon={Files} tone="muted">No optional documents outstanding.</Empty> : (
                         <div className="divide-y divide-border max-h-[58vh] overflow-y-auto">
@@ -682,6 +724,34 @@ function MappedRow({ doc }: { doc: any }) {
                 <p className="text-[11px] text-muted-foreground truncate font-mono">{fileName}</p>
             </div>
             {(doc.file_url || doc.file) && <a href={doc.file_url || doc.file} target="_blank" rel="noreferrer" className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
+        </div>
+    );
+}
+
+function UnmappedRow({ doc, options, busy, onRemap }: { doc: any; options: Array<{ value: string; label: string }>; busy: boolean; onRemap: (docType: string) => void }) {
+    // Bump on each attempt to remount the (uncontrolled) Select, so re-picking the SAME
+    // type after a failed remap still fires onValueChange and retries the PATCH.
+    const [nonce, setNonce] = useState(0);
+    const fileName = (doc.file_url || doc.file || '').split('/').pop()?.split('?')[0] || 'attachment';
+    const current = doc.doc_type && doc.doc_type !== 'other' ? (DOCUMENT_TYPE_LABELS[doc.doc_type as DocumentType] || doc.doc_type) : 'Unclassified';
+    return (
+        <div className="flex items-center gap-3 py-2.5">
+            <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
+            <div className="min-w-0 flex-1 flex items-center gap-2">
+                <p className="text-sm font-medium text-foreground truncate font-mono">{fileName}</p>
+                <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-warning/10 text-warning border-warning/30 shrink-0">{current}</Badge>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+                <Select key={nonce} disabled={busy || options.length === 0} onValueChange={(v) => { onRemap(v); setNonce((n) => n + 1); }}>
+                    <SelectTrigger className="h-7 w-[200px] px-2 text-xs">
+                        {busy ? <span className="inline-flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Mapping…</span> : <SelectValue placeholder="Assign document type" />}
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                        {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+                {(doc.file_url || doc.file) && <a href={doc.file_url || doc.file} target="_blank" rel="noreferrer" className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
+            </div>
         </div>
     );
 }

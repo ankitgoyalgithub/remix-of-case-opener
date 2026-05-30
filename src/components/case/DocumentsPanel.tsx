@@ -34,15 +34,19 @@ export function DocumentsPanel({
   const [activeDocForReupload, setActiveDocForReupload] = useState<string | null>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && onUpload) {
-      try {
-        setIsUploading(true);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0 || !onUpload) return;
+    try {
+      setIsUploading(true);
+      // Sequential uploads keep error semantics simple (each onUpload toast lives
+      // its own lifecycle) and avoid hammering the API with N parallel requests
+      // for what's often heavy doc-extraction work.
+      for (const file of files) {
         await onUpload(file);
-      } finally {
-        setIsUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = '';
       }
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -116,6 +120,7 @@ export function DocumentsPanel({
           <>
             <input
               type="file"
+              multiple
               className="hidden"
               ref={fileInputRef}
               onChange={handleFileChange}

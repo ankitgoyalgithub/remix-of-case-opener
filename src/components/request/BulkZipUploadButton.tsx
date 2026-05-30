@@ -85,10 +85,10 @@ export function BulkZipUploadButton({ requestId, onComplete, className }: Props)
         className={className}
         onClick={() => inputRef.current?.click()}
         disabled={busy}
-        title="Pick one or more files. PDFs, images, Office docs, and .zip archives are all accepted."
+        title="Pick one or many files at once. Hold Ctrl/Cmd or Shift to multi-select. Supports PDFs, images, Office docs, and .zip archives."
       >
         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Upload className="h-3.5 w-3.5 mr-1.5" />}
-        Bulk upload
+        Upload files
       </Button>
     </>
   );

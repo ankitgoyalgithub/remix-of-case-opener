@@ -743,6 +743,9 @@ function MappedRow({ doc }: { doc: any }) {
     const fileName = (doc.file_url || doc.file || '').split('/').pop()?.split('?')[0] || 'attachment';
     const status = doc.status || 'uploaded';
     const cls = status === 'processed' ? 'bg-success/10 text-success border-success/30' : status === 'failed' ? 'bg-destructive/10 text-destructive border-destructive/30' : 'bg-muted text-muted-foreground border-border';
+    // Route preview through the BE proxy so missing files show a friendly 404
+    // page instead of raw S3 XML, and CORS isn't a concern.
+    const previewHref = doc.id ? `${(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')}/documents/files/${doc.id}/stream/` : (doc.file_url || doc.file);
     return (
         <div className="flex items-center gap-3 py-2.5">
             <FileCheck className="h-3.5 w-3.5 text-success shrink-0" />
@@ -750,7 +753,7 @@ function MappedRow({ doc }: { doc: any }) {
                 <div className="flex items-center gap-2"><p className="text-sm font-medium text-foreground truncate">{label}</p><Badge variant="outline" className={cn('text-[10px] h-4 px-1.5 capitalize', cls)}>{status}</Badge></div>
                 <p className="text-[11px] text-muted-foreground truncate font-mono">{fileName}</p>
             </div>
-            {(doc.file_url || doc.file) && <a href={doc.file_url || doc.file} target="_blank" rel="noreferrer" className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
+            {previewHref && <a href={previewHref} target="_blank" rel="noreferrer" className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
         </div>
     );
 }
@@ -761,6 +764,7 @@ function UnmappedRow({ doc, options, busy, onRemap }: { doc: any; options: Array
     const [nonce, setNonce] = useState(0);
     const fileName = (doc.file_url || doc.file || '').split('/').pop()?.split('?')[0] || 'attachment';
     const current = doc.doc_type && doc.doc_type !== 'other' ? (DOCUMENT_TYPE_LABELS[doc.doc_type as DocumentType] || doc.doc_type) : 'Unclassified';
+    const previewHref = doc.id ? `${(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')}/documents/files/${doc.id}/stream/` : (doc.file_url || doc.file);
     return (
         <div className="flex items-center gap-3 py-2.5">
             <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
@@ -777,7 +781,7 @@ function UnmappedRow({ doc, options, busy, onRemap }: { doc: any; options: Array
                         {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                     </SelectContent>
                 </Select>
-                {(doc.file_url || doc.file) && <a href={doc.file_url || doc.file} target="_blank" rel="noreferrer" className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
+                {previewHref && <a href={previewHref} target="_blank" rel="noreferrer" className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
             </div>
         </div>
     );

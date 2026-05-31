@@ -154,26 +154,33 @@ export const CHECK_TEMPLATES: CheckTemplate[] = [
     id: 'name_match_across_docs',
     icon: Link2,
     title: 'Name match across documents',
-    description: 'Compare this field across every uploaded document. Re-runs when new docs arrive.',
+    description: 'Compare this field across the documents you select below. Re-runs when any of them is uploaded.',
     slots: [
       { key: 'field', label: 'Field name', type: 'string', required: true, default: 'Company Name',
         placeholder: 'Company Name' },
+      // Pick the docs that participate. Sensible default is the core
+      // entity-bearing corporate documents; personal IDs / census files
+      // are excluded so they don't fire false-positive mismatches.
+      { key: 'docs', label: 'Documents to compare', type: 'doc-types', required: true,
+        default: [
+          'trade-license', 'vat-certificate', 'customer-signed-quote',
+          'moa', 'establishment-card', 'certificate-of-incorporation',
+        ] },
     ],
     toPayload: (s, sev) => ({
       item_type: 'cross-validation',
       auto_check_rule: 'cross-validation',
       handler_name: 'cross_validation',
       config_payload: {},
-      linked_documents: [],
+      linked_documents: s.docs || [],
       set_equal_rule: {
         field: s.field || 'Company Name',
-        // Empty list = "all documents on the request". The backend handler
-        // discovers participants at run time and re-evaluates on every upload.
-        participating_doc_types: [],
+        participating_doc_types: s.docs || [],
       },
       ...sevFlags(sev),
     }),
-    suggestName: (s) => `${s.field || 'Company Name'} matches across all documents`,
+    suggestName: (s) =>
+      `${s.field || 'Company Name'} matches across ${(s.docs || []).length} document${(s.docs || []).length === 1 ? '' : 's'}`,
   },
 
   // ── 3. Compare specific fields ───────────────────────────────────
@@ -367,14 +374,17 @@ export function detectTemplate(item: ExistingCheckShape): DetectedTemplate | nul
   }
 
   // 2. name_match_across_docs — cross_validation with a set-equal CV rule.
-  // The template only carries the field name now ("all docs" mode); we ignore
-  // any legacy participating_doc_types on the rule (the runner will too).
+  // Surface the rule's existing field + participating_doc_types so the edit
+  // dialog opens prefilled with the right docs.
   const setEqual = (item.cross_validation_rules || []).find(r => r.mode === 'set-equal');
   if (setEqual) {
     const tpl = T('name_match_across_docs');
     if (tpl) return {
       template: tpl,
-      slots: { field: setEqual.extracted_field || 'Company Name' },
+      slots: {
+        field: setEqual.extracted_field || 'Company Name',
+        docs: setEqual.participating_doc_types || item.linked_documents || [],
+      },
       severity,
     };
   }

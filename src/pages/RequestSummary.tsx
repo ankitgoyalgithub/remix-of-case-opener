@@ -111,6 +111,10 @@ const TIMELINE_ICONS: Record<string, typeof Check> = {
     approved: CheckCircle2,
     rejected: XCircle,
     published: Send,
+    // Operator-driven events written via ActivityLog
+    check_overridden: ShieldAlert,
+    check_marked_passed: Check,
+    check_unmarked: X,
 };
 
 export default function RequestSummary() {

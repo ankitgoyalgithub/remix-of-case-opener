@@ -83,6 +83,36 @@ const TONE_BAR: Record<string, string> = {
 
 type TabKey = 'overview' | 'documents' | 'risks' | 'pipeline' | 'activity';
 
+// Server-side activity feed contract (see core/timeline_service.py)
+interface TimelineEvent {
+    id: string;
+    type: string;          // 'request_created' | 'email_in' | 'email_out' | 'document_uploaded' | ...
+    title: string;
+    description?: string | null;
+    at: string;            // ISO8601
+    actor?: string | null;
+    severity?: string | null;
+    tone?: 'success' | 'destructive' | 'warning' | 'info' | 'muted' | string | null;
+}
+
+// One place to map event type -> icon + default tone. New event types added
+// on the BE will render with the generic Activity icon until added here.
+const TIMELINE_ICONS: Record<string, typeof Check> = {
+    request_created: Sparkles,
+    email_in: MessageSquare,
+    email_out: Send,
+    email_out_failed: XCircle,
+    document_uploaded: Upload,
+    extraction_completed: ScanSearch,
+    risk_raised: ShieldAlert,
+    risk_resolved: CheckCircle2,
+    stage_completed: Check,
+    portal_accessed: ExternalLink,
+    approved: CheckCircle2,
+    rejected: XCircle,
+    published: Send,
+};
+
 export default function RequestSummary() {
     const { requestId } = useParams();
     const navigate = useNavigate();
@@ -100,15 +130,17 @@ export default function RequestSummary() {
     const [composeOpen, setComposeOpen] = useState(false);
     const [notifyOpen, setNotifyOpen] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
 
     const fetchData = async (silent = false) => {
         if (!requestId) return;
         if (!silent) setLoading(true);
-        const [reqResult, rdResult, docsResult, defsResult] = await Promise.allSettled([
+        const [reqResult, rdResult, docsResult, defsResult, tlResult] = await Promise.allSettled([
             api.requests.get(requestId),
             api.requests.readiness(requestId),
             api.documents.list({ requestId }),
             api.studio.documents.list(),
+            api.requests.timeline(requestId),
         ]);
         if (reqResult.status === 'fulfilled') setRequest(reqResult.value);
         else if (!silent) toast.error('Failed to load request');
@@ -123,6 +155,9 @@ export default function RequestSummary() {
         }
         if (defsResult.status === 'fulfilled') setDocDefs(defsResult.value);
         else if (!silent) toast.error('Document catalog failed to load — mapping may be unavailable');
+        if (tlResult.status === 'fulfilled') {
+            setTimelineEvents(((tlResult.value as any)?.events as TimelineEvent[]) || []);
+        }
         if (!silent) setLoading(false);
     };
 
@@ -269,35 +304,23 @@ export default function RequestSummary() {
         .filter((o) => o.value) // Radix SelectItem rejects an empty value
         .sort((a, b) => a.label.localeCompare(b.label));
 
-    // Activity feed (newest first)
-    const activity: Array<{ id: string; icon: typeof Check; tone: string; title: string; actor?: string; at: Date }> = [];
-    activity.push({ id: 'created', icon: Sparkles, tone: 'muted', title: 'Request created', actor: listItem.brokerEmail || 'Broker', at: listItem.createdAt });
-    if (stages.some(s => s.status !== 'pending')) activity.push({ id: 'pipeline', icon: Layers, tone: 'info', title: 'Pipeline started', actor: 'System', at: listItem.createdAt });
-    // Group risk flags by type so a batch (e.g. 100+ MOL mismatches) shows as one
-    // line instead of flooding the feed with one event per employee.
-    const riskActivityGroups = new Map<string, { count: number; latest: Date; sample: string; severity: string }>();
-    for (const r of riskFlags) {
-        const at = r.created_at ? new Date(r.created_at) : listItem.createdAt;
-        const g = riskActivityGroups.get(r.flag_type) || { count: 0, latest: at, sample: r.title, severity: r.severity };
-        g.count++;
-        if (at > g.latest) g.latest = at;
-        if ((SEVERITY_ORDER[r.severity] ?? 9) < (SEVERITY_ORDER[g.severity] ?? 9)) g.severity = r.severity;
-        riskActivityGroups.set(r.flag_type, g);
-    }
-    for (const [ftype, g] of riskActivityGroups) {
-        activity.push({
-            id: `risk-${ftype}`,
-            icon: ShieldAlert,
-            tone: g.severity === 'critical' || g.severity === 'high' ? 'destructive' : 'warning',
-            title: g.count > 1 ? `${g.count} ${humanizeFlag(ftype)}` : g.sample,
-            actor: 'Risk engine',
-            at: g.latest,
-        });
-    }
-    for (const e of (request.inbound_emails || [])) if (e.received_at) activity.push({ id: `email-${e.id}`, icon: MessageSquare, tone: 'info', title: `Email from ${e.from_name || e.from_address}`, actor: 'Broker', at: new Date(e.received_at) });
-    if (decision) activity.push({ id: 'decision', icon: decision.outcome === 'Approved' ? CheckCircle2 : XCircle, tone: decision.outcome === 'Approved' ? 'success' : 'destructive', title: `Request ${decision.outcome}`, actor: decision.by, at: decision.at });
-    if (publication) activity.push({ id: 'publication', icon: Send, tone: 'info', title: 'Published to core', actor: publication.by, at: publication.at });
-    activity.sort((a, b) => b.at.getTime() - a.at.getTime());
+    // Activity feed — server-side timeline (richer than what we can synthesize).
+    // Falls back to a minimal "Request created" row if the endpoint is empty
+    // (rare — that only happens for a freshly-created request with no events).
+    const activity = (timelineEvents.length > 0
+        ? timelineEvents.map(e => ({
+            id: e.id,
+            icon: TIMELINE_ICONS[e.type] || ActivityIcon,
+            tone: (e.tone || 'muted') as string,
+            title: e.title,
+            description: e.description || undefined,
+            actor: e.actor || undefined,
+            at: new Date(e.at),
+        }))
+        : [{ id: 'created', icon: Sparkles, tone: 'muted', title: 'Request created',
+              actor: listItem.brokerEmail || 'Broker', at: listItem.createdAt,
+              description: undefined }]
+    );
 
     const statusBlocked = rd.overall.status === 'blocked' || stageBlocked > 0;
     const nextAction = missingDocs.length > 0
@@ -804,7 +827,7 @@ function GroupedRiskRow({ label, items, onReview, onDismiss }: { label: string; 
     );
 }
 
-function ActivityFeed({ items, compact }: { items: Array<{ id: string; icon: typeof Check; tone: string; title: string; actor?: string; at: Date }>; compact?: boolean }) {
+function ActivityFeed({ items, compact }: { items: Array<{ id: string; icon: typeof Check; tone: string; title: string; description?: string; actor?: string; at: Date }>; compact?: boolean }) {
     if (items.length === 0) return <Empty icon={ActivityIcon} tone="muted">No activity yet.</Empty>;
     return (
         <div className="space-y-0">
@@ -813,12 +836,27 @@ function ActivityFeed({ items, compact }: { items: Array<{ id: string; icon: typ
                 return (
                     <div key={e.id} className="flex gap-3 relative">
                         <div className="flex flex-col items-center">
-                            <span className={cn('flex items-center justify-center w-6 h-6 rounded-full border shrink-0 bg-card', TONE_TEXT[e.tone] || 'text-muted-foreground', e.tone === 'destructive' && 'border-destructive/30', e.tone === 'success' && 'border-success/30', e.tone === 'info' && 'border-info/30', (!e.tone || e.tone === 'muted' || e.tone === 'warning') && 'border-border')}><Icon className="h-3 w-3" /></span>
+                            <span className={cn('flex items-center justify-center w-6 h-6 rounded-full border shrink-0 bg-card',
+                                TONE_TEXT[e.tone] || 'text-muted-foreground',
+                                e.tone === 'destructive' && 'border-destructive/30',
+                                e.tone === 'success' && 'border-success/30',
+                                e.tone === 'info' && 'border-info/30',
+                                e.tone === 'warning' && 'border-warning/30',
+                                (!e.tone || e.tone === 'muted') && 'border-border')}>
+                              <Icon className="h-3 w-3" />
+                            </span>
                             {i < items.length - 1 && <span className="w-px flex-1 bg-border my-1" />}
                         </div>
                         <div className={cn('min-w-0 flex-1', compact ? 'pb-3' : 'pb-4')}>
-                            <p className="text-[13px] font-medium text-foreground truncate">{e.title}</p>
-                            <p className="text-[11px] text-muted-foreground">{e.actor ? `${e.actor} · ` : ''}{format(e.at, 'dd MMM yyyy · HH:mm')}</p>
+                            <p className="text-[13px] font-medium text-foreground" title={e.title}>{e.title}</p>
+                            {e.description && (
+                                <p className="text-[12px] text-muted-foreground mt-0.5 break-words leading-snug" title={e.description}>
+                                    {e.description}
+                                </p>
+                            )}
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                                {e.actor ? `${e.actor} · ` : ''}{format(e.at, 'dd MMM yyyy · HH:mm')}
+                            </p>
                         </div>
                     </div>
                 );

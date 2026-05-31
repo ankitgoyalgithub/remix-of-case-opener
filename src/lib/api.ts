@@ -92,6 +92,7 @@ export const api = {
             method: 'POST',
             body: JSON.stringify({ query }),
         }),
+        timeline: (id: string) => fetchApi(`/requests/${id}/timeline/`),
         notifyBrokerDraft: (id: string) => fetchApi(`/requests/${id}/notify_broker_draft/`),
         notifyBroker: (id: string, payload: { to: string; subject: string; body: string }) =>
             fetchApi(`/requests/${id}/notify_broker/`, {

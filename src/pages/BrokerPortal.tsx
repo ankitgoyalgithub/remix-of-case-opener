@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
-import { AlertCircle, Check, Loader2, Upload, FileWarning, Send, Clock } from 'lucide-react';
+import { AlertCircle, Check, Loader2, Upload, FileWarning, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -49,11 +46,6 @@ export default function BrokerPortal() {
   // Per-row upload state
   const [uploading, setUploading] = useState<string | null>(null);
 
-  // Reply box
-  const [note, setNote] = useState('');
-  const [noteEmail, setNoteEmail] = useState('');
-  const [sendingNote, setSendingNote] = useState(false);
-
   const fetchSummary = async () => {
     setLoading(true);
     setError(null);
@@ -83,20 +75,6 @@ export default function BrokerPortal() {
       toast.error(err?.message || 'Upload failed.');
     } finally {
       setUploading(null);
-    }
-  };
-
-  const submitNote = async () => {
-    if (!note.trim()) { toast.error('Write a message first.'); return; }
-    setSendingNote(true);
-    try {
-      await api.portal.note(token, { body: note.trim(), from_address: noteEmail.trim() });
-      toast.success('Message sent.');
-      setNote('');
-    } catch (err: any) {
-      toast.error(err?.message || 'Could not send the message.');
-    } finally {
-      setSendingNote(false);
     }
   };
 
@@ -243,36 +221,6 @@ export default function BrokerPortal() {
         />
       </section>
 
-      {/* Reply */}
-      <section>
-        <h2 className="text-sm font-semibold text-slate-900 mb-2">Reply to the underwriting team</h2>
-        <Card className="p-4 space-y-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-700">Your email (optional)</Label>
-            <Input
-              type="email"
-              placeholder="you@example.com"
-              value={noteEmail}
-              onChange={(e) => setNoteEmail(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-700">Message</Label>
-            <Textarea
-              rows={5}
-              placeholder="Add a note for the underwriting team…"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </div>
-          <div className="flex justify-end">
-            <Button size="sm" onClick={submitNote} disabled={!note.trim() || sendingNote} className="gap-1.5">
-              {sendingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-              Send message
-            </Button>
-          </div>
-        </Card>
-      </section>
     </PortalShell>
   );
 }

@@ -63,6 +63,7 @@ const FLAG_TYPE_LABEL: Record<string, string> = {
     data_inconsistency: 'data inconsistencies',
     low_confidence: 'low-confidence extractions',
     manual_review_required: 'manual reviews required',
+    wrong_document_type: 'wrong document type uploaded',
 };
 const humanizeFlag = (t: string) => FLAG_TYPE_LABEL[t] || (t || 'risk flags').replace(/_/g, ' ');
 

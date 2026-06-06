@@ -17,6 +17,7 @@ import { mapBackendRequestToListItem, mapBackendRequestDecision, mapBackendReque
 import { ConversationDrawer } from '@/components/workbench/ConversationDrawer';
 import { MissingInfoEmailModal } from '@/components/request/MissingInfoEmailModal';
 import { NotifyBrokerDialog } from '@/components/request/NotifyBrokerDialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { BulkZipUploadButton } from '@/components/request/BulkZipUploadButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageShell } from '@/components/layout/PageShell';
@@ -136,6 +137,16 @@ export default function RequestSummary() {
     const [notifyOpen, setNotifyOpen] = useState(false);
     const [busy, setBusy] = useState(false);
     const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+    // Surfaces the BE's content-classifier warning right after upload so the
+    // operator can react before the file is silently filed under the wrong slot.
+    const [classifierWarning, setClassifierWarning] = useState<{
+        documentId: string;
+        claimedDocType: string;
+        claimedDocName: string;
+        classifiedAs: string;
+        classifiedName: string;
+        message: string;
+    } | null>(null);
 
     const fetchData = async (silent = false) => {
         if (!requestId) return;
@@ -178,12 +189,53 @@ export default function RequestSummary() {
         if (partyReqId) formData.append('party_requirement_id', partyReqId);
         const t = toast.loading(`Uploading ${file.name}…`);
         try {
-            await api.documents.upload(formData);
-            toast.success('Uploaded — extraction starting', { id: t });
+            const res: any = await api.documents.upload(formData);
             await fetchData(true);
+            if (res?.classifier_warning) {
+                // Demote the toast — we'll surface the actionable dialog instead.
+                toast.warning(`Uploaded — but this file may be the wrong type`, { id: t });
+                setClassifierWarning({
+                    documentId: res.id,
+                    claimedDocType: res.classifier_warning.claimed_doc_type,
+                    claimedDocName: res.classifier_warning.claimed_doc_name,
+                    classifiedAs: res.classifier_warning.classified_as,
+                    classifiedName: res.classifier_warning.classified_name,
+                    message: res.classifier_warning.message,
+                });
+            } else {
+                toast.success('Uploaded — extraction starting', { id: t });
+            }
         } catch (err: any) {
             toast.error(err?.message || 'Upload failed', { id: t });
         } finally { setUploadingType(null); }
+    };
+
+    // Actions for the classifier-warning dialog
+    const acceptClassifierSuggestion = async () => {
+        if (!classifierWarning) return;
+        try {
+            await api.documents.update(classifierWarning.documentId, { doc_type: classifierWarning.classifiedAs });
+            toast.success(`Document type changed to "${classifierWarning.classifiedName}"`);
+            setClassifierWarning(null);
+            await fetchData(true);
+        } catch (err: any) {
+            toast.error(err?.message || 'Failed to change document type');
+        }
+    };
+    const discardWrongUpload = async () => {
+        if (!classifierWarning) return;
+        try {
+            await api.documents.delete(classifierWarning.documentId);
+            toast.success('Uploaded file removed — pick the correct one and try again.');
+            setClassifierWarning(null);
+            await fetchData(true);
+        } catch (err: any) {
+            toast.error(err?.message || 'Failed to remove the file');
+        }
+    };
+    const keepAsIs = () => {
+        toast.info(`Kept as ${classifierWarning?.claimedDocName}. A risk flag has been raised so it's tracked.`);
+        setClassifierWarning(null);
     };
 
     // Manually map a document that auto-classification left unmapped. PATCHing doc_type
@@ -625,6 +677,32 @@ export default function RequestSummary() {
             <ConversationDrawer open={convoOpen} onOpenChange={setConvoOpen} requestId={requestId!} onCompose={() => { setConvoOpen(false); setComposeOpen(true); }} />
             <MissingInfoEmailModal open={composeOpen} onOpenChange={setComposeOpen} requestId={requestId!} companyName={request.company_name} brokerEmail={listItem.brokerEmail} missingDocuments={missingDocs.map(d => d.doc_type as DocumentType)} onMarkAsSent={() => fetchData(true)} />
             <NotifyBrokerDialog open={notifyOpen} onOpenChange={setNotifyOpen} requestId={requestId!} />
+
+            {/* Inline "wrong file" warning surfaced right after upload */}
+            <AlertDialog open={!!classifierWarning} onOpenChange={(v) => { if (!v) setClassifierWarning(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>This may be the wrong document</AlertDialogTitle>
+                        <AlertDialogDescription className="leading-relaxed">
+                            {classifierWarning?.message}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="gap-2 sm:gap-2">
+                        <AlertDialogCancel onClick={keepAsIs}>
+                            Keep as {classifierWarning?.claimedDocName}
+                        </AlertDialogCancel>
+                        <AlertDialogAction onClick={acceptClassifierSuggestion}>
+                            Change to {classifierWarning?.classifiedName}
+                        </AlertDialogAction>
+                        <AlertDialogAction
+                            onClick={discardWrongUpload}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Remove file
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </PageShell>
     );
 }

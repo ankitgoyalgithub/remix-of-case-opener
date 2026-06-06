@@ -150,6 +150,9 @@ export const api = {
             method: 'POST',
             body: data,
         }),
+        delete: (id: string) => fetchApi(`/documents/files/${id}/`, {
+            method: 'DELETE',
+        }),
         extract: (id: string, additionalPrompt?: string) => fetchApi(`/documents/files/${id}/extract/`, {
             method: 'POST',
             body: JSON.stringify({

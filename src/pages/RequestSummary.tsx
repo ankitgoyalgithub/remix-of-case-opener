@@ -210,6 +210,29 @@ export default function RequestSummary() {
         } finally { setUploadingType(null); }
     };
 
+    const handleReplace = async (docId: string, docTypeForToast: string, file: File) => {
+        const t = toast.loading(`Replacing ${file.name}…`);
+        try {
+            const res: any = await api.documents.replaceFile(docId, file);
+            await fetchData(true);
+            if (res?.classifier_warning) {
+                toast.warning('Replaced — but the new file may still be the wrong type', { id: t });
+                setClassifierWarning({
+                    documentId: res.id || docId,
+                    claimedDocType: res.classifier_warning.claimed_doc_type,
+                    claimedDocName: res.classifier_warning.claimed_doc_name,
+                    classifiedAs: res.classifier_warning.classified_as,
+                    classifiedName: res.classifier_warning.classified_name,
+                    message: res.classifier_warning.message,
+                });
+            } else {
+                toast.success(`Replaced — re-extracting ${docTypeForToast}`, { id: t });
+            }
+        } catch (err: any) {
+            toast.error(err?.message || 'Replace failed', { id: t });
+        }
+    };
+
     // Actions for the classifier-warning dialog
     const acceptClassifierSuggestion = async () => {
         if (!classifierWarning) return;
@@ -587,14 +610,14 @@ export default function RequestSummary() {
                         </div>
                     ))}
                     {docFilter === 'mapped' && (mappedDocs.length === 0 ? <Empty icon={Files} tone="muted">Nothing uploaded yet.</Empty> : (
-                        <div className="divide-y divide-border max-h-[58vh] overflow-y-auto">{mappedDocs.map((d: any) => <MappedRow key={d.id} doc={d} />)}</div>
+                        <div className="divide-y divide-border max-h-[58vh] overflow-y-auto">{mappedDocs.map((d: any) => <MappedRow key={d.id} doc={d} onReplace={handleReplace} />)}</div>
                     ))}
                     {docFilter === 'unmapped' && (unmappedDocs.length === 0 ? <Empty icon={CheckCircle2} tone="success">Every uploaded document was auto-classified.</Empty> : (
                         <>
                             <p className="text-[11px] text-muted-foreground mb-2">Uploaded but auto-classification couldn't map these to a document type. Assign the correct type to run its checks.</p>
                             <div className="divide-y divide-border max-h-[58vh] overflow-y-auto">
                                 {unmappedDocs.map((d: any) => (
-                                    <UnmappedRow key={d.id} doc={d} options={docTypeOptions} busy={remappingId === String(d.id)} onRemap={(docType) => handleRemap(String(d.id), docType)} />
+                                    <UnmappedRow key={d.id} doc={d} options={docTypeOptions} busy={remappingId === String(d.id)} onRemap={(docType) => handleRemap(String(d.id), docType)} onReplace={handleReplace} />
                                 ))}
                             </div>
                         </>
@@ -817,7 +840,7 @@ function DocUploadRow({ label, required, failed, uploading, onSelect, wide }: { 
     );
 }
 
-function MappedRow({ doc }: { doc: any }) {
+function MappedRow({ doc, onReplace }: { doc: any; onReplace?: (docId: string, docTypeLabel: string, file: File) => void }) {
     const label = DOCUMENT_TYPE_LABELS[doc.doc_type as DocumentType] || doc.doc_type;
     const fileName = (doc.file_url || doc.file || '').split('/').pop()?.split('?')[0] || 'attachment';
     const status = doc.status || 'uploaded';
@@ -825,6 +848,7 @@ function MappedRow({ doc }: { doc: any }) {
     // Route preview through the BE proxy so missing files show a friendly 404
     // page instead of raw S3 XML, and CORS isn't a concern.
     const previewHref = doc.id ? `${(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')}/documents/files/${doc.id}/stream/` : (doc.file_url || doc.file);
+    const replaceInputId = `replace-${doc.id}`;
     return (
         <div className="flex items-center gap-3 py-2.5">
             <FileCheck className="h-3.5 w-3.5 text-success shrink-0" />
@@ -832,18 +856,42 @@ function MappedRow({ doc }: { doc: any }) {
                 <div className="flex items-center gap-2"><p className="text-sm font-medium text-foreground truncate">{label}</p><Badge variant="outline" className={cn('text-[10px] h-4 px-1.5 capitalize', cls)}>{status}</Badge></div>
                 <p className="text-[11px] text-muted-foreground truncate font-mono">{fileName}</p>
             </div>
+            {onReplace && (
+                <>
+                    <input
+                        id={replaceInputId}
+                        type="file"
+                        className="hidden"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.docx,.doc"
+                        onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) onReplace(String(doc.id), label, f);
+                            e.target.value = '';
+                        }}
+                    />
+                    <label
+                        htmlFor={replaceInputId}
+                        className="shrink-0 h-7 px-2 inline-flex items-center gap-1 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                        title="Upload a new file in place of the current one"
+                    >
+                        <Upload className="h-3 w-3" />
+                        Replace
+                    </label>
+                </>
+            )}
             {previewHref && <a href={previewHref} target="_blank" rel="noreferrer" className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
         </div>
     );
 }
 
-function UnmappedRow({ doc, options, busy, onRemap }: { doc: any; options: Array<{ value: string; label: string }>; busy: boolean; onRemap: (docType: string) => void }) {
+function UnmappedRow({ doc, options, busy, onRemap, onReplace }: { doc: any; options: Array<{ value: string; label: string }>; busy: boolean; onRemap: (docType: string) => void; onReplace?: (docId: string, docTypeLabel: string, file: File) => void }) {
     // Bump on each attempt to remount the (uncontrolled) Select, so re-picking the SAME
     // type after a failed remap still fires onValueChange and retries the PATCH.
     const [nonce, setNonce] = useState(0);
     const fileName = (doc.file_url || doc.file || '').split('/').pop()?.split('?')[0] || 'attachment';
     const current = doc.doc_type && doc.doc_type !== 'other' ? (DOCUMENT_TYPE_LABELS[doc.doc_type as DocumentType] || doc.doc_type) : 'Unclassified';
     const previewHref = doc.id ? `${(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')}/documents/files/${doc.id}/stream/` : (doc.file_url || doc.file);
+    const replaceInputId = `replace-unmapped-${doc.id}`;
     return (
         <div className="flex items-center gap-3 py-2.5">
             <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
@@ -860,6 +908,29 @@ function UnmappedRow({ doc, options, busy, onRemap }: { doc: any; options: Array
                         {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                     </SelectContent>
                 </Select>
+                {onReplace && (
+                    <>
+                        <input
+                            id={replaceInputId}
+                            type="file"
+                            className="hidden"
+                            accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.docx,.doc"
+                            onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f) onReplace(String(doc.id), current, f);
+                                e.target.value = '';
+                            }}
+                        />
+                        <label
+                            htmlFor={replaceInputId}
+                            className="shrink-0 h-7 px-2 inline-flex items-center gap-1 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                            title="Upload a new file in place of the current one"
+                        >
+                            <Upload className="h-3 w-3" />
+                            Replace
+                        </label>
+                    </>
+                )}
                 {previewHref && <a href={previewHref} target="_blank" rel="noreferrer" className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
             </div>
         </div>

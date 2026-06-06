@@ -150,6 +150,17 @@ export const api = {
             method: 'POST',
             body: data,
         }),
+        // Replace the file on an existing document — multipart PATCH.
+        // BE deletes the old S3 object, re-runs the classifier + extraction,
+        // and returns classifier_warning when the new file looks wrong.
+        replaceFile: (id: string, file: File) => {
+            const fd = new FormData();
+            fd.append('file', file);
+            return fetchApi(`/documents/files/${id}/`, {
+                method: 'PATCH',
+                body: fd,
+            });
+        },
         delete: (id: string) => fetchApi(`/documents/files/${id}/`, {
             method: 'DELETE',
         }),

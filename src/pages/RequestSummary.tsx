@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import {
     Loader2, ArrowLeft, ArrowRight, AlertTriangle, CheckCircle2, XCircle, Clock,
     FileCheck, ShieldAlert, Upload, Sparkles, Snail, FileText, Files, Gauge,
-    Layers, Activity as ActivityIcon, MessageSquare, UserPlus, Check, X, Share2,
+    Layers, Activity as ActivityIcon, MessageSquare, UserPlus, Check, X,
     ExternalLink, ChevronRight, ChevronDown, ScanSearch, Send, CircleDot, ListChecks,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -481,7 +481,6 @@ export default function RequestSummary() {
                     <Tab id="activity" tab={tab} setTab={setTab} icon={ActivityIcon} count={activity.length}>Activity</Tab>
                 </div>
                 <div className="hidden md:flex items-center gap-1.5 pb-1.5">
-                    <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-muted-foreground" onClick={() => navigator.clipboard?.writeText(window.location.href).then(() => toast('Link copied'))}><Share2 className="h-3.5 w-3.5" /> Share</Button>
                     <Link to={`/request/${requestId}/evidence-pack`}><Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs"><FileCheck className="h-3.5 w-3.5" /> Evidence pack</Button></Link>
                 </div>
             </div>

@@ -23,6 +23,7 @@ export interface SlotDef {
   required?: boolean;
   placeholder?: string;
   default?: any;
+  hint?: string;
   options?: Array<{ value: string; label: string; hint?: string }>;
   /** Show this slot only when another slot has one of these values. */
   visibleWhen?: { key: string; in: string[] };
@@ -276,19 +277,25 @@ export const CHECK_TEMPLATES: CheckTemplate[] = [
     },
   },
 
-  // ── 6. MOL workforce validation (census vs MOL list) ─────────────
+  // ── 6. Census workforce validation (census vs MOL list) ──────────
   {
     id: 'mol_validation',
     icon: Users,
-    title: 'MOL workforce validation',
+    title: 'Census workforce validation',
     description: 'Match every census employee against the MOL employee list by passport, name, and nationality.',
     slots: [
       { key: 'passport_mode', label: 'Passport match', type: 'select', default: 'exact_fuzzy',
         options: MATCH_MODE_OPTIONS },
+      { key: 'passport_weight', label: 'Passport weight (%)', type: 'number', default: 80,
+        placeholder: '80', hint: 'Weights across all three fields should sum to 100' },
       { key: 'name_mode', label: 'Name match', type: 'select', default: 'fuzzy',
         options: MATCH_MODE_OPTIONS },
+      { key: 'name_weight', label: 'Name weight (%)', type: 'number', default: 10,
+        placeholder: '10' },
       { key: 'nationality_mode', label: 'Nationality match', type: 'select', default: 'exact',
         options: MATCH_MODE_OPTIONS },
+      { key: 'nationality_weight', label: 'Nationality weight (%)', type: 'number', default: 10,
+        placeholder: '10' },
       { key: 'passport_required', label: 'Passport is required', type: 'boolean', default: true,
         placeholder: 'Treat a row with no passport match as missing' },
       { key: 'auto_thresh', label: 'Auto-validate threshold (%)', type: 'number', default: 90,
@@ -316,18 +323,56 @@ export const CHECK_TEMPLATES: CheckTemplate[] = [
               block_on_missing: s.block_on_missing !== false,
               block_on_needs_review: s.block_on_needs_review === true,
               fields: {
-                passport_number: { enabled: true, mode: s.passport_mode || 'exact_fuzzy', required: s.passport_required !== false, priority: 'high' },
-                full_name:       { enabled: true, mode: s.name_mode || 'fuzzy', required: false, priority: 'high' },
-                nationality:     { enabled: true, mode: s.nationality_mode || 'exact', required: false, priority: 'medium' },
+                passport_number: { enabled: true, mode: s.passport_mode || 'exact_fuzzy', required: s.passport_required !== false, priority: 'high',   weight: num(s.passport_weight, 80) },
+                full_name:       { enabled: true, mode: s.name_mode || 'fuzzy',           required: false,                        priority: 'high',   weight: num(s.name_weight, 10) },
+                nationality:     { enabled: true, mode: s.nationality_mode || 'exact',    required: false,                        priority: 'medium', weight: num(s.nationality_weight, 10) },
               },
             },
           }],
         },
-        linked_documents: ['census', 'mol-list'],
+        linked_documents: ['finalized-census', 'mol-list'],
         ...sevFlags(sev),
       };
     },
-    suggestName: () => 'MOL Validation (census vs MOL list)',
+    suggestName: () => 'Census Validation (census vs MOL list)',
+  },
+
+  // ── 7. Quote vs Census member comparison ─────────────────────────
+  {
+    id: 'quote_census_diff',
+    icon: Users,
+    title: 'Signed Quote vs Census — member comparison',
+    description: 'Compare the member list in the Customer Signed Quote against the Census to verify they cover the same people.',
+    slots: [
+      { key: 'census_doc_type', label: 'Census document', type: 'select', default: 'finalized-census',
+        options: [
+          { value: 'finalized-census', label: 'Final Census', hint: 'Finalized census submitted by client' },
+          { value: 'census', label: 'Workforce Census', hint: 'Initial census' },
+        ]},
+      { key: 'roster_field', label: 'Roster field on quote extraction', type: 'string', default: 'Members',
+        placeholder: 'e.g. Members, Employee List' },
+      { key: 'name_field', label: 'Name field within each roster item', type: 'string', default: 'Member Name',
+        placeholder: 'e.g. Member Name, Full Name' },
+    ],
+    toPayload: (s, sev) => ({
+      item_type: 'verification',
+      auto_check_rule: 'manual',
+      handler_name: 'quote_census_diff',
+      config_payload: {
+        verifications: [{
+          type: 'quote_census_diff',
+          handler: 'quote_census_diff',
+          config: {
+            census_doc_type: s.census_doc_type || 'finalized-census',
+            roster_field: s.roster_field || 'Members',
+            name_field: s.name_field || 'Member Name',
+          },
+        }],
+      },
+      linked_documents: ['customer-signed-quote', s.census_doc_type || 'finalized-census'],
+      ...sevFlags(sev),
+    }),
+    suggestName: () => 'Signed Quote vs Census — member comparison',
   },
 ];
 
@@ -422,8 +467,11 @@ export function detectTemplate(item: ExistingCheckShape): DetectedTemplate | nul
           auto_thresh: c.auto_thresh ?? 90,
           review_thresh: c.review_thresh ?? 65,
           passport_mode: pass.mode || 'exact_fuzzy',
+          passport_weight: pass.weight ?? 80,
           name_mode: nm.mode || 'fuzzy',
+          name_weight: nm.weight ?? 10,
           nationality_mode: nat.mode || 'exact',
+          nationality_weight: nat.weight ?? 10,
           passport_required: pass.required ?? true,
           block_on_missing: c.block_on_missing ?? true,
           block_on_needs_review: c.block_on_needs_review ?? false,

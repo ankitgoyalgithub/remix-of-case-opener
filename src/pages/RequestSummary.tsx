@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Loader2, ArrowLeft, ArrowRight, AlertTriangle, CheckCircle2, XCircle, Clock,
-    FileCheck, ShieldAlert, Upload, Sparkles, Snail, FileText, Files, Gauge,
-    Layers, Activity as ActivityIcon, MessageSquare, UserPlus, Check, X,
+    FileCheck, ShieldAlert, Upload, Sparkles, FileText, Files, Gauge,
+    Layers, Activity as ActivityIcon, MessageSquare, Check, X,
     ExternalLink, ChevronRight, ChevronDown, ScanSearch, Send, CircleDot, ListChecks,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -437,7 +437,6 @@ export default function RequestSummary() {
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setConvoOpen(true)}><MessageSquare className="h-3.5 w-3.5" /> Message</Button>
-                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => navigate(`/request/${requestId}/workbench`)}><UserPlus className="h-3.5 w-3.5" /> Assign</Button>
                         <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDecision('reject')} disabled={busy}><X className="h-3.5 w-3.5" /> Reject</Button>
                         <Button variant="success" size="sm" className="gap-1.5" onClick={() => handleDecision('approve')} disabled={busy}><Check className="h-3.5 w-3.5" /> Approve</Button>
                         <Button size="sm" className="gap-1.5" onClick={() => navigate(`/request/${requestId}/workbench`)}>Open workbench <ArrowRight className="h-3.5 w-3.5" /></Button>
@@ -446,31 +445,14 @@ export default function RequestSummary() {
             </div>
 
             {/* KPI strip */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 stagger">
-                <KpiCard icon={Gauge} label="SLA" value={slaText} sub={`Target ${listItem.slaTargetHours}h${slaStatus === 'red' ? ' · overdue' : ''}`} subTone={slaStatus === 'red' ? 'destructive' : 'muted'} ring={slaUsedPct} ringTone={slaStatus === 'red' ? 'destructive' : slaStatus === 'amber' ? 'warning' : 'success'} />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 stagger">
                 <KpiCard icon={FileText} label="Documents" value={`${rd.documents.received}/${rd.documents.total}`} sub={rd.documents.required_missing > 0 ? `${rd.documents.required_missing} required missing` : 'All received'} subTone={rd.documents.required_missing > 0 ? 'destructive' : 'success'} bar={pct(rd.documents.received, rd.documents.total)} />
-                <KpiCard icon={ListChecks} label="Internal checks" value={`${rd.internal_checks.passed}/${rd.internal_checks.total}`} sub={rd.internal_checks.failed > 0 ? `${rd.internal_checks.failed} failed` : rd.internal_checks.pending > 0 ? `${rd.internal_checks.pending} pending` : 'All passed'} subTone={rd.internal_checks.failed > 0 ? 'destructive' : 'muted'} bar={pct(rd.internal_checks.passed, rd.internal_checks.total)} />
-                <KpiCard icon={ScanSearch} label="External verifications" value={`${rd.external_checks.passed}/${rd.external_checks.total}`} sub={rd.external_checks.failed > 0 ? `${rd.external_checks.failed} failed` : rd.external_checks.pending > 0 ? `${rd.external_checks.pending} pending` : 'All passed'} subTone={rd.external_checks.failed > 0 ? 'destructive' : 'muted'} bar={pct(rd.external_checks.passed, rd.external_checks.total)} />
+                <KpiCard icon={ListChecks} label="Checks" value={`${rd.internal_checks.passed + rd.external_checks.passed}/${rd.internal_checks.total + rd.external_checks.total}`} sub={(rd.internal_checks.failed + rd.external_checks.failed) > 0 ? `${rd.internal_checks.failed + rd.external_checks.failed} failed` : (rd.internal_checks.pending + rd.external_checks.pending) > 0 ? `${rd.internal_checks.pending + rd.external_checks.pending} pending` : 'All passed'} subTone={(rd.internal_checks.failed + rd.external_checks.failed) > 0 ? 'destructive' : 'muted'} bar={pct(rd.internal_checks.passed + rd.external_checks.passed, rd.internal_checks.total + rd.external_checks.total)} />
                 <KpiCard icon={ShieldAlert} label="Open risks" value={`${openRisks.length}`} sub={rd.risk_flags.blocking > 0 ? `${rd.risk_flags.blocking} blocking approval` : openRisks.length ? 'review required' : 'none'} subTone={openRisks.length ? 'destructive' : 'success'} />
-                <KpiCard icon={Layers} label="Pipeline" value={`${pipelinePct}%`} sub={`${stageDone}/${stages.length} · ${stageBlocked} blocked`} subTone={stageBlocked > 0 ? 'destructive' : 'muted'} ring={pipelinePct} ringTone={stageBlocked > 0 ? 'destructive' : pipelinePct === 100 ? 'success' : 'info'} />
+                <KpiCard icon={Layers} label="Pipeline" value={`${pipelinePct}%`} sub={`${stageDone}/${stages.length} stages · ${stageBlocked} blocked`} subTone={stageBlocked > 0 ? 'destructive' : 'muted'} bar={pipelinePct} />
             </div>
 
             {/* Next best action */}
-            {nextAction && (
-                <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 flex items-center gap-4">
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border bg-background/60 text-primary"><Sparkles className="h-4.5 w-4.5" /></div>
-                    <div className="min-w-0 flex-1">
-                        <p className="text-[10.5px] font-semibold uppercase tracking-widest text-muted-foreground">Next best action · AI</p>
-                        <p className="text-sm font-semibold text-foreground mt-0.5">{nextAction.headline}</p>
-                        <p className="text-xs text-muted-foreground">{nextAction.sub}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => toast('Snoozed')}><Snail className="h-3.5 w-3.5" /> Snooze</Button>
-                        <Button size="sm" className="gap-1.5" onClick={() => setNotifyOpen(true)}><Send className="h-3.5 w-3.5" /> Notify broker</Button>
-                    </div>
-                </div>
-            )}
-
             {/* Tabs */}
             <div className="flex items-center justify-between gap-3 border-b border-border">
                 <div className="flex items-center gap-1">
@@ -487,102 +469,56 @@ export default function RequestSummary() {
 
             {/* ── OVERVIEW ── */}
             {tab === 'overview' && (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                    <div className="lg:col-span-2 space-y-4">
-                        <Section title="Critical risks" action={openRisks.length > 4 ? { label: 'View all', onClick: () => setTab('risks') } : undefined}>
-                            {criticalRisks.length === 0 ? <Empty icon={CheckCircle2} tone="success">No critical risks.</Empty> : (() => {
-                                // Collapse same-type batches so a flood of identical flags shows as one line.
-                                const byType = new Map<string, typeof criticalRisks>();
-                                for (const r of criticalRisks) { const a = byType.get(r.flag_type) || []; a.push(r); byType.set(r.flag_type, a); }
-                                const entries = Array.from(byType.entries())
-                                    .sort((a, b) => (SEVERITY_ORDER[a[1][0].severity] ?? 9) - (SEVERITY_ORDER[b[1][0].severity] ?? 9))
-                                    .slice(0, 4);
-                                return (
-                                    <div className="divide-y divide-border">
-                                        {entries.map(([ftype, items]) => {
-                                            const r0 = items[0];
-                                            const grouped = items.length > 1;
-                                            return (
-                                                <div key={ftype} className="flex items-start gap-3 py-2.5">
-                                                    <Badge variant="outline" className={cn('text-[10px] uppercase font-bold shrink-0 mt-0.5', SEVERITY_STYLES[r0.severity])}>{r0.severity}</Badge>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-sm font-medium text-foreground">{grouped ? `${items.length} ${humanizeFlag(ftype)}` : r0.title}</p>
-                                                        {(grouped ? (r0.description || r0.title) : r0.description) && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{grouped ? `e.g. ${r0.description || r0.title}` : r0.description}</p>}
-                                                    </div>
-                                                    <button onClick={() => navigate(`/request/${requestId}/workbench`)} className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline mt-0.5">Review <ArrowRight className="h-3 w-3" /></button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                );
-                            })()}
-                        </Section>
-
-                        <Section title="Pending documents" action={(missingDocs.length + optionalDocs.length) > 6 ? { label: 'View all', onClick: () => setTab('documents') } : undefined}>
-                            {missingDocs.length === 0 ? <Empty icon={CheckCircle2} tone="success">All required documents received.</Empty> : (
-                                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0.5">
-                                    {missingDocs.slice(0, 8).map(d => (
-                                        <DocUploadRow key={d.party_requirement_id || d.doc_type} label={DOCUMENT_TYPE_LABELS[d.doc_type as DocumentType] || d.name || d.doc_type} required uploading={uploadingType === (d.party_requirement_id ? `party:${d.party_requirement_id}` : d.doc_type)} onSelect={(f) => handleUpload(d.doc_type, f, d.party_requirement_id)} />
-                                    ))}
-                                </div>
-                            )}
-                        </Section>
-
-                        <Section title="Evidence summary" right={`${evidence.length} items`}>
-                            {evidence.length === 0 ? <Empty icon={ListChecks} tone="muted">No checks have run yet. Open the workbench to run validations.</Empty> : (
-                                <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2">
-                                    {evidence.map(c => (
-                                        <div key={c.id} className="flex items-start gap-2 py-1">
-                                            <StatusDot status={c.status} />
-                                            <div className="min-w-0">
-                                                <p className="text-sm text-foreground truncate">{c.name}</p>
-                                                <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/70">{c.stage_name}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </Section>
-                    </div>
-
-                    <div className="space-y-4">
-                        <Section title="Pipeline progress" action={{ label: 'Open', onClick: () => navigate(`/request/${requestId}/workbench`) }}>
-                            <div className="space-y-0.5">
-                                {stages.map(s => {
-                                    const cfg = STAGE_STATUS[s.status] || STAGE_STATUS.pending;
-                                    const c = checksByStage.get(s.id);
-                                    const StageIcon = cfg.icon;
-                                    return (
-                                        <div key={s.id} className="flex items-center gap-2.5 py-1.5">
-                                            <span className={cn('flex items-center justify-center w-5 h-5 rounded-full border shrink-0', TONE_TEXT[cfg.tone], cfg.tone === 'success' && 'bg-success/10 border-success/30', cfg.tone === 'destructive' && 'bg-destructive/10 border-destructive/30', cfg.tone === 'info' && 'bg-info/10 border-info/30', cfg.tone === 'muted' && 'border-border')}>
-                                                <StageIcon className="h-3 w-3" />
-                                            </span>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-[13px] font-medium text-foreground truncate">{s.name}</p>
-                                                <p className={cn('text-[10px] uppercase tracking-wider font-semibold', TONE_TEXT[cfg.tone])}>{cfg.label}</p>
-                                            </div>
-                                            {c && <span className="text-[10px] font-mono text-muted-foreground tabular-nums shrink-0">{c.passed}/{c.total}</span>}
-                                        </div>
-                                    );
-                                })}
+                <div className="space-y-4">
+                    {/* NBA banner — only shown on Overview where it's actionable */}
+                    {nextAction && (
+                        <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 flex items-center gap-4">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border bg-background/60 text-primary"><Sparkles className="h-4 w-4" /></div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-foreground">{nextAction.headline}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">{nextAction.sub}</p>
                             </div>
-                        </Section>
+                            <Button size="sm" className="gap-1.5 shrink-0" onClick={() => setNotifyOpen(true)}><Send className="h-3.5 w-3.5" /> Notify broker</Button>
+                        </div>
+                    )}
 
-                        <Section title="Recent activity" action={{ label: 'Full log', onClick: () => setTab('activity') }}>
-                            <ActivityFeed items={activity.slice(0, 5)} compact />
-                        </Section>
+                    <Section title="Critical risks" action={openRisks.length > 4 ? { label: 'View all', onClick: () => setTab('risks') } : undefined}>
+                        {criticalRisks.length === 0 ? <Empty icon={CheckCircle2} tone="success">No critical risks.</Empty> : (() => {
+                            const byType = new Map<string, typeof criticalRisks>();
+                            for (const r of criticalRisks) { const a = byType.get(r.flag_type) || []; a.push(r); byType.set(r.flag_type, a); }
+                            const entries = Array.from(byType.entries())
+                                .sort((a, b) => (SEVERITY_ORDER[a[1][0].severity] ?? 9) - (SEVERITY_ORDER[b[1][0].severity] ?? 9))
+                                .slice(0, 4);
+                            return (
+                                <div className="divide-y divide-border">
+                                    {entries.map(([ftype, items]) => {
+                                        const r0 = items[0];
+                                        const grouped = items.length > 1;
+                                        return (
+                                            <div key={ftype} className="flex items-start gap-3 py-2.5">
+                                                <Badge variant="outline" className={cn('text-[10px] uppercase font-bold shrink-0 mt-0.5', SEVERITY_STYLES[r0.severity])}>{r0.severity}</Badge>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm font-medium text-foreground">{grouped ? `${items.length} ${humanizeFlag(ftype)}` : r0.title}</p>
+                                                    {(grouped ? (r0.description || r0.title) : r0.description) && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{grouped ? `e.g. ${r0.description || r0.title}` : r0.description}</p>}
+                                                </div>
+                                                <button onClick={() => navigate(`/request/${requestId}/workbench`)} className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline mt-0.5">Review <ArrowRight className="h-3 w-3" /></button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
+                    </Section>
 
-                        <Section title="Request details">
-                            <dl className="space-y-2 text-xs">
-                                <Detail k="Request ID" v={request.smart_id || request.id?.slice(0, 8)} mono />
-                                <Detail k="Created" v={format(listItem.createdAt, 'dd MMM yyyy')} />
-                                <Detail k="Broker" v={listItem.brokerEmail || 'Gulf Insurance Brokers'} />
-                                <Detail k="Queue" v={listItem.queue} />
-                                <Detail k="Assignee" v={listItem.owner || 'Unassigned'} />
-                                <Detail k="Priority" v={listItem.priority} tone={listItem.priority === 'Urgent' ? 'destructive' : undefined} />
-                            </dl>
-                        </Section>
-                    </div>
+                    <Section title="Pending documents" action={missingDocs.length > 8 ? { label: 'View all', onClick: () => setTab('documents') } : undefined}>
+                        {missingDocs.length === 0 ? <Empty icon={CheckCircle2} tone="success">All required documents received.</Empty> : (
+                            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0.5">
+                                {missingDocs.slice(0, 8).map(d => (
+                                    <DocUploadRow key={d.party_requirement_id || d.doc_type} label={DOCUMENT_TYPE_LABELS[d.doc_type as DocumentType] || d.name || d.doc_type} required uploading={uploadingType === (d.party_requirement_id ? `party:${d.party_requirement_id}` : d.doc_type)} onSelect={(f) => handleUpload(d.doc_type, f, d.party_requirement_id)} />
+                                ))}
+                            </div>
+                        )}
+                    </Section>
                 </div>
             )}
 

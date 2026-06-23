@@ -187,8 +187,10 @@ function SlotInput({
   return (
     <Field
       label={<>{slot.label}{requiredMark}</>}
-      hint={slot.type === 'doc-types' && Array.isArray(value)
-        ? `${value.length} selected` : undefined}
+      hint={
+        slot.hint ||
+        (slot.type === 'doc-types' && Array.isArray(value) ? `${value.length} selected` : undefined)
+      }
     >
       {slot.type === 'string' && (
         <Input

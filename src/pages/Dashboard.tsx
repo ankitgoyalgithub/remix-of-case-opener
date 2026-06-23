@@ -45,10 +45,11 @@ const TIER_STYLE: Record<string, string> = {
 };
 const TIER_BAR: Record<string, string> = { URGENT: 'bg-destructive', IMPORTANT: 'bg-warning', WATCH: 'bg-muted-foreground/50' };
 
-const STAGE_ORDER = ['Documents Availability', 'Name matching', 'Individual Document Validation', 'MOL Validation', 'AML', 'Compliance', 'Final Review', 'Book'];
+const STAGE_ORDER = ['Documents Availability', 'Name matching', 'Individual Document Validation', 'Census Validation', 'MOL Validation', 'MOL Verification', 'AML', 'Compliance', 'Final Review', 'Book'];
 const STAGE_SHORT: Record<string, string> = {
     'Documents Availability': 'Documents', 'Name matching': 'Name match', 'Individual Document Validation': 'Doc review',
-    'MOL Validation': 'MOL', 'AML': 'AML', 'Compliance': 'Compliance', 'Final Review': 'Final review', 'Book': 'Book',
+    'Census Validation': 'Census', 'MOL Validation': 'Census', 'MOL Verification': 'Census',
+    'AML': 'AML', 'Compliance': 'Compliance', 'Final Review': 'Final review', 'Book': 'Book',
 };
 
 const STATUS_META: Record<string, { label: string; tone: 'success' | 'info' | 'warning' | 'destructive' | 'muted' }> = {

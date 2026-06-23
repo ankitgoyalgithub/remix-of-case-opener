@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import {
   Users, CheckCircle2, XCircle, AlertTriangle, Clock, ShieldCheck, Eye,
-  Settings2, Check, X as XIcon, Send, ChevronRight, Download, FileText as FileTextIcon, Sheet,
+  Settings2, Check, X as XIcon, Send, ChevronRight, Download,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,18 +18,10 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { useUiPref } from '@/hooks/useUiPref';
-import { exportMolCsv, exportMolPdf, type MolExportRow } from '@/lib/molExport';
+import { exportMolCsv, type MolExportRow } from '@/lib/molExport';
 
 interface MolValidationReportProps {
   result: ChecklistValidationResult;
@@ -68,24 +60,25 @@ const MODE_LABEL: Record<string, string> = {
 // The MOL handler matches on these three fields. Defaults mirror the backend
 // (`MolValidationHandler._default_fields`) so results that predate the
 // rules-in-summary change still render the correct modes.
-const MOL_RULE_FIELDS: Array<{ key: string; label: string; defaultMode: string }> = [
-  { key: 'passport_number', label: 'Passport',    defaultMode: 'exact_fuzzy' },
-  { key: 'full_name',       label: 'Name',        defaultMode: 'fuzzy' },
-  { key: 'nationality',     label: 'Nationality', defaultMode: 'exact' },
+const MOL_RULE_FIELDS: Array<{ key: string; label: string; defaultMode: string; defaultWeight: number }> = [
+  { key: 'passport_number', label: 'Passport',    defaultMode: 'exact_fuzzy', defaultWeight: 80 },
+  { key: 'full_name',       label: 'Name',        defaultMode: 'fuzzy',       defaultWeight: 10 },
+  { key: 'nationality',     label: 'Nationality', defaultMode: 'exact',       defaultWeight: 10 },
 ];
 
 function buildMatchRules(
-  fields?: Record<string, { enabled?: boolean; mode?: string }>,
-): Array<{ field: string; mode: string }> {
+  fields?: Record<string, { enabled?: boolean; mode?: string; weight?: number }>,
+): Array<{ field: string; mode: string; weight: number }> {
   const f = fields || {};
-  return MOL_RULE_FIELDS.map(({ key, label, defaultMode }) => {
+  return MOL_RULE_FIELDS.map(({ key, label, defaultMode, defaultWeight }) => {
     const cfg = f[key] || {};
     const mode = cfg.enabled === false ? 'off' : (cfg.mode || defaultMode);
-    return { field: label, mode: MODE_LABEL[mode] || mode };
+    const weight = cfg.weight != null ? cfg.weight : defaultWeight;
+    return { field: label, mode: MODE_LABEL[mode] || mode, weight };
   });
 }
 
-type RowStatus = 'auto' | 'review' | 'missing' | 'warning';
+type RowStatus = 'auto' | 'review' | 'missing' | 'warning' | 'manual' | 'failed';
 
 function classifyRow(row: ChecklistRuleResult): RowStatus {
   if (row.rule === 'Extraction warning') return 'warning';
@@ -179,13 +172,15 @@ function buildParsedRow(source: ChecklistRuleResult): ParsedRow {
   };
 }
 
-type FilterKey = 'all' | 'matched' | 'review' | 'missing';
+type FilterKey = 'all' | 'matched' | 'review' | 'missing' | 'failed' | 'manual';
 
 const FILTER_LABEL: Record<FilterKey, string> = {
   all: 'All',
   matched: 'Matched',
-  review: 'Needs review',
-  missing: 'Missing in MOL',
+  review: 'Needs Review',
+  missing: 'Missing',
+  failed: 'Failed',
+  manual: 'Manually Reviewed',
 };
 
 const STATUS_BADGE: Record<RowStatus, { label: string; cls: string; icon: React.ReactNode }> = {
@@ -209,13 +204,31 @@ const STATUS_BADGE: Record<RowStatus, { label: string; cls: string; icon: React.
     cls: 'bg-muted text-muted-foreground border border-border',
     icon: <AlertTriangle className="h-3 w-3" />,
   },
+  manual: {
+    label: 'Manually reviewed',
+    cls: 'bg-violet-500/10 text-violet-600 border border-violet-500/25',
+    icon: <ShieldCheck className="h-3 w-3" />,
+  },
+  failed: {
+    label: 'Failed',
+    cls: 'bg-destructive/10 text-destructive border border-destructive/25',
+    icon: <XCircle className="h-3 w-3" />,
+  },
 };
 
 export function MolValidationReport({ result }: MolValidationReportProps) {
   const { requestId } = useParams();
   const details = (result.details || []) as ChecklistRuleResult[];
   const summaryRow = details.find(r => r.rule === 'Summary');
-  const employeeRows = details.filter(r => r.rule !== 'Summary' && r.rule !== 'Extraction warning');
+  // Keep only real employee rows: must have an actual source_value (employee name).
+  // System/error rows (e.g. 'Census extraction' failure, '… and N more') have no
+  // source_value or have it set to '—', so they are excluded from the table.
+  const employeeRows = details.filter(r =>
+    r.rule !== 'Summary' &&
+    r.rule !== 'Extraction warning' &&
+    r.source_value != null &&
+    r.source_value !== '—',
+  );
   const warningRows  = details.filter(r => r.rule === 'Extraction warning');
 
   const summary: ParsedSummary = summaryRow
@@ -264,13 +277,15 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
 
   const [filter, setFilter] = useState<FilterKey>('all');
   const counts = useMemo(() => {
-    let matched = 0, review = 0, missing = 0;
+    let matched = 0, review = 0, missing = 0, failed = 0, manual = 0;
     for (const r of parsedRows) {
       if (r.status === 'auto') matched++;
       else if (r.status === 'review') review++;
       else if (r.status === 'missing') missing++;
+      else if (r.status === 'failed') failed++;
+      else if (r.status === 'manual') manual++;
     }
-    return { all: parsedRows.length, matched, review, missing };
+    return { all: parsedRows.length, matched, review, missing, failed, manual };
   }, [parsedRows]);
 
   const visibleRows = useMemo(() => {
@@ -279,6 +294,8 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
       if (filter === 'matched') return r.status === 'auto';
       if (filter === 'review') return r.status === 'review';
       if (filter === 'missing') return r.status === 'missing';
+      if (filter === 'failed') return r.status === 'failed';
+      if (filter === 'manual') return r.status === 'manual';
       return true;
     });
   }, [parsedRows, filter]);
@@ -315,7 +332,7 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
   const ACTION_TO_STATUS: Record<Action, RowStatus> = {
     confirm:  'auto',
     override: 'auto',
-    reject:   'missing',
+    reject:   'failed',
     missing:  'missing',
     review:   'review',
   };
@@ -327,32 +344,39 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
     review:   'Sent for review',
   };
 
-  const applyAction = (action: Action, rowKeys: string[]) => {
-    if (rowKeys.length === 0) return;
-    const newStatus = ACTION_TO_STATUS[action];
+  // Confirming a 'Needs Review' row promotes it to 'Manually Reviewed', not 'Auto confirmed'.
+  const getNewStatus = (action: Action, currentStatus: RowStatus): RowStatus => {
+    if ((action === 'confirm' || action === 'override') && currentStatus === 'review') {
+      return 'manual';
+    }
+    return ACTION_TO_STATUS[action];
+  };
+
+  const applyAction = (action: Action, entries: Array<{ key: string; currentStatus: RowStatus }>) => {
+    if (entries.length === 0) return;
     setOverrides(prev => {
       const next = { ...prev };
-      for (const k of rowKeys) next[k] = newStatus;
+      for (const { key, currentStatus } of entries) next[key] = getNewStatus(action, currentStatus);
       return next;
     });
-    toast.success(`${ACTION_LABEL[action]} · ${rowKeys.length} record${rowKeys.length === 1 ? '' : 's'}`);
+    toast.success(`${ACTION_LABEL[action]} · ${entries.length} record${entries.length === 1 ? '' : 's'}`);
     setSelectedIdx(new Set());
     setReviewingIdx(null);
   };
 
-  // Bulk action — keys from the current selection.
+  // Bulk action — rows from the current selection.
   const handleBulk = (action: Action) => {
-    const keys = Array.from(selectedIdx)
+    const entries = Array.from(selectedIdx)
       .map(i => visibleRows[i])
       .filter(Boolean)
-      .map(overrideKey);
-    applyAction(action, keys);
+      .map(r => ({ key: overrideKey(r), currentStatus: r.status }));
+    applyAction(action, entries);
   };
 
   // Single-row action — from the review dialog.
   const handleSingle = (action: Action, row: ParsedRow | null) => {
     if (!row) return;
-    applyAction(action, [overrideKey(row)]);
+    applyAction(action, [{ key: overrideKey(row), currentStatus: row.status }]);
   };
 
   // ─── Export ───────────────────────────────────────────────────────
@@ -372,25 +396,14 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
     scopeLabel,
   });
 
-  // Actionable subset = needs-review + missing (what an operator must clear).
-  const unresolvedRows = useMemo(
-    () => parsedRows.filter(r => r.status === 'review' || r.status === 'missing'),
-    [parsedRows],
-  );
-
-  const doExport = (which: 'view' | 'unresolved', fmt: 'csv' | 'pdf') => {
-    const src = which === 'view' ? visibleRows : unresolvedRows;
-    if (src.length === 0) {
-      toast.error('Nothing to export in this set.');
+  const doExport = () => {
+    if (visibleRows.length === 0) {
+      toast.error('Nothing to export in this view.');
       return;
     }
-    const rows = src.map(toExportRow);
-    const scopeLabel = which === 'view'
-      ? `Current view (${FILTER_LABEL[filter]})`
-      : 'Needs review + Missing in MOL';
-    if (fmt === 'csv') exportMolCsv(rows, exportMeta(scopeLabel));
-    else exportMolPdf(rows, exportMeta(scopeLabel));
-    toast.success(`Exported ${rows.length} record${rows.length === 1 ? '' : 's'} · ${fmt.toUpperCase()}`);
+    const rows = visibleRows.map(toExportRow);
+    exportMolCsv(rows, exportMeta(FILTER_LABEL[filter]));
+    toast.success(`Exported ${rows.length} record${rows.length === 1 ? '' : 's'}`);
   };
 
   return (
@@ -402,7 +415,7 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="text-sm font-semibold text-foreground">MOL Employee Validation</h4>
+            <h4 className="text-sm font-semibold text-foreground">Census Validation</h4>
             <Badge variant={overallPassed ? 'success' : summary.missing > 0 ? 'critical' : 'warning'}>
               {overallPassed
                 ? 'All employees validated'
@@ -430,7 +443,7 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
       <div className="rounded-md border border-border bg-card px-4 py-2.5 flex items-center justify-between gap-4 flex-wrap">
         <span className="page-eyebrow">Match rules</span>
         <div className="flex items-center gap-2 flex-wrap">
-          {matchRules.map(r => <RuleChip key={r.field} field={r.field} mode={r.mode} />)}
+          {matchRules.map(r => <RuleChip key={r.field} field={r.field} mode={r.mode} weight={r.weight} />)}
         </div>
       </div>
 
@@ -449,47 +462,19 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
           <div className="flex items-center gap-1 flex-wrap">
             <FilterPill active={filter === 'all'} onClick={() => setFilter('all')} label="All" count={counts.all} />
             <FilterPill active={filter === 'matched'} onClick={() => setFilter('matched')} label="Matched" count={counts.matched} tone="success" />
-            <FilterPill active={filter === 'review'} onClick={() => setFilter('review')} label="Needs review" count={counts.review} tone="warning" />
-            <FilterPill active={filter === 'missing'} onClick={() => setFilter('missing')} label="Missing in MOL" count={counts.missing} tone="danger" />
+            <FilterPill active={filter === 'failed'} onClick={() => setFilter('failed')} label="Failed" count={counts.failed} tone="danger" />
+            <FilterPill active={filter === 'review'} onClick={() => setFilter('review')} label="Needs Review" count={counts.review} tone="warning" />
+            <FilterPill active={filter === 'missing'} onClick={() => setFilter('missing')} label="Missing" count={counts.missing} tone="danger" />
+            <FilterPill active={filter === 'manual'} onClick={() => setFilter('manual')} label="Manually Reviewed" count={counts.manual} tone="manual" />
 
             <span className="ml-auto text-xs text-muted-foreground tabular-nums">
               {visibleRows.length} {visibleRows.length === 1 ? 'record' : 'records'}
             </span>
 
-            {/* Export — current view, or the actionable review+missing subset */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-7 gap-1.5">
-                  <Download className="h-3.5 w-3.5" />
-                  Export
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60">
-                <DropdownMenuLabel className="text-[11px]">
-                  Needs review + Missing ({unresolvedRows.length})
-                </DropdownMenuLabel>
-                <DropdownMenuItem className="text-sm gap-2" onClick={() => doExport('unresolved', 'csv')}>
-                  <Sheet className="h-3.5 w-3.5 text-muted-foreground" />
-                  Export as Excel (CSV)
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-sm gap-2" onClick={() => doExport('unresolved', 'pdf')}>
-                  <FileTextIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                  Export as PDF
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[11px]">
-                  Current view · {FILTER_LABEL[filter]} ({visibleRows.length})
-                </DropdownMenuLabel>
-                <DropdownMenuItem className="text-sm gap-2" onClick={() => doExport('view', 'csv')}>
-                  <Sheet className="h-3.5 w-3.5 text-muted-foreground" />
-                  Export as Excel (CSV)
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-sm gap-2" onClick={() => doExport('view', 'pdf')}>
-                  <FileTextIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                  Export as PDF
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button variant="outline" size="sm" className="h-7 gap-1.5" onClick={doExport}>
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </Button>
           </div>
 
           {/* Bulk action bar — only when rows are selected */}
@@ -715,12 +700,14 @@ function Dash() {
   return <span className="text-[12px] text-muted-foreground/40">—</span>;
 }
 
-function RuleChip({ field, mode }: { field: string; mode: string }) {
+function RuleChip({ field, mode, weight }: { field: string; mode: string; weight: number }) {
   return (
     <span className="inline-flex items-center gap-1.5 h-6 px-2 rounded-md border border-border bg-background text-[11px]">
       <span className="font-medium text-foreground">{field}</span>
       <span className="text-muted-foreground/70">·</span>
       <span className="font-mono uppercase tracking-wider text-[9.5px] text-muted-foreground">{mode}</span>
+      <span className="text-muted-foreground/70">·</span>
+      <span className="font-mono text-[9.5px] text-primary font-semibold">{weight}%</span>
     </span>
   );
 }
@@ -766,7 +753,7 @@ function FilterPill({
   onClick: () => void;
   label: string;
   count: number;
-  tone?: 'default' | 'success' | 'warning' | 'danger';
+  tone?: 'default' | 'success' | 'warning' | 'danger' | 'manual';
 }) {
   const activeCls = active
     ? 'bg-foreground text-background border-foreground'
@@ -779,6 +766,7 @@ function FilterPill({
         success: 'bg-success/15 text-success',
         warning: 'bg-warning/15 text-warning',
         danger:  'bg-destructive/15 text-destructive',
+        manual:  'bg-violet-500/15 text-violet-600',
       } as const)[tone];
 
   return (

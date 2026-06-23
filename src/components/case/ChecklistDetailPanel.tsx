@@ -57,7 +57,7 @@ const TYPE_CONFIG = {
   },
   'mol-validation': {
     icon: Users,
-    label: 'MOL Validation',
+    label: 'Census Validation',
     color: 'text-teal-500',
     bg: 'bg-teal-500/10',
     border: 'border-teal-500/20',
@@ -81,62 +81,41 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
     setLocalResult(item.result || null);
   }, [item]);
 
-  const typeConfig = TYPE_CONFIG[item.itemType] || TYPE_CONFIG['manual'];
-  const TypeIcon = typeConfig.icon;
-
   const resultStatus = localResult?.status || 'pending';
   const resultConfig = RESULT_STATUS_CONFIG[resultStatus];
   const ResultIcon = resultConfig.icon;
 
   return (
     <div className="flex flex-col h-full bg-transparent">
-      <div className="mb-8 flex items-start gap-5">
-          <div className={cn('w-16 h-16 rounded-xl flex items-center justify-center shrink-0 border shadow-sm', typeConfig.bg, typeConfig.border)}>
-            <TypeIcon className={cn('h-8 w-8', typeConfig.color)} />
-          </div>
-          <div className="pt-1">
-            <h3 className="text-xl font-bold text-foreground mb-3 leading-tight">{item.label}</h3>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className={cn('text-xs', typeConfig.color)}>
-                {typeConfig.label}
-              </Badge>
-              {item.required && (
-                <Badge variant="destructive" className="text-xs px-2 py-0">
-                  MANDATORY
-                </Badge>
-              )}
-            </div>
-          </div>
-      </div>
-
-      <div className="space-y-10">
+      <div className="space-y-5">
+        {/* Objective Analysis — compact muted text */}
         {item.taskDescription && (
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Objective Analysis</p>
-            <p className="text-base text-foreground leading-relaxed">{item.taskDescription}</p>
+            <p className="page-eyebrow mb-1.5">Objective Analysis</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{item.taskDescription}</p>
           </div>
         )}
 
         {item.taskDetails && (
-          <div className="rounded-lg bg-muted/20 border p-5 flex gap-4">
-            <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-            <p className="text-sm text-foreground/80 leading-relaxed">{item.taskDetails}</p>
+          <div className="rounded-md bg-muted/20 border px-3 py-2.5 flex gap-3">
+            <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground leading-relaxed">{item.taskDetails}</p>
           </div>
         )}
-        
+
         {item.verifications && item.verifications.length > 0 && (
-          <div className="space-y-4">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Verification Pipeline</p>
-              <Badge variant="outline" className="text-[10px] font-bold tracking-tighter uppercase opacity-60">Definition</Badge>
+              <p className="page-eyebrow">Verification Pipeline</p>
+              <Badge variant="outline" className="text-[10px] h-4 px-1.5 opacity-60 uppercase">Definition</Badge>
             </div>
-            <div className="rounded-lg border border-border/40 overflow-hidden bg-card/30">
+            <div className="rounded-md border border-border/40 overflow-hidden">
               <table className="w-full text-left text-xs">
-                <thead className="bg-muted/50 text-muted-foreground font-bold uppercase tracking-widest text-[10px]">
+                <thead className="bg-muted/40 text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">
                   <tr>
-                    <th className="px-4 py-2.5">Check Type</th>
-                    <th className="px-4 py-2.5">Protocol / Target</th>
-                    <th className="px-4 py-2.5 text-right">Methodology</th>
+                    <th className="px-3 py-2">Check type</th>
+                    <th className="px-3 py-2">Protocol / target</th>
+                    <th className="px-3 py-2 text-right">Methodology</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/20">
@@ -145,32 +124,26 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                     const Icon = iconConfig.icon;
                     return (
                       <tr key={v.id || idx} className="hover:bg-muted/5 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className={cn("p-1 rounded bg-muted border", iconConfig.color)}>
-                              <Icon className="h-3.5 w-3.5" />
-                            </div>
-                            <span className="font-semibold text-foreground">{iconConfig.label}</span>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1.5">
+                            <Icon className={cn('h-3.5 w-3.5 shrink-0', iconConfig.color)} />
+                            <span className="font-medium text-foreground">{iconConfig.label}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-2">
                           {(() => {
                             const txt = v.config?.taskDescription || v.config?.target_document || (v.config?.target_documents?.join(', ')) || 'Standard Logic';
-                            return (
-                              <div className="text-muted-foreground truncate max-w-[200px]" title={txt}>
-                                {txt}
-                              </div>
-                            );
+                            return <span className="text-muted-foreground truncate max-w-[200px] block" title={txt}>{txt}</span>;
                           })()}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-3 py-2 text-right">
                           <span className={cn(
-                            "px-2 py-0.5 rounded text-[10px] font-bold border uppercase transition-colors shadow-sm",
-                            v.type === 'manual' 
-                              ? "bg-muted text-muted-foreground border-border" 
-                              : "bg-primary/10 text-primary border-primary/20 shadow-primary/5"
+                            'px-1.5 py-0.5 rounded text-[10px] font-medium border uppercase',
+                            v.type === 'manual'
+                              ? 'bg-muted text-muted-foreground border-border'
+                              : 'bg-primary/10 text-primary border-primary/20',
                           )}>
-                            {v.type === 'manual' ? 'Manual Check' : 'Automated Check'}
+                            {v.type === 'manual' ? 'Manual' : 'Automated'}
                           </span>
                         </td>
                       </tr>
@@ -183,9 +156,9 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
         )}
 
         {localResult ? (
-          <div className="space-y-6 pt-6 border-t">
+          <div className="space-y-4 pt-4 border-t">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Validation Intelligence</p>
+              <p className="page-eyebrow">Validation Intelligence</p>
               <div className="flex items-center gap-3">
                 {( (item.handlerName && item.handlerName !== 'manual') || item.itemType === 'cross-validation' || item.verifications?.some(v => v.type !== 'manual') ) && (
                   <Button 

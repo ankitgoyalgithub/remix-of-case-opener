@@ -246,7 +246,7 @@ export function RequestDetailHeader({
       <NotifyBrokerDialog
         open={notifyOpen}
         onOpenChange={setNotifyOpen}
-        requestId={requestId || routeRequestId || ''}
+        requestId={routeRequestId || requestId || ''}
       />
     </div>
   );

@@ -84,7 +84,7 @@ export function exportMolPdf(rows: MolExportRow[], meta: MolExportMeta) {
   doc.setFontSize(14);
   doc.setTextColor(20, 20, 22);
   doc.setFont('helvetica', 'bold');
-  doc.text('MOL Employee Validation', 14, 16);
+  doc.text('Census Validation', 14, 16);
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');

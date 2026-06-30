@@ -87,9 +87,9 @@ function GlowSprite({ color }: { color: Color }) {
     if (ctx) {
       const rgb = color.getStyle().slice(4, -1); // "r, g, b"
       const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-      g.addColorStop(0, `rgba(${rgb}, 0.5)`);
-      g.addColorStop(0.32, `rgba(${rgb}, 0.22)`);
-      g.addColorStop(0.7, `rgba(${rgb}, 0.05)`);
+      g.addColorStop(0, `rgba(${rgb}, 0.42)`);
+      g.addColorStop(0.3, `rgba(${rgb}, 0.16)`);
+      g.addColorStop(0.65, `rgba(${rgb}, 0.045)`);
       g.addColorStop(1, `rgba(${rgb}, 0)`);
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, size, size);
@@ -99,13 +99,13 @@ function GlowSprite({ color }: { color: Color }) {
 
   return (
     <mesh position={[0, 0, -1.2]} renderOrder={-1}>
-      <planeGeometry args={[7.5, 7.5]} />
+      <planeGeometry args={[6, 6]} />
       <meshBasicMaterial
         map={texture}
         transparent
         depthWrite={false}
         blending={AdditiveBlending}
-        opacity={0.95}
+        opacity={0.7}
         toneMapped={false}
       />
     </mesh>
@@ -137,13 +137,13 @@ function Core({
           <MeshDistortMaterial
             color={deep}
             emissive={primary}
-            emissiveIntensity={0.42}
-            metalness={0.55}
-            roughness={0.15}
+            emissiveIntensity={0.5}
+            metalness={0.62}
+            roughness={0.34}
             distort={0.16}
             speed={1.0}
             transparent
-            opacity={0.95}
+            opacity={0.9}
           />
         </Icosahedron>
 
@@ -298,11 +298,11 @@ function RingSystem({
       <group ref={markersRef}>
         {markers.map((m, i) => (
           <mesh key={`node-${i}`} position={[m.x, m.y, 0]}>
-            <sphereGeometry args={[0.05, 16, 16]} />
+            <sphereGeometry args={[0.045, 16, 16]} />
             <meshStandardMaterial
               color={accent}
               emissive={color}
-              emissiveIntensity={1.4}
+              emissiveIntensity={1.05}
               roughness={0.3}
               metalness={0.1}
               toneMapped={false}
@@ -330,10 +330,12 @@ export function HeroScene() {
       {/* Depth fog blends distant nodes into the section's navy. */}
       <fog attach="fog" args={[background, 8, 18]} />
 
-      <ambientLight intensity={0.45} />
-      <pointLight position={[5, 4, 6]} intensity={2.4} decay={0} color={primary} />
-      <pointLight position={[-6, -2, -3]} intensity={1.6} decay={0} color={accent} />
-      <directionalLight position={[0, 3, 5]} intensity={0.5} color={foreground} />
+      <ambientLight intensity={0.4} />
+      {/* Single clean key light → one soft glass sheen instead of twin hotspots. */}
+      <pointLight position={[6, 5, 7]} intensity={2.0} decay={0} color={foreground} />
+      {/* Low cool rim from behind for edge definition, not a second specular. */}
+      <pointLight position={[-7, 1, -5]} intensity={0.9} decay={0} color={accent} />
+      <directionalLight position={[2, 3, 4]} intensity={0.3} color={primary} />
 
       <GlowSprite color={primary} />
 

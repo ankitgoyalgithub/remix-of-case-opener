@@ -193,7 +193,7 @@ export function HeroSection({ className }: HeroSectionProps) {
       >
         <CanvasLazy
           className="h-full w-full"
-          camera={{ position: [0, 0, 6], fov: 42 }}
+          camera={{ position: [0, 0, 6.6], fov: 40 }}
           fallback={<HeroFallback />}
         >
           <HeroScene />

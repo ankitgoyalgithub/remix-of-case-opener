@@ -58,9 +58,9 @@ export function WizardStepEmails() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col">
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold text-foreground">Communication Engine</h2>
+        <h2 className="text-xl font-semibold text-foreground">Email templates</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Customize the autonomous notification templates for all processing cycles.
+          Set up the standard emails the platform sends to your team and brokers.
         </p>
       </div>
 

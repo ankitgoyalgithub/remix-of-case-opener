@@ -58,7 +58,7 @@ export default function DocumentCatalog() {
       const res = await api.studio.documents.list();
       setDocuments(res);
     } catch {
-      toast.error('Failed to load document definitions');
+      toast.error("We couldn't load your documents. Please refresh to try again.");
     } finally {
       setLoading(false);
     }
@@ -78,7 +78,7 @@ export default function DocumentCatalog() {
     } catch {
       // Revert on failure
       setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, mandatory: !next } : d));
-      toast.error('Failed to update required flag');
+      toast.error("We couldn't update that setting. Please try again.");
     }
   };
 
@@ -87,10 +87,10 @@ export default function DocumentCatalog() {
     setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, is_active: next } : d));
     try {
       await api.studio.documents.update(doc.id, { is_active: next });
-      toast.success(next ? `${doc.name} enabled` : `${doc.name} disabled — dependent checks will be hidden`);
+      toast.success(next ? `${doc.name} turned on` : `${doc.name} turned off — checks that rely on it are hidden`);
     } catch {
       setDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, is_active: !next } : d));
-      toast.error('Failed to update active flag');
+      toast.error("We couldn't update that setting. Please try again.");
     }
   };
 
@@ -112,10 +112,10 @@ export default function DocumentCatalog() {
       setIsAddDocModalOpen(false);
       setNewDocName(''); setNewDocDescription(''); setNewDocCategory('Employer');
       toast.success('Document type added');
-      // Open the drawer immediately so the operator can keep configuring.
+      // Open the drawer immediately so the admin can keep configuring.
       setDrawerDoc(res);
     } catch {
-      toast.error('Failed to add document type');
+      toast.error("We couldn't add that document type. Please try again.");
     } finally {
       setAddingDoc(false);
     }
@@ -124,21 +124,21 @@ export default function DocumentCatalog() {
   return (
     <>
       <PageHeader
-        eyebrow="Studio · Documents"
-        title="Document types"
-        description="Define what operators can upload, what the AI should extract, the hints that guide it, and how fields cross-validate."
+        eyebrow="Configuration · Documents"
+        title="Documents & data capture"
+        description="Define what your team and brokers can upload, the values the system reads from each document, and how those values are compared across documents."
         actions={
           <Dialog open={isAddDocModalOpen} onOpenChange={setIsAddDocModalOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-1.5">
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-3.5 w-3.5" aria-hidden />
                 Add type
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Add document type</DialogTitle>
-                <DialogDescription>Create a new document type for operators to upload.</DialogDescription>
+                <DialogDescription>Create a new type of document that can be uploaded to a request.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-1.5">
@@ -306,7 +306,7 @@ export default function DocumentCatalog() {
                 <div className="grid grid-cols-3 border-t border-border/60 divide-x divide-border/60 bg-muted/15">
                   <FacetCell
                     icon={Database}
-                    label="Extract"
+                    label="Read"
                     value={doc.extraction_keys?.length || 0}
                     active={hasExtraction}
                   />
@@ -318,7 +318,7 @@ export default function DocumentCatalog() {
                   />
                   <FacetCell
                     icon={Network}
-                    label="CV rules"
+                    label="Compare"
                     value={doc.cross_validation_rules?.length || 0}
                     active={hasCvRules}
                   />
@@ -332,6 +332,7 @@ export default function DocumentCatalog() {
                         checked={!!doc.mandatory}
                         onCheckedChange={() => handleToggleMandatory(doc)}
                         className="scale-75"
+                        aria-label={`Make ${doc.name} required`}
                       />
                       <span>Required</span>
                     </div>
@@ -340,6 +341,7 @@ export default function DocumentCatalog() {
                         checked={doc.is_active ?? true}
                         onCheckedChange={() => handleToggleActive(doc)}
                         className="scale-75"
+                        aria-label={`Turn ${doc.name} on or off`}
                       />
                       <span>{(doc.is_active ?? true) ? 'Active' : 'Disabled'}</span>
                     </div>
@@ -348,8 +350,10 @@ export default function DocumentCatalog() {
                     variant="ghost"
                     size="sm"
                     className="h-7 gap-1.5 text-xs text-primary hover:bg-primary/5 group-hover:bg-primary/10"
+                    onClick={(e) => { e.stopPropagation(); setDrawerDoc(doc); }}
+                    aria-label={`Configure ${doc.name}`}
                   >
-                    <Settings className="h-3 w-3" />
+                    <Settings className="h-3 w-3" aria-hidden />
                     Configure
                   </Button>
                 </div>

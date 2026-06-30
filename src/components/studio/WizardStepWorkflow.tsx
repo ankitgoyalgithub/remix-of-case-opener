@@ -109,9 +109,9 @@ export function WizardStepWorkflow() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between border-b pb-4">
         <div>
-          <h2 className="text-xl font-semibold text-foreground">Workflow Stages</h2>
+          <h2 className="text-xl font-semibold text-foreground">Review stages</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Define the architectural backbone of your insurance processing pipeline.
+            Set the steps every request moves through, in order.
           </p>
         </div>
         <Button size="sm" onClick={() => setAddDialogOpen(true)}>

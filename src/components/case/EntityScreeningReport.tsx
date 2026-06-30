@@ -3,23 +3,12 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ShieldCheck, AlertTriangle, ExternalLink, Clock, Search, ShieldAlert } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { severityMeta, bySeverity } from '@/lib/status';
 
 interface EntityScreeningReportProps {
     result: ChecklistValidationResult;
     itemLabel?: string;
 }
-
-const SEVERITY_ORDER: Record<string, number> = {
-    critical: 0, high: 1, medium: 2, low: 3, info: 4,
-};
-
-const SEVERITY_STYLES: Record<string, string> = {
-    critical: 'bg-destructive/15 text-destructive border-destructive/30',
-    high: 'bg-destructive/15 text-destructive border-destructive/30',
-    medium: 'bg-warning/15 text-warning border-warning/30',
-    low: 'bg-muted text-muted-foreground border-border',
-    info: 'bg-muted text-muted-foreground border-border',
-};
 
 function parseEntityRow(row: ChecklistRuleResult) {
     const entity = row.source_value || '';
@@ -42,11 +31,7 @@ export function EntityScreeningReport({ result, itemLabel }: EntityScreeningRepo
     const entityMeta = entityRow ? parseEntityRow(entityRow) : { entity: '', provider: '', resolutionSource: undefined };
     const runAt = result.run_at ? new Date(result.run_at) : null;
 
-    const sortedFindings = [...findingRows].sort((a, b) => {
-        const sa = SEVERITY_ORDER[(a.target_value || '').toLowerCase()] ?? 99;
-        const sb = SEVERITY_ORDER[(b.target_value || '').toLowerCase()] ?? 99;
-        return sa - sb;
-    });
+    const sortedFindings = [...findingRows].sort(bySeverity(f => f.target_value));
 
     const hasHighSeverity = sortedFindings.some(f => {
         const s = (f.target_value || '').toLowerCase();
@@ -75,7 +60,7 @@ export function EntityScreeningReport({ result, itemLabel }: EntityScreeningRepo
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="text-base font-semibold text-foreground truncate">
-                            {entityMeta.entity || itemLabel || 'Entity screening'}
+                            {entityMeta.entity || itemLabel || 'Background check'}
                         </h4>
                         <Badge
                             variant="outline"
@@ -94,13 +79,13 @@ export function EntityScreeningReport({ result, itemLabel }: EntityScreeningRepo
                     <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                         {entityMeta.resolutionSource && (
                             <div>
-                                <p className="text-muted-foreground">Entity source</p>
+                                <p className="text-muted-foreground">Company identified from</p>
                                 <p className="font-medium text-foreground">{entityMeta.resolutionSource}</p>
                             </div>
                         )}
                         {entityMeta.provider && (
                             <div>
-                                <p className="text-muted-foreground">Provider</p>
+                                <p className="text-muted-foreground">Service</p>
                                 <p className="font-medium text-foreground">{entityMeta.provider}</p>
                             </div>
                         )}
@@ -122,18 +107,18 @@ export function EntityScreeningReport({ result, itemLabel }: EntityScreeningRepo
                 <div className="flex items-center gap-2 mb-2">
                     <Search className="h-4 w-4 text-muted-foreground" />
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Investigation summary
+                        What the background check found
                     </p>
                 </div>
                 <p className="text-sm text-foreground leading-relaxed">
                     {verdictRow?.note
                         || (sortedFindings.length === 0
-                            ? 'No adverse signals were found for this entity.'
-                            : 'The screening agent flagged the items below for review.')}
+                            ? 'No adverse signals were found for this company.'
+                            : 'The items below were flagged for review.')}
                 </p>
                 {entityRow?.note && (
                     <p className="text-xs text-muted-foreground mt-2 italic">
-                        Method: {entityRow.note}
+                        How this was checked: {entityRow.note}
                     </p>
                 )}
             </div>
@@ -146,8 +131,8 @@ export function EntityScreeningReport({ result, itemLabel }: EntityScreeningRepo
                             Findings ({sortedFindings.length})
                         </p>
                         {hasHighSeverity && (
-                            <Badge variant="outline" className="text-[10px] font-semibold uppercase bg-destructive/10 text-destructive border-destructive/30">
-                                High-severity hits
+                            <Badge variant="critical" className="text-[10px] font-semibold uppercase">
+                                High-severity findings
                             </Badge>
                         )}
                     </div>
@@ -163,8 +148,7 @@ export function EntityScreeningReport({ result, itemLabel }: EntityScreeningRepo
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {sortedFindings.map((f, idx) => {
-                                    const severity = (f.target_value || 'info').toLowerCase();
-                                    const sevStyle = SEVERITY_STYLES[severity] || SEVERITY_STYLES.info;
+                                    const sev = severityMeta(f.target_value || 'info');
                                     return (
                                         <tr key={idx} className="align-top">
                                             <td className="px-3 py-3">
@@ -177,8 +161,8 @@ export function EntityScreeningReport({ result, itemLabel }: EntityScreeningRepo
                                                 )}
                                             </td>
                                             <td className="px-3 py-3">
-                                                <Badge variant="outline" className={cn('text-[10px] font-semibold uppercase', sevStyle)}>
-                                                    {severity}
+                                                <Badge variant={sev.variant} className="text-[10px] font-semibold uppercase">
+                                                    {sev.label}
                                                 </Badge>
                                             </td>
                                             <td className="px-3 py-3">
@@ -209,8 +193,9 @@ export function EntityScreeningReport({ result, itemLabel }: EntityScreeningRepo
                     <div>
                         <p className="text-sm font-medium text-foreground">No adverse signals detected</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                            The screening agent searched open web sources for sanctions, PEP, adverse media and
-                            regulatory actions and did not classify any results as genuine red flags for this entity.
+                            We searched public sources for sanctions, politically exposed persons (PEP),
+                            adverse media and regulatory actions, and found nothing that looks like a genuine
+                            red flag for this company.
                         </p>
                     </div>
                 </div>

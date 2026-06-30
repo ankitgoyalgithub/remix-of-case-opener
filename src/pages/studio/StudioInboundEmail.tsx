@@ -18,6 +18,7 @@ import { INBOUND_POLL_EVENT } from '@/components/layout/AppLayout';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { emailOutcomeMeta } from '@/components/studio/emailStatus';
 
 interface EmailAccount {
     id: string;
@@ -61,14 +62,6 @@ interface IncomingEmail {
     created_at: string;
 }
 
-const STATUS_TONE: Record<string, string> = {
-    matched: 'bg-success/10 text-success border-success/30',
-    skipped: 'bg-muted text-muted-foreground border-border',
-    pending: 'bg-info/10 text-info border-info/30',
-    failed: 'bg-destructive/10 text-destructive border-destructive/30',
-    duplicate: 'bg-muted text-muted-foreground border-border',
-};
-
 export default function StudioInboundEmail() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [loading, setLoading] = useState(true);
@@ -91,7 +84,7 @@ export default function StudioInboundEmail() {
             setEmails(e);
         } catch (err) {
             console.error(err);
-            toast.error('Failed to load inbound email config');
+            toast.error("We couldn't load your incoming-email settings. Please refresh to try again.");
         } finally {
             setLoading(false);
         }
@@ -129,12 +122,13 @@ export default function StudioInboundEmail() {
         setPolling(account.id);
         try {
             const res = await api.inboundEmail.accounts.poll(account.id);
-            toast.success(`Polled ${account.email_address}`, {
-                description: `${res.fetched ?? 0} fetched · ${res.matched ?? 0} matched · ${res.skipped ?? 0} skipped`,
+            toast.success(`Checked ${account.email_address}`, {
+                description: `${res.fetched ?? 0} received · ${res.matched ?? 0} imported · ${res.skipped ?? 0} skipped`,
             });
             await refresh();
         } catch (err: any) {
-            toast.error(err?.message || 'Poll failed');
+            toast.error("We couldn't check that mailbox just now. Please try again in a moment.");
+            console.error(err);
         } finally {
             setPolling(null);
         }
@@ -147,41 +141,41 @@ export default function StudioInboundEmail() {
             await api.inboundEmail.accounts.update(account.id, { enabled: next });
         } catch {
             setAccounts(prev => prev.map(a => a.id === account.id ? { ...a, enabled: !next } : a));
-            toast.error('Failed to update');
+            toast.error("We couldn't update that mailbox. Please try again.");
         }
     };
 
     const deleteAccount = async (account: EmailAccount) => {
-        if (!window.confirm(`Disconnect ${account.email_address}? This deletes the stored token and all ingestion rules.`)) return;
+        if (!window.confirm(`Disconnect ${account.email_address}? We'll stop checking this mailbox and remove its matching rules. You can reconnect any time.`)) return;
         try {
             await api.inboundEmail.accounts.delete(account.id);
-            toast.success('Disconnected');
+            toast.success('Mailbox disconnected');
             refresh();
         } catch {
-            toast.error('Disconnect failed');
+            toast.error("We couldn't disconnect that mailbox. Please try again.");
         }
     };
 
     const deleteRule = async (rule: IngestionRule) => {
-        if (!window.confirm(`Delete rule "${rule.name}"?`)) return;
+        if (!window.confirm(`Delete the rule "${rule.name}"? Emails will no longer be matched by it.`)) return;
         try {
             await api.inboundEmail.rules.delete(rule.id);
             toast.success('Rule deleted');
             refresh();
         } catch {
-            toast.error('Failed to delete');
+            toast.error("We couldn't delete that rule. Please try again.");
         }
     };
 
     return (
         <>
             <PageHeader
-                eyebrow="Studio · Inbound email"
-                title="Email-driven submissions"
-                description="Connect a Gmail mailbox. Brokers send submissions there with attachments; matching emails turn into requests automatically."
+                eyebrow="Configuration · Incoming email"
+                title="Incoming email"
+                description="Connect a Gmail mailbox so broker submissions sent there, with their attachments, turn into requests automatically."
                 actions={
                     <Button size="sm" className="gap-1.5" onClick={handleConnect}>
-                        <Plus className="h-3.5 w-3.5" />
+                        <Plus className="h-3.5 w-3.5" aria-hidden />
                         Connect Gmail
                     </Button>
                 }
@@ -219,27 +213,27 @@ export default function StudioInboundEmail() {
                                             <CardTitle className="text-sm font-semibold">{account.email_address}</CardTitle>
                                             <Badge variant="outline" className="text-[10px] h-4 px-1.5 uppercase">{account.provider}</Badge>
                                             {account.has_refresh_token ? (
-                                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-success/10 text-success border-success/30 gap-1">
-                                                    <CheckCircle2 className="h-2.5 w-2.5" />
-                                                    Authorized
+                                                <Badge variant="success" className="text-[10px] h-4 px-1.5 gap-1">
+                                                    <CheckCircle2 className="h-2.5 w-2.5" aria-hidden />
+                                                    Connected
                                                 </Badge>
                                             ) : (
-                                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-warning/10 text-warning border-warning/30 gap-1">
-                                                    <AlertTriangle className="h-2.5 w-2.5" />
-                                                    No token
+                                                <Badge variant="warning" className="text-[10px] h-4 px-1.5 gap-1">
+                                                    <AlertTriangle className="h-2.5 w-2.5" aria-hidden />
+                                                    Reconnect needed
                                                 </Badge>
                                             )}
                                         </div>
                                         <p className="text-xs text-muted-foreground mt-1">
                                             {account.last_polled_at
-                                                ? `Last polled ${format(new Date(account.last_polled_at), 'dd MMM HH:mm:ss')}`
-                                                : 'Never polled yet'}
+                                                ? `Last checked ${format(new Date(account.last_polled_at), 'dd MMM HH:mm:ss')}`
+                                                : 'Not checked yet'}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                         <div className="flex items-center gap-1.5">
-                                            <Switch checked={account.enabled} onCheckedChange={() => toggleEnabled(account)} className="scale-90" />
-                                            <span className="text-xs text-muted-foreground">{account.enabled ? 'Enabled' : 'Disabled'}</span>
+                                            <Switch checked={account.enabled} onCheckedChange={() => toggleEnabled(account)} className="scale-90" aria-label={`Turn checking of ${account.email_address} on or off`} />
+                                            <span className="text-xs text-muted-foreground">{account.enabled ? 'On' : 'Off'}</span>
                                         </div>
                                         <Button
                                             size="sm" variant="outline" className="h-8 gap-1.5"
@@ -247,31 +241,36 @@ export default function StudioInboundEmail() {
                                             disabled={polling === account.id}
                                         >
                                             {polling === account.id
-                                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                : <RefreshCw className="h-3.5 w-3.5" />}
-                                            Poll now
+                                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                                                : <RefreshCw className="h-3.5 w-3.5" aria-hidden />}
+                                            Check now
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => deleteAccount(account)}>
-                                            <Trash2 className="h-4 w-4" />
+                                        <Button
+                                            variant="ghost" size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                            onClick={() => deleteAccount(account)}
+                                            aria-label={`Disconnect ${account.email_address}`}
+                                        >
+                                            <Trash2 className="h-4 w-4" aria-hidden />
                                         </Button>
                                     </div>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="flex items-center justify-between mb-2">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                                            Ingestion rules ({accountRules.length})
+                                            Matching rules ({accountRules.length})
                                         </p>
                                         <Button
                                             size="sm" variant="outline" className="h-7 gap-1.5 text-xs"
                                             onClick={() => setShowRuleDialog({ accountId: account.id, rule: null })}
                                         >
-                                            <Plus className="h-3 w-3" />
+                                            <Plus className="h-3 w-3" aria-hidden />
                                             Add rule
                                         </Button>
                                     </div>
                                     {accountRules.length === 0 ? (
                                         <p className="text-xs text-muted-foreground italic py-2">
-                                            No rules — emails will be skipped. Add one to start ingesting.
+                                            No rules yet — without a rule, emails to this mailbox are skipped. Add one to start turning them into requests.
                                         </p>
                                     ) : (
                                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
@@ -296,8 +295,8 @@ export default function StudioInboundEmail() {
                                                             <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => setShowRuleDialog({ accountId: account.id, rule })}>
                                                                 Edit
                                                             </Button>
-                                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteRule(rule)}>
-                                                                <Trash2 className="h-3 w-3" />
+                                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteRule(rule)} aria-label={`Delete rule ${rule.name}`}>
+                                                                <Trash2 className="h-3 w-3" aria-hidden />
                                                             </Button>
                                                         </div>
                                                     </div>
@@ -385,7 +384,7 @@ function RecentEmailsFeed({ emails }: { emails: IncomingEmail[] }) {
                 {filtered.length === 0 ? (
                     <p className="text-xs text-muted-foreground italic py-3">
                         {emails.length === 0
-                            ? 'No emails ingested yet. Trigger a poll on a connected mailbox.'
+                            ? 'No emails received yet. Use "Check now" on a connected mailbox to look for new ones.'
                             : `No ${filter} emails.`}
                     </p>
                 ) : (
@@ -408,8 +407,8 @@ function RecentEmailsFeed({ emails }: { emails: IncomingEmail[] }) {
                                         onClick={() => setExpanded(s => ({ ...s, [em.id]: !s[em.id] }))}
                                         className="w-full flex items-start gap-3 px-3 py-2 text-left hover:bg-muted/20 transition-colors"
                                     >
-                                        <Badge variant="outline" className={cn('text-[10px] h-4 px-1.5 shrink-0 mt-0.5', STATUS_TONE[em.status] || '')}>
-                                            {em.status}
+                                        <Badge variant={emailOutcomeMeta(em.status).variant} className="text-[10px] h-4 px-1.5 shrink-0 mt-0.5">
+                                            {emailOutcomeMeta(em.status).label}
                                         </Badge>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 flex-wrap">
@@ -451,7 +450,7 @@ function RecentEmailsFeed({ emails }: { emails: IncomingEmail[] }) {
                                             {(em.status === 'skipped' || em.status === 'failed') && reasons.length > 0 && (
                                                 <div>
                                                     <p className="text-[10px] font-semibold text-destructive uppercase tracking-wider mb-1">
-                                                        Why it was {em.status}
+                                                        Why it was {emailOutcomeMeta(em.status).label.toLowerCase()}
                                                     </p>
                                                     <ul className="space-y-1">
                                                         {reasons.map((r, i) => (
@@ -463,9 +462,6 @@ function RecentEmailsFeed({ emails }: { emails: IncomingEmail[] }) {
                                                     </ul>
                                                 </div>
                                             )}
-                                            <div className="text-[10px] text-muted-foreground">
-                                                Message ID: <code>{em.provider_message_id}</code>
-                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -541,7 +537,8 @@ function RuleDialog({ open, accountId, rule, onClose, onSaved }: {
             onSaved();
             onClose();
         } catch (e: any) {
-            toast.error(e?.message || 'Save failed');
+            toast.error("We couldn't save that rule. Please try again.");
+            console.error(e);
         } finally { setSaving(false); }
     };
 
@@ -549,9 +546,9 @@ function RuleDialog({ open, accountId, rule, onClose, onSaved }: {
         <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
             <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>{isEdit ? 'Edit ingestion rule' : 'Add ingestion rule'}</DialogTitle>
+                    <DialogTitle>{isEdit ? 'Edit matching rule' : 'Add matching rule'}</DialogTitle>
                     <DialogDescription>
-                        Comma-separate multiple values. All non-empty conditions are AND'd together.
+                        Separate multiple values with commas. An email must match every condition you fill in.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3 py-2">
@@ -583,8 +580,8 @@ function RuleDialog({ open, accountId, rule, onClose, onSaved }: {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div className="flex items-center gap-2">
-                            <Switch checked={form.require_attachment} onCheckedChange={(v) => setForm({ ...form, require_attachment: v })} />
-                            <span className="text-xs text-muted-foreground">Require attachment</span>
+                            <Switch checked={form.require_attachment} onCheckedChange={(v) => setForm({ ...form, require_attachment: v })} aria-label="Only match emails that have an attachment" />
+                            <span className="text-xs text-muted-foreground">Must have an attachment</span>
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-xs">Default request priority</Label>
@@ -598,8 +595,8 @@ function RuleDialog({ open, accountId, rule, onClose, onSaved }: {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Switch checked={form.enabled} onCheckedChange={(v) => setForm({ ...form, enabled: v })} />
-                        <span className="text-xs text-muted-foreground">Enabled</span>
+                        <Switch checked={form.enabled} onCheckedChange={(v) => setForm({ ...form, enabled: v })} aria-label="Turn this rule on or off" />
+                        <span className="text-xs text-muted-foreground">On</span>
                     </div>
                 </div>
                 <DialogFooter>

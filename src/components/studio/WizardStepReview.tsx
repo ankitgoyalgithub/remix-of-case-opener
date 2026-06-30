@@ -29,38 +29,38 @@ export function WizardStepReview() {
   const sections: ReviewSection[] = [
     {
       icon: Workflow,
-      title: 'Architectural Pipeline',
+      title: 'Review stages',
       count: stages.length,
       status: stages.length > 0 ? 'complete' : 'warning',
-      details: `${stages.length} Operational stages fully sequenced.`,
+      details: `${stages.length} stages, in order.`,
     },
     {
       icon: FileText,
-      title: 'Document Registry',
+      title: 'Documents',
       count: documents.length,
       status: documents.length > 0 ? 'complete' : 'warning',
-      details: `${documents.filter(d => d.mandatory).length} Critical requirements mapped.`,
+      details: `${documents.filter(d => d.mandatory).length} marked as required.`,
     },
     {
       icon: Database,
-      title: 'Intelligence Schema',
+      title: 'Values to read',
       count: fields.length,
       status: fields.length > 0 ? 'complete' : 'info',
-      details: `${fields.length} Data points configured for extraction.`,
+      details: `${fields.length} values the system will read from documents.`,
     },
     {
       icon: ClipboardCheck,
-      title: 'Validation Logic',
+      title: 'Validation checks',
       count: checklist.length,
       status: checklist.length > 0 ? 'complete' : 'warning',
-      details: `${checklist.length} Checkpoints established for verification.`,
+      details: `${checklist.length} checks set up.`,
     },
     {
       icon: Mail,
-      title: 'Notification Matrix',
+      title: 'Email templates',
       count: templates.length,
       status: templates.length > 0 ? 'complete' : 'info',
-      details: `${templates.length} Active communication templates.`,
+      details: `${templates.length} email templates ready.`,
     },
   ];
 
@@ -69,9 +69,9 @@ export function WizardStepReview() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-semibold text-foreground">Mission Control Review</h2>
+        <h2 className="text-2xl font-semibold text-foreground">Review &amp; finish</h2>
         <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Finalize and deploy your enterprise configuration. Publishing will activate these parameters for all future requests.
+          Check the summary below. When you finish, these settings start applying to new requests.
         </p>
       </div>
 
@@ -91,13 +91,13 @@ export function WizardStepReview() {
                   </div>
                   {section.status === 'complete' ? (
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-success/10 text-success">
-                      <Check className="h-3 w-3" />
-                      <span className="text-xs font-semibold">Validated</span>
+                      <Check className="h-3 w-3" aria-hidden />
+                      <span className="text-xs font-semibold">Ready</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-warning/10 text-warning">
-                      <AlertCircle className="h-3 w-3" />
-                      <span className="text-xs font-semibold">Review</span>
+                      <AlertCircle className="h-3 w-3" aria-hidden />
+                      <span className="text-xs font-semibold">Needs review</span>
                     </div>
                   )}
                 </div>
@@ -106,7 +106,7 @@ export function WizardStepReview() {
                   <h3 className="text-sm font-medium text-muted-foreground">{section.title}</h3>
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-bold text-foreground">{section.count}</span>
-                    <span className="text-xs font-medium text-muted-foreground">Active nodes</span>
+                    <span className="text-xs font-medium text-muted-foreground">set up</span>
                   </div>
                 </div>
 
@@ -122,12 +122,12 @@ export function WizardStepReview() {
         <div className="bg-warning/5 rounded-xl border border-warning/20 p-6 relative overflow-hidden">
           <div className="flex items-start gap-4 relative z-10">
             <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center text-warning shrink-0 mt-1">
-              <AlertCircle className="h-5 w-5" />
+              <AlertCircle className="h-5 w-5" aria-hidden />
             </div>
             <div className="space-y-4 flex-1">
               <div>
-                <h4 className="text-base font-semibold text-warning">Configuration Vulnerabilities</h4>
-                <p className="text-sm text-warning/80 mt-1">We've identified potential gaps in your operational architecture.</p>
+                <h4 className="text-base font-semibold text-warning">A few things to finish</h4>
+                <p className="text-sm text-warning/80 mt-1">These parts aren't set up yet. You can finish now and come back to them later.</p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {warnings.map(w => (

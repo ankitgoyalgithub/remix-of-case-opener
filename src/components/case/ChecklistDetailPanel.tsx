@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EntityScreeningReport } from './EntityScreeningReport';
 import { MolValidationReport } from './MolValidationReport';
+import { DecisionModal } from '@/components/request/DecisionModal';
 
 interface ChecklistDetailPanelProps {
   item: ChecklistItem;
@@ -19,56 +20,23 @@ interface ChecklistDetailPanelProps {
   onRunValidation?: (itemId: string) => Promise<void>;
 }
 
+// Each kind of check, in plain language. Colour is restricted to the two
+// semantic tones we need here: automated checks use the brand accent, manual
+// checks stay muted — no ad-hoc palette colours.
 const TYPE_CONFIG = {
-  'manual': {
-    icon: User,
-    label: 'Manual Task',
-    color: 'text-blue-500',
-    bg: 'bg-blue-500/10',
-    border: 'border-blue-500/20',
-  },
-  'extraction': {
-    icon: Zap,
-    label: 'AI Extraction',
-    color: 'text-indigo-500',
-    bg: 'bg-indigo-500/10',
-    border: 'border-indigo-500/20',
-  },
-  'cross-validation': {
-    icon: GitCompare,
-    label: 'Cross-Validation',
-    color: 'text-purple-500',
-    bg: 'bg-purple-500/10',
-    border: 'border-purple-500/20',
-  },
-  'third-party-api': {
-    icon: Globe,
-    label: 'Third-Party API',
-    color: 'text-emerald-500',
-    bg: 'bg-emerald-500/10',
-    border: 'border-emerald-500/20',
-  },
-  'verification': {
-    icon: AlertCircle,
-    label: 'Verification',
-    color: 'text-amber-500',
-    bg: 'bg-amber-500/10',
-    border: 'border-amber-500/20',
-  },
-  'mol-validation': {
-    icon: Users,
-    label: 'Census Validation',
-    color: 'text-teal-500',
-    bg: 'bg-teal-500/10',
-    border: 'border-teal-500/20',
-  },
+  'manual': { icon: User, label: 'Manual check', color: 'text-muted-foreground' },
+  'extraction': { icon: Zap, label: 'Document reading', color: 'text-primary' },
+  'cross-validation': { icon: GitCompare, label: 'Compare documents', color: 'text-primary' },
+  'third-party-api': { icon: Globe, label: 'External check', color: 'text-primary' },
+  'verification': { icon: AlertCircle, label: 'Verification', color: 'text-primary' },
+  'mol-validation': { icon: Users, label: 'Employee-list check', color: 'text-primary' },
 } as const;
 
 const RESULT_STATUS_CONFIG = {
-  pass: { icon: Check, label: 'PASSED', color: 'text-success', bg: 'bg-success/10', border: 'border-success/30' },
-  fail: { icon: X, label: 'FAILED', color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/30' },
-  pending: { icon: Clock, label: 'PENDING', color: 'text-muted-foreground', bg: 'bg-muted/30', border: 'border-border/50' },
-  error: { icon: AlertCircle, label: 'ERROR', color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/30' },
+  pass: { icon: Check, label: 'Passed', color: 'text-success', bg: 'bg-success/10', border: 'border-success/30' },
+  fail: { icon: X, label: 'Failed', color: 'text-destructive', bg: 'bg-destructive/10', border: 'border-destructive/30' },
+  pending: { icon: Clock, label: 'Not run yet', color: 'text-muted-foreground', bg: 'bg-muted/30', border: 'border-border/50' },
+  error: { icon: AlertCircle, label: 'Could not run', color: 'text-warning', bg: 'bg-warning/10', border: 'border-warning/30' },
 };
 
 
@@ -76,6 +44,9 @@ const RESULT_STATUS_CONFIG = {
 export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidation }: ChecklistDetailPanelProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [localResult, setLocalResult] = useState(item.result || null);
+  // The risk flag currently being resolved (drives the styled resolve dialog
+  // that replaced the old window.prompt).
+  const [resolvingFlag, setResolvingFlag] = useState<{ flagId: string; label: string } | null>(null);
 
   React.useEffect(() => {
     setLocalResult(item.result || null);
@@ -91,7 +62,7 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
         {/* Objective Analysis — compact muted text */}
         {item.taskDescription && (
           <div>
-            <p className="page-eyebrow mb-1.5">Objective Analysis</p>
+            <p className="page-eyebrow mb-1.5">What this check does</p>
             <p className="text-xs text-muted-foreground leading-relaxed">{item.taskDescription}</p>
           </div>
         )}
@@ -106,16 +77,16 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
         {item.verifications && item.verifications.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="page-eyebrow">Verification Pipeline</p>
-              <Badge variant="outline" className="text-[10px] h-4 px-1.5 opacity-60 uppercase">Definition</Badge>
+              <p className="page-eyebrow">How this check works</p>
+              <Badge variant="outline" className="text-[10px] h-4 px-1.5 opacity-60 uppercase">Setup</Badge>
             </div>
             <div className="rounded-md border border-border/40 overflow-hidden">
               <table className="w-full text-left text-xs">
                 <thead className="bg-muted/40 text-muted-foreground font-semibold uppercase tracking-wider text-[10px]">
                   <tr>
-                    <th className="px-3 py-2">Check type</th>
-                    <th className="px-3 py-2">Protocol / target</th>
-                    <th className="px-3 py-2 text-right">Methodology</th>
+                    <th className="px-3 py-2">Step</th>
+                    <th className="px-3 py-2">What it looks at</th>
+                    <th className="px-3 py-2 text-right">Run by</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/20">
@@ -132,7 +103,7 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                         </td>
                         <td className="px-3 py-2">
                           {(() => {
-                            const txt = v.config?.taskDescription || v.config?.target_document || (v.config?.target_documents?.join(', ')) || 'Standard Logic';
+                            const txt = v.config?.taskDescription || v.config?.target_document || (v.config?.target_documents?.join(', ')) || 'Standard check';
                             return <span className="text-muted-foreground truncate max-w-[200px] block" title={txt}>{txt}</span>;
                           })()}
                         </td>
@@ -158,12 +129,12 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
         {localResult ? (
           <div className="space-y-4 pt-4 border-t">
             <div className="flex items-center justify-between">
-              <p className="page-eyebrow">Validation Intelligence</p>
+              <p className="page-eyebrow">Result</p>
               <div className="flex items-center gap-3">
                 {( (item.handlerName && item.handlerName !== 'manual') || item.itemType === 'cross-validation' || item.verifications?.some(v => v.type !== 'manual') ) && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={async () => {
                       setIsRunning(true);
                       try {
@@ -173,7 +144,8 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                       }
                     }}
                     disabled={isRunning}
-                    title="Execute Validation Again"
+                    title="Run this check again"
+                    aria-label="Run this check again"
                     className="h-7 text-xs font-bold gap-1.5 uppercase tracking-widest text-primary border-primary/20 hover:bg-primary/5"
                   >
                     {isRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
@@ -219,10 +191,8 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                           <div className="flex items-center justify-between gap-3 px-4 py-2 bg-muted/40 border-b border-border/60">
                             <div className="flex items-center gap-2 min-w-0">
                               <span className="text-[10px] font-semibold text-muted-foreground tabular-nums shrink-0">#{stepIdx + 1}</span>
-                              <span className="text-xs font-mono text-foreground truncate" title={handlerName}>{handlerName}</span>
-                              {typeof stepMeta.duration_ms === 'number' && (
-                                <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">· {stepMeta.duration_ms}ms</span>
-                              )}
+                              {/* The raw handler name is engineering detail — keep it out of the UI. */}
+                              <span className="text-xs font-medium text-foreground truncate">Check step {stepIdx + 1}</span>
                             </div>
                             {stepStatus && (
                               <Badge variant="outline" className={cn(
@@ -240,9 +210,9 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                         <table className="w-full text-left text-sm">
                           <thead className="bg-muted/20 text-xs uppercase text-muted-foreground">
                             <tr>
-                              <th className="px-4 py-3 font-semibold">Rule / Field</th>
-                              <th className="px-4 py-3 font-semibold">Source Document</th>
-                              <th className="px-4 py-3 font-semibold">Target Document</th>
+                              <th className="px-4 py-3 font-semibold">What’s checked</th>
+                              <th className="px-4 py-3 font-semibold">Found in</th>
+                              <th className="px-4 py-3 font-semibold">Compared with</th>
                               <th className="px-4 py-3 font-semibold text-right">Status</th>
                             </tr>
                           </thead>
@@ -316,19 +286,12 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
                                   size="sm"
                                   variant="outline"
                                   className="h-7 text-xs gap-1"
-                                  onClick={async (e) => {
+                                  onClick={(e) => {
                                     e.stopPropagation();
-                                    const note = window.prompt('Resolution note (what action was taken?)') || '';
-                                    if (!note.trim()) return;
-                                    try {
-                                      await api.workflow.resolveRiskFlag((rule as any).flag_id, note.trim());
-                                      toast.success('Risk flag resolved');
-                                      // Re-run the aggregate check so the stage recomputes
-                                      if (onRunValidation) await onRunValidation(item.id);
-                                    } catch (err) {
-                                      console.error('Resolve failed', err);
-                                      toast.error('Could not resolve flag');
-                                    }
+                                    setResolvingFlag({
+                                      flagId: (rule as any).flag_id,
+                                      label: rule.rule || rule.source_field || 'this risk',
+                                    });
                                   }}
                                 >
                                   <Check className="h-3 w-3" />
@@ -360,11 +323,37 @@ export function ChecklistDetailPanel({ item, onValidationComplete, onRunValidati
             <div className="w-12 h-12 rounded-full bg-primary/5 flex items-center justify-center mb-4">
               <Play className="h-5 w-5 text-primary/40 ml-0.5" />
             </div>
-            <h4 className="text-sm font-bold text-foreground">Awaiting Automated Execution</h4>
-            <p className="text-xs text-muted-foreground mt-1 px-8">Trigger this check using the play icon in the checklist sidebar to begin AI verification.</p>
+            <h4 className="text-sm font-bold text-foreground">Not run yet</h4>
+            <p className="text-xs text-muted-foreground mt-1 px-8">Press the play button next to this item to run the check and see results.</p>
           </div>
         ) : null}
       </div>
+
+      {/* Resolve risk flag — styled dialog (replaces the old window.prompt). */}
+      <DecisionModal
+        open={resolvingFlag !== null}
+        action="approve"
+        title="Resolve risk flag"
+        description={`Resolving “${resolvingFlag?.label ?? 'this risk'}”. Record what was done so the audit trail explains why it’s cleared.`}
+        confirmLabel="Mark resolved"
+        reasonLabel="What was done to resolve this?"
+        reasonPlaceholder="e.g. Confirmed with the broker that the name difference is a legal rename; confirmation attached."
+        reasonRequired
+        onCancel={() => setResolvingFlag(null)}
+        onConfirm={async (note) => {
+          if (!resolvingFlag) return;
+          try {
+            await api.workflow.resolveRiskFlag(resolvingFlag.flagId, note);
+            toast.success('Risk flag resolved.');
+            if (onRunValidation) await onRunValidation(item.id);
+          } catch (err) {
+            console.error('Resolve failed', err);
+            toast.error("We couldn't resolve this flag. Please try again — if it keeps happening, contact support.");
+          } finally {
+            setResolvingFlag(null);
+          }
+        }}
+      />
     </div>
   );
 }

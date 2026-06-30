@@ -48,7 +48,8 @@ export function CheckLibraryDialog({ open, onOpenChange, stage, onCreated }: Pro
       onCreated();
       onOpenChange(false);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to add check');
+      toast.error("We couldn't add that check. Please try again.");
+      console.error(err);
     } finally {
       setSaving(false);
     }

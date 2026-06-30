@@ -1,8 +1,9 @@
 import { format } from 'date-fns';
-import { Building2, Hash, Calendar, User, Layers, AlertTriangle, Inbox } from 'lucide-react';
+import { Building2, Hash, Calendar, User, Layers, AlertTriangle, Users, CheckCircle2, FileText } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { CaseData } from '@/types/case';
-import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { requestStatusMeta } from '@/lib/status';
 
 interface EvidencePackSummaryProps {
   caseData: CaseData;
@@ -32,31 +33,6 @@ function MetaCell({
   );
 }
 
-function Pill({
-  tone,
-  children,
-  className,
-}: {
-  tone: 'info' | 'primary' | 'muted' | 'success';
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center px-1.5 h-5 rounded text-[11px] font-semibold',
-        tone === 'info' && 'bg-info/10 text-info',
-        tone === 'primary' && 'bg-primary/10 text-primary',
-        tone === 'muted' && 'bg-muted text-muted-foreground',
-        tone === 'success' && 'bg-success/10 text-success',
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
 export function EvidencePackSummary({ caseData }: EvidencePackSummaryProps) {
   const created = caseData.createdAt
     ? format(new Date(caseData.createdAt), 'dd MMM yyyy HH:mm')
@@ -65,15 +41,22 @@ export function EvidencePackSummary({ caseData }: EvidencePackSummaryProps) {
       : '—';
 
   const stageName = caseData.stages.find(s => s.id === caseData.currentStage)?.name;
+  const status = requestStatusMeta(caseData.status);
+
+  // Broker / owner come from the request mapper and are '' (empty) until the
+  // backend sends them. Treat empty as "no data" and hide the cell rather than
+  // render a blank or fabricated value in an audit document.
+  const hasOwner = Boolean(caseData.owner && caseData.owner.trim());
+  const hasBroker = Boolean(caseData.brokerEmail && caseData.brokerEmail.trim());
 
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
-      {/* Headline strip — company name + key status pills */}
+      {/* Headline strip — company name + key status badges */}
       <div className="px-5 py-4 border-b border-border bg-muted/30">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <Building2 className="h-3.5 w-3.5 text-primary" />
+              <Building2 className="h-3.5 w-3.5 text-primary" aria-hidden />
               <span className="text-[10.5px] font-mono font-semibold tracking-[0.16em] uppercase text-muted-foreground">
                 Subject company
               </span>
@@ -86,14 +69,26 @@ export function EvidencePackSummary({ caseData }: EvidencePackSummaryProps) {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-            <Pill tone="info">{caseData.status}</Pill>
-            <Pill tone={caseData.priority === 'Urgent' ? 'primary' : 'muted'}>
-              {caseData.priority === 'Urgent' && <AlertTriangle className="h-3 w-3 mr-1" />}
-              {caseData.priority} priority
-            </Pill>
-            <Pill tone={caseData.isIssued ? 'success' : 'muted'}>
-              {caseData.isIssued ? 'Final pack' : 'Draft pack'}
-            </Pill>
+            <Badge variant={status.variant}>{status.label}</Badge>
+            {caseData.priority === 'Urgent' ? (
+              <Badge variant="warning" className="gap-1">
+                <AlertTriangle className="h-3 w-3" aria-hidden />
+                Urgent priority
+              </Badge>
+            ) : (
+              <Badge variant="neutral">Normal priority</Badge>
+            )}
+            {caseData.isIssued ? (
+              <Badge variant="success" className="gap-1">
+                <CheckCircle2 className="h-3 w-3" aria-hidden />
+                Final
+              </Badge>
+            ) : (
+              <Badge variant="neutral" className="gap-1">
+                <FileText className="h-3 w-3" aria-hidden />
+                Draft
+              </Badge>
+            )}
           </div>
         </div>
       </div>
@@ -113,13 +108,13 @@ export function EvidencePackSummary({ caseData }: EvidencePackSummaryProps) {
           {created}
         </MetaCell>
 
-        <MetaCell icon={<User className="h-3.5 w-3.5" />} label="Assigned to">
-          {caseData.owner || (
-            <span className="text-muted-foreground italic">Unassigned</span>
-          )}
-        </MetaCell>
+        {hasOwner && (
+          <MetaCell icon={<User className="h-3.5 w-3.5" />} label="Assigned to">
+            {caseData.owner}
+          </MetaCell>
+        )}
 
-        <MetaCell icon={<Inbox className="h-3.5 w-3.5" />} label="Queue">
+        <MetaCell icon={<Users className="h-3.5 w-3.5" />} label="Assigned team">
           {caseData.queue}
         </MetaCell>
 
@@ -127,9 +122,11 @@ export function EvidencePackSummary({ caseData }: EvidencePackSummaryProps) {
           <span className="font-mono text-[11.5px] break-all">{caseData.id}</span>
         </MetaCell>
 
-        <MetaCell icon={<User className="h-3.5 w-3.5" />} label="Broker">
-          <span className="break-all">{caseData.brokerEmail || '—'}</span>
-        </MetaCell>
+        {hasBroker && (
+          <MetaCell icon={<User className="h-3.5 w-3.5" />} label="Broker">
+            <span className="break-all">{caseData.brokerEmail}</span>
+          </MetaCell>
+        )}
 
         <MetaCell icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Open risk flags">
           {caseData.riskFlags && caseData.riskFlags.length > 0 ? (

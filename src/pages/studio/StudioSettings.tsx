@@ -57,13 +57,13 @@ export default function StudioSettings() {
     mutationFn: (newSettings: GlobalSettings) => api.settings.update(newSettings),
     onSuccess: (data) => {
       queryClient.setQueryData(['globalSettings'], data);
-      toast.success('Settings saved', {
-        description: 'Global configuration updated successfully',
+      toast.success('Saved', {
+        description: 'Your workspace rules have been updated.',
       });
       setHasChanges(false);
     },
     onError: () => {
-      toast.error('Failed to save settings');
+      toast.error("We couldn't save your changes. Please try again.");
     }
   });
 
@@ -122,13 +122,13 @@ export default function StudioSettings() {
   return (
     <>
       <PageHeader
-        eyebrow="Studio · Settings"
-        title="Studio settings"
-        description="Configure global defaults and permissions."
+        eyebrow="Configuration · Workspace rules"
+        title="Workspace rules"
+        description="Set the defaults that apply across your workspace — deadlines, the teams requests can be assigned to, and who can approve anyway."
         actions={
           <Button onClick={handleSave} disabled={!hasChanges || updateMutation.isPending} size="sm" className="gap-1.5">
-            {updateMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-            Save settings
+            {updateMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Save className="h-3.5 w-3.5" aria-hidden />}
+            Save changes
           </Button>
         }
       />
@@ -138,16 +138,17 @@ export default function StudioSettings() {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
-              SLA Configuration
+              <Clock className="h-4 w-4 text-primary" aria-hidden />
+              Deadlines
             </CardTitle>
-            <CardDescription className="text-xs">Default SLA targets for request processing</CardDescription>
+            <CardDescription className="text-xs">How long the team has to decide a new request, by priority.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Normal Priority (hours)</Label>
+                <Label htmlFor="sla-normal">Normal priority (hours)</Label>
                 <Input
+                  id="sla-normal"
                   type="number"
                   value={settings.default_sla_normal}
                   onChange={(e) => {
@@ -158,8 +159,9 @@ export default function StudioSettings() {
                 />
               </div>
               <div>
-                <Label>Urgent Priority (hours)</Label>
+                <Label htmlFor="sla-urgent">Urgent priority (hours)</Label>
                 <Input
+                  id="sla-urgent"
                   type="number"
                   value={settings.default_sla_urgent}
                   onChange={(e) => {
@@ -177,31 +179,33 @@ export default function StudioSettings() {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Users className="h-4 w-4 text-primary" />
-              Queue Management
+              <Users className="h-4 w-4 text-primary" aria-hidden />
+              Assigned teams
             </CardTitle>
-            <CardDescription className="text-xs">Configure available ops queues for request routing</CardDescription>
+            <CardDescription className="text-xs">The teams a request can be assigned to.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap gap-2">
               {settings.default_queues.map(queue => (
                 <Badge key={queue} variant="secondary" className="gap-1.5 py-1.5 px-3">
                   {queue}
-                  <button onClick={() => handleRemoveQueue(queue)} className="ml-1 hover:text-destructive">
-                    <X className="h-3 w-3" />
+                  <button onClick={() => handleRemoveQueue(queue)} className="ml-1 hover:text-destructive" aria-label={`Remove team ${queue}`}>
+                    <X className="h-3 w-3" aria-hidden />
                   </button>
                 </Badge>
               ))}
             </div>
             <div className="flex gap-2">
+              <Label htmlFor="new-team" className="sr-only">Add a team</Label>
               <Input
-                placeholder="Add new queue..."
+                id="new-team"
+                placeholder="Add a team…"
                 value={newQueue}
                 onChange={(e) => setNewQueue(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddQueue()}
               />
-              <Button variant="outline" onClick={handleAddQueue}>
-                <Plus className="h-4 w-4" />
+              <Button variant="outline" onClick={handleAddQueue} aria-label="Add team">
+                <Plus className="h-4 w-4" aria-hidden />
               </Button>
             </div>
           </CardContent>
@@ -211,33 +215,35 @@ export default function StudioSettings() {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" />
-              Override Permissions
+              <Shield className="h-4 w-4 text-primary" aria-hidden />
+              Approving anyway
             </CardTitle>
-            <CardDescription className="text-xs">Configure who can override mismatches and discrepancies</CardDescription>
+            <CardDescription className="text-xs">Who can approve a request even when something doesn't match, and whether they must give a reason.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label className="text-sm">Roles allowed to override</Label>
+              <Label className="text-sm">Roles allowed to approve anyway</Label>
               <div className="flex flex-wrap gap-2 mt-2">
                 {settings.override_roles.map(role => (
                   <Badge key={role} variant="outline" className="gap-1.5 py-1.5 px-3">
                     {role}
-                    <button onClick={() => handleRemoveRole(role)} className="ml-1 hover:text-destructive">
-                      <X className="h-3 w-3" />
+                    <button onClick={() => handleRemoveRole(role)} className="ml-1 hover:text-destructive" aria-label={`Remove role ${role}`}>
+                      <X className="h-3 w-3" aria-hidden />
                     </button>
                   </Badge>
                 ))}
               </div>
               <div className="flex gap-2 mt-3">
+                <Label htmlFor="new-role" className="sr-only">Add a role</Label>
                 <Input
-                  placeholder="Add role..."
+                  id="new-role"
+                  placeholder="Add a role…"
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddRole()}
                 />
-                <Button variant="outline" onClick={handleAddRole}>
-                  <Plus className="h-4 w-4" />
+                <Button variant="outline" onClick={handleAddRole} aria-label="Add role">
+                  <Plus className="h-4 w-4" aria-hidden />
                 </Button>
               </div>
             </div>
@@ -246,12 +252,13 @@ export default function StudioSettings() {
 
             <div className="flex items-center justify-between">
               <div>
-                <Label>Override Reason Mandatory</Label>
+                <Label htmlFor="reason-required">Require a reason</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Require a reason when accepting discrepancies
+                  Ask for a written reason whenever someone approves anyway.
                 </p>
               </div>
               <Switch
+                id="reason-required"
                 checked={settings.override_reason_mandatory}
                 onCheckedChange={(checked) => {
                   setSettings(prev => prev ? ({ ...prev, override_reason_mandatory: checked }) : null);

@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-    Loader2, ArrowLeft, ArrowRight, AlertTriangle, CheckCircle2, XCircle, Clock,
-    FileCheck, ShieldAlert, Upload, Sparkles, FileText, Files, Gauge,
+    Loader2, ArrowLeft, ArrowRight, AlertTriangle, AlertCircle, CheckCircle2, XCircle, Clock, Clock3,
+    FileCheck, ShieldAlert, Upload, Sparkles, FileText, Files, Gauge, RefreshCw,
     Layers, Activity as ActivityIcon, MessageSquare, Check, X,
     ExternalLink, ChevronRight, ChevronDown, ScanSearch, Send, CircleDot, ListChecks,
 } from 'lucide-react';
@@ -22,6 +22,11 @@ import { BulkZipUploadButton } from '@/components/request/BulkZipUploadButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageShell } from '@/components/layout/PageShell';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { requestStatusMeta, severityMeta, slaMeta, bySeverity, type StatusIconName } from '@/lib/status';
+import { DecisionModal, type DecisionAction } from '@/components/request/DecisionModal';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface CheckItem {
     id: string; name: string; item_type: string; handler: string;
@@ -39,14 +44,24 @@ interface ReadinessSummary {
     risk_flags: { total: number; unresolved: number; blocking: number };
 }
 
-const SEVERITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
-const SEVERITY_STYLES: Record<string, string> = {
-    critical: 'bg-destructive/10 text-destructive border-destructive/30',
-    high: 'bg-destructive/10 text-destructive border-destructive/30',
-    medium: 'bg-warning/10 text-warning border-warning/30',
-    low: 'bg-muted text-muted-foreground border-border',
-    info: 'bg-muted text-muted-foreground border-border',
+// Non-colour cue icons returned by the shared status helpers (severity/SLA).
+// Status meaning is carried by text + variant + this icon — never colour alone.
+const STATUS_ICONS: Record<StatusIconName, typeof Check> = {
+    AlertTriangle, AlertCircle, Clock3, CheckCircle2, CircleDot, ShieldAlert,
 };
+
+// Severity badge routed entirely through the shared severityMeta helper so a
+// "Critical" flag looks and reads identically here, in the workbench and the
+// evidence pack. Carries a plain-language label + a non-colour icon cue.
+function SeverityBadge({ sev }: { sev: string }) {
+    const m = severityMeta(sev);
+    const Icon = m.icon ? STATUS_ICONS[m.icon] : null;
+    return (
+        <Badge variant={m.variant} className="text-[10px] uppercase font-bold shrink-0">
+            {Icon && <Icon className="h-3 w-3 mr-1" aria-hidden="true" />}{m.label}
+        </Badge>
+    );
+}
 
 // Friendly plural labels so a batch of identical flags collapses to one line
 // (e.g. 106 MOL employee mismatches -> "106 employees not found in MOL").
@@ -68,12 +83,13 @@ const FLAG_TYPE_LABEL: Record<string, string> = {
 };
 const humanizeFlag = (t: string) => FLAG_TYPE_LABEL[t] || (t || 'risk flags').replace(/_/g, ' ');
 
-// RequestStage.status -> pipeline display
+// RequestStage.status -> step display (plain language, aligned with the shared
+// stageMeta wording so a step reads the same everywhere).
 const STAGE_STATUS: Record<string, { label: string; tone: 'success' | 'destructive' | 'info' | 'muted'; icon: typeof Check }> = {
     completed: { label: 'Done', tone: 'success', icon: Check },
-    missing_info: { label: 'Blocked', tone: 'destructive', icon: X },
-    in_review: { label: 'In review', tone: 'info', icon: CircleDot },
-    pending: { label: 'Pending', tone: 'muted', icon: Clock },
+    missing_info: { label: 'Needs review', tone: 'destructive', icon: AlertTriangle },
+    in_review: { label: 'In progress', tone: 'info', icon: CircleDot },
+    pending: { label: 'Not started', tone: 'muted', icon: Clock },
     skipped: { label: 'Skipped', tone: 'muted', icon: Clock },
 };
 const TONE_TEXT: Record<string, string> = {
@@ -135,8 +151,21 @@ export default function RequestSummary() {
     const [convoOpen, setConvoOpen] = useState(false);
     const [composeOpen, setComposeOpen] = useState(false);
     const [notifyOpen, setNotifyOpen] = useState(false);
-    const [busy, setBusy] = useState(false);
     const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+    // Which approve/reject/send confirmation is open (null = none). Replaces the
+    // old window.prompt flow with the shared, audit-logged DecisionModal.
+    const [decisionAction, setDecisionAction] = useState<DecisionAction | null>(null);
+    // Risk being dismissed via the styled note dialog (replaces window.prompt).
+    const [dismissTarget, setDismissTarget] = useState<{ id: number; label: string } | null>(null);
+    // Per-source load failures so a failed fetch is surfaced inline (with Retry)
+    // instead of silently falling back to a safe-looking "all clear". `request`
+    // distinguishes a genuine 404 from a transient/network error.
+    const [loadError, setLoadError] = useState<{
+        request: 'notfound' | 'error' | null;
+        readiness: boolean;
+        documents: boolean;
+        timeline: boolean;
+    }>({ request: null, readiness: false, documents: false, timeline: false });
     // Surfaces the BE's content-classifier warning right after upload so the
     // operator can react before the file is silently filed under the wrong slot.
     const [classifierWarning, setClassifierWarning] = useState<{
@@ -158,9 +187,18 @@ export default function RequestSummary() {
             api.studio.documents.list(),
             api.requests.timeline(requestId),
         ]);
+        // Engineering details (status codes, stack traces) go to the console only;
+        // the UI gets plain-language, audience-appropriate copy + a Retry.
+        const nextErr: typeof loadError = { request: null, readiness: false, documents: false, timeline: false };
+
         if (reqResult.status === 'fulfilled') setRequest(reqResult.value);
-        else if (!silent) toast.error('Failed to load request');
+        else {
+            const msg = String(reqResult.reason?.message || '');
+            nextErr.request = /\b404\b|not found/i.test(msg) ? 'notfound' : 'error';
+            console.error('Failed to load request', reqResult.reason);
+        }
         if (rdResult.status === 'fulfilled') setReadiness(rdResult.value);
+        else { nextErr.readiness = true; console.error('Failed to load readiness', rdResult.reason); }
         if (docsResult.status === 'fulfilled') {
             const target = String(requestId).toLowerCase();
             setDocuments((docsResult.value as any[]).filter((d) => {
@@ -168,12 +206,14 @@ export default function RequestSummary() {
                 const rid = typeof r === 'object' ? r.id ?? r.pk : r;
                 return rid && String(rid).toLowerCase() === target;
             }));
-        }
+        } else { nextErr.documents = true; console.error('Failed to load documents', docsResult.reason); }
         if (defsResult.status === 'fulfilled') setDocDefs(defsResult.value);
-        else if (!silent) toast.error('Document catalog failed to load — mapping may be unavailable');
+        else { nextErr.documents = true; console.error('Failed to load document catalog', defsResult.reason); }
         if (tlResult.status === 'fulfilled') {
             setTimelineEvents(((tlResult.value as any)?.events as TimelineEvent[]) || []);
-        }
+        } else { nextErr.timeline = true; console.error('Failed to load timeline', tlResult.reason); }
+
+        setLoadError(nextErr);
         if (!silent) setLoading(false);
     };
 
@@ -203,10 +243,11 @@ export default function RequestSummary() {
                     message: res.classifier_warning.message,
                 });
             } else {
-                toast.success('Uploaded — extraction starting', { id: t });
+                toast.success('Uploaded — reading the document now', { id: t });
             }
         } catch (err: any) {
-            toast.error(err?.message || 'Upload failed', { id: t });
+            console.error('Upload failed', err);
+            toast.error("We couldn't upload that file. Check your connection and try again.", { id: t });
         } finally { setUploadingType(null); }
     };
 
@@ -226,10 +267,11 @@ export default function RequestSummary() {
                     message: res.classifier_warning.message,
                 });
             } else {
-                toast.success(`Replaced — re-extracting ${docTypeForToast}`, { id: t });
+                toast.success(`Replaced — re-reading ${docTypeForToast}`, { id: t });
             }
         } catch (err: any) {
-            toast.error(err?.message || 'Replace failed', { id: t });
+            console.error('Replace failed', err);
+            toast.error("We couldn't replace that file. Check your connection and try again.", { id: t });
         }
     };
 
@@ -238,65 +280,80 @@ export default function RequestSummary() {
         if (!classifierWarning) return;
         try {
             await api.documents.update(classifierWarning.documentId, { doc_type: classifierWarning.classifiedAs });
-            toast.success(`Document type changed to "${classifierWarning.classifiedName}"`);
+            toast.success(`Document type set to "${classifierWarning.classifiedName}"`);
             setClassifierWarning(null);
             await fetchData(true);
         } catch (err: any) {
-            toast.error(err?.message || 'Failed to change document type');
+            console.error('Failed to change document type', err);
+            toast.error("We couldn't change the document type. Please try again.");
         }
     };
     const discardWrongUpload = async () => {
         if (!classifierWarning) return;
         try {
             await api.documents.delete(classifierWarning.documentId);
-            toast.success('Uploaded file removed — pick the correct one and try again.');
+            toast.success('File removed — pick the correct one and upload again.');
             setClassifierWarning(null);
             await fetchData(true);
         } catch (err: any) {
-            toast.error(err?.message || 'Failed to remove the file');
+            console.error('Failed to remove the file', err);
+            toast.error("We couldn't remove the file. Please try again.");
         }
     };
+    // Honest behaviour: keeping the file simply leaves its type unchanged. We make
+    // no flag/tracking call here, so we don't claim one (the old copy did).
     const keepAsIs = () => {
-        toast.info(`Kept as ${classifierWarning?.claimedDocName}. A risk flag has been raised so it's tracked.`);
+        toast.info(`Kept as ${classifierWarning?.claimedDocName}. You can change the type later under Documents.`);
         setClassifierWarning(null);
     };
 
-    // Manually map a document that auto-classification left unmapped. PATCHing doc_type
-    // makes the backend re-run extraction for the new type and fire its checklist checks.
+    // Set the type on a document our auto-sort couldn't recognise. PATCHing doc_type
+    // makes the backend re-read the file for the new type and re-run its checks.
     const handleRemap = async (docId: string, docType: string) => {
         setRemappingId(docId);
-        const t = toast.loading('Mapping document…');
+        const t = toast.loading('Setting the document type…');
         try {
             await api.documents.update(docId, { doc_type: docType });
-            toast.success('Document mapped — re-running extraction', { id: t });
+            toast.success('Type set — re-reading the document', { id: t });
             await fetchData(true);
         } catch (err: any) {
-            toast.error(err?.message || 'Could not map document', { id: t });
+            console.error('Could not set document type', err);
+            toast.error("We couldn't set the document type. Please try again.", { id: t });
         } finally { setRemappingId(null); }
     };
 
-    const handleDecision = async (kind: 'approve' | 'reject') => {
-        if (!requestId || busy) return;
-        const comment = window.prompt(`${kind === 'approve' ? 'Approve' : 'Reject'} — add a note (optional):`) ?? '';
-        setBusy(true);
-        const t = toast.loading(`${kind === 'approve' ? 'Approving' : 'Rejecting'}…`);
+    // Single approve / reject / send-to-insurer path via the shared DecisionModal.
+    // A reason is captured and saved to the audit trail; readiness gating + the
+    // override acknowledgement are handled by the modal props below.
+    const submitDecision = async (reason: string) => {
+        if (!requestId || !decisionAction) return;
+        const verb = decisionAction === 'approve' ? 'Approving' : decisionAction === 'reject' ? 'Rejecting' : 'Sending to insurer';
+        const done = decisionAction === 'approve' ? 'Request approved' : decisionAction === 'reject' ? 'Request rejected' : 'Sent to insurer';
+        const t = toast.loading(`${verb}…`);
         try {
-            await (kind === 'approve' ? api.requests.approve(requestId, comment) : api.requests.reject(requestId, comment));
-            toast.success(kind === 'approve' ? 'Request approved' : 'Request rejected', { id: t });
+            if (decisionAction === 'approve') await api.requests.approve(requestId, reason);
+            else if (decisionAction === 'reject') await api.requests.reject(requestId, reason);
+            else await api.requests.publish(requestId);
+            toast.success(done, { id: t });
+            setDecisionAction(null);
             await fetchData(true);
         } catch (err: any) {
-            toast.error(err?.message || 'Could not record decision', { id: t });
-        } finally { setBusy(false); }
+            console.error('Could not record decision', err);
+            toast.error("We couldn't save your decision. Please try again.", { id: t });
+        }
     };
 
-    const handleResolveRisk = async (flagId: number) => {
-        const note = window.prompt('Dismiss this risk — resolution note:') || '';
-        if (!note.trim()) return;
+    const confirmDismiss = async (note: string) => {
+        if (!dismissTarget) return;
         try {
-            await api.workflow.resolveRiskFlag(flagId, note.trim());
-            toast.success('Risk dismissed');
+            await api.workflow.resolveRiskFlag(dismissTarget.id, note);
+            toast.success('Risk dismissed and recorded');
+            setDismissTarget(null);
             await fetchData(true);
-        } catch { toast.error('Could not dismiss risk'); }
+        } catch (err: any) {
+            console.error('Could not dismiss risk', err);
+            toast.error("We couldn't dismiss this risk. Please try again.");
+        }
     };
 
     if (loading) {
@@ -312,12 +369,29 @@ export default function RequestSummary() {
         );
     }
     if (!request) {
+        // Distinguish a genuine 404 (request gone) from a transient/network error,
+        // so we never dead-end an underwriter on a request that's simply slow to load.
+        const isNotFound = loadError.request === 'notfound';
         return (
             <div className="h-full flex items-center justify-center p-6">
-                <div className="text-center">
-                    <AlertTriangle className="h-6 w-6 mx-auto mb-3 text-warning" />
-                    <p className="text-sm text-foreground">Request not found.</p>
-                    <Link to="/requests" className="block mt-3"><Button variant="outline" size="sm">Back to inbox</Button></Link>
+                <div className="text-center max-w-sm">
+                    <AlertTriangle className="h-6 w-6 mx-auto mb-3 text-warning" aria-hidden="true" />
+                    <p className="text-sm font-medium text-foreground">
+                        {isNotFound ? "We couldn't find this request" : "We couldn't load this request"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        {isNotFound
+                            ? 'It may have been removed, or the link is out of date.'
+                            : 'Check your connection and try again — nothing has been lost.'}
+                    </p>
+                    <div className="flex items-center justify-center gap-2 mt-4">
+                        {!isNotFound && (
+                            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => fetchData()}>
+                                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> Try again
+                            </Button>
+                        )}
+                        <Link to="/requests"><Button variant={isNotFound ? 'outline' : 'ghost'} size="sm">Back to inbox</Button></Link>
+                    </div>
                 </div>
             </div>
         );
@@ -332,15 +406,33 @@ export default function RequestSummary() {
     };
 
     const listItem = mapBackendRequestToListItem(request);
-    const decision = mapBackendRequestDecision(request);
-    const publication = mapBackendRequestPublication(request);
+    const statusMeta = requestStatusMeta(request.status);
+    // Single SLA source: prefer the backend deadline; only fall back to the
+    // local estimate when the backend hasn't sent one. We derive the bucket
+    // once (getSlaStatus) and present it via the shared slaMeta helper.
     const slaRemaining = calculateSlaRemaining(listItem.createdAt, listItem.priority);
-    const slaStatus = getSlaStatus(slaRemaining, listItem.slaTargetHours);
-    const slaText = slaRemaining > 0 ? `${slaRemaining}h left` : slaRemaining === 0 ? 'Due now' : `${Math.abs(slaRemaining)}h overdue`;
-    const slaUsedPct = Math.min(100, Math.max(0, Math.round(((listItem.slaTargetHours - slaRemaining) / listItem.slaTargetHours) * 100)));
+    const slaDeadline = request.sla_deadline ? new Date(request.sla_deadline) : null;
+    const hoursLeft = slaDeadline
+        ? Math.round((slaDeadline.getTime() - Date.now()) / 3600000)
+        : slaRemaining;
+    const slaStatus = getSlaStatus(hoursLeft, listItem.slaTargetHours);
+    // getSlaStatus returns 'red' for both genuinely-overdue and due-soon. Only call
+    // it "Overdue" when truly past due; otherwise the precise "time left" text below
+    // carries the urgency and the badge reads "At risk".
+    const slaBucket = hoursLeft <= 0 ? 'red' : slaStatus === 'red' ? 'amber' : slaStatus;
+    const sla = slaMeta(slaBucket);
+    const SlaIcon = STATUS_ICONS[sla.icon];
+    const slaText = hoursLeft > 0 ? `${hoursLeft}h left` : hoursLeft === 0 ? 'Due now' : `${Math.abs(hoursLeft)}h overdue`;
+
+    // Where this request sits in its lifecycle — drives which decision controls show.
+    const rawStatus = String(request.status || '');
+    const isRejected = rawStatus === 'rejected';
+    const isApproved = rawStatus === 'approved' || rawStatus === 'ready_for_export';
+    const isSent = rawStatus === 'issued' || rawStatus === 'exported' || rawStatus === 'published';
+    const isDecided = isRejected || isApproved || isSent;
 
     const riskFlags = (request.risk_flags || []) as Array<{ id: number; severity: string; title: string; description: string; flag_type: string; document_type: string | null; resolved: boolean; created_at?: string }>;
-    const openRisks = riskFlags.filter(r => !r.resolved).sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9));
+    const openRisks = riskFlags.filter(r => !r.resolved).sort(bySeverity(r => r.severity));
     const criticalRisks = openRisks.filter(r => ['critical', 'high'].includes(r.severity));
 
     // Pipeline from request stages
@@ -404,12 +496,32 @@ export default function RequestSummary() {
 
     const statusBlocked = rd.overall.status === 'blocked' || stageBlocked > 0;
     const nextAction = missingDocs.length > 0
-        ? { headline: 'Request missing info from broker', sub: `${missingDocs.length} required document${missingDocs.length === 1 ? '' : 's'} blocking${criticalRisks.length ? ` · ${criticalRisks.length} critical risk${criticalRisks.length === 1 ? '' : 's'} pending review` : ''}` }
+        ? { headline: 'Documents still needed from the broker', sub: `${missingDocs.length} required document${missingDocs.length === 1 ? '' : 's'} still needed${criticalRisks.length ? ` · ${criticalRisks.length} risk${criticalRisks.length === 1 ? '' : 's'} to review` : ''}` }
         : criticalRisks.length > 0
-        ? { headline: 'Review blocking risk flags', sub: `${criticalRisks.length} critical risk${criticalRisks.length === 1 ? '' : 's'} blocking approval` }
+        ? { headline: 'Review the open risks', sub: `${criticalRisks.length} risk${criticalRisks.length === 1 ? '' : 's'} to review before you can approve` }
         : stageDone === stages.length && stages.length > 0
-        ? { headline: 'Ready to adjudicate', sub: 'All stages complete — approve or reject' }
+        ? { headline: 'Ready to decide', sub: 'All steps complete — approve or reject' }
         : null;
+
+    // Readiness gating for Approve: open blocking risks + required docs still
+    // missing. When readiness couldn't load we also can't confirm it's safe, so
+    // we treat that as a blocker the user must explicitly acknowledge.
+    const approvalBlockerParts: string[] = [];
+    if (missingDocs.length > 0) approvalBlockerParts.push(`${missingDocs.length} required document${missingDocs.length === 1 ? '' : 's'} still needed`);
+    if (criticalRisks.length > 0) approvalBlockerParts.push(`${criticalRisks.length} risk${criticalRisks.length === 1 ? '' : 's'} still open`);
+    const hasApprovalBlockers = approvalBlockerParts.length > 0;
+    const readinessUnknown = loadError.readiness;
+    const approveNeedsOverride = decisionAction === 'approve' && (hasApprovalBlockers || readinessUnknown);
+    const approveWarning = decisionAction !== 'approve'
+        ? undefined
+        : readinessUnknown
+        ? <>We couldn't check this request's readiness, so we can't confirm it's safe to approve. You can approve anyway, but please confirm you've reviewed it yourself.</>
+        : hasApprovalBlockers
+        ? <>This request isn't ready to approve yet: {approvalBlockerParts.join(' · ')}. Approving now overrides these checks.</>
+        : undefined;
+    const approveDescription = decisionAction === 'approve' && !readinessUnknown && !hasApprovalBlockers
+        ? `${rd.documents.received}/${rd.documents.total} documents received · no open risks. Your reason is saved to the audit trail.`
+        : undefined;
 
     return (
         <PageShell>
@@ -425,32 +537,53 @@ export default function RequestSummary() {
                         </p>
                         <h1 className="page-title mt-1 truncate">{request.company_name}</h1>
                         <div className="flex items-center gap-x-2 gap-y-1 flex-wrap mt-2 text-xs text-muted-foreground">
-                            {statusBlocked && <Chip tone="destructive" dot>Blocked</Chip>}
-                            {rd.documents.required_missing > 0 && <Chip tone="warning">Missing info</Chip>}
-                            <Meta label="Broker" value={listItem.brokerEmail || 'Gulf Insurance Brokers'} />
-                            <Meta label="Queue" value={listItem.queue} />
-                            <Meta label="Assignee" value={listItem.owner || 'Unassigned'} />
-                            <span className={cn('inline-flex items-center gap-1', slaStatus === 'red' ? 'text-destructive font-medium' : slaStatus === 'amber' ? 'text-warning' : '')}>
-                                <Clock className="h-3 w-3" /> {slaText}
+                            <Badge variant={statusMeta.variant}>{statusMeta.label}</Badge>
+                            {statusBlocked && <Chip tone="destructive" dot>Needs review</Chip>}
+                            {rd.documents.required_missing > 0 && <Chip tone="warning">Awaiting info</Chip>}
+                            {listItem.brokerEmail && <Meta label="Broker" value={listItem.brokerEmail} />}
+                            <Meta label="Team" value={listItem.queue} />
+                            {listItem.owner && <Meta label="Owner" value={listItem.owner} />}
+                            <span
+                                className={cn('inline-flex items-center gap-1', slaStatus === 'red' ? 'text-destructive font-medium' : slaStatus === 'amber' ? 'text-warning' : '')}
+                                title={sla.label}
+                                aria-label={`Deadline: ${sla.label}, ${slaText}`}
+                            >
+                                <SlaIcon className="h-3 w-3" aria-hidden="true" /> {slaText}
                             </span>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setConvoOpen(true)}><MessageSquare className="h-3.5 w-3.5" /> Message</Button>
-                        <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDecision('reject')} disabled={busy}><X className="h-3.5 w-3.5" /> Reject</Button>
-                        <Button variant="success" size="sm" className="gap-1.5" onClick={() => handleDecision('approve')} disabled={busy}><Check className="h-3.5 w-3.5" /> Approve</Button>
-                        <Button size="sm" className="gap-1.5" onClick={() => navigate(`/request/${requestId}/workbench`)}>Open workbench <ArrowRight className="h-3.5 w-3.5" /></Button>
+                    <div className="flex items-center justify-end gap-1.5 shrink-0 flex-wrap">
+                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setConvoOpen(true)}><MessageSquare className="h-3.5 w-3.5" aria-hidden="true" /> Message</Button>
+                        {!isDecided && (
+                            <>
+                                <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => setDecisionAction('reject')}><X className="h-3.5 w-3.5" aria-hidden="true" /> Reject</Button>
+                                <Button variant="success" size="sm" className="gap-1.5" onClick={() => setDecisionAction('approve')}><Check className="h-3.5 w-3.5" aria-hidden="true" /> Approve</Button>
+                            </>
+                        )}
+                        {isApproved && (
+                            <Button size="sm" className="gap-1.5" onClick={() => setDecisionAction('publish')}><Send className="h-3.5 w-3.5" aria-hidden="true" /> Send to insurer</Button>
+                        )}
+                        <Button variant={isDecided && !isApproved ? 'default' : 'outline'} size="sm" className="gap-1.5" onClick={() => navigate(`/request/${requestId}/workbench`)}>Open workbench <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" /></Button>
                     </div>
                 </div>
             </div>
 
-            {/* KPI strip */}
+            {/* KPI strip — when readiness can't load we surface an inline error +
+                Retry instead of rendering all-zero cards that read as "all clear". */}
+            {loadError.readiness ? (
+                <InlineLoadError
+                    message="We couldn't load this request's readiness."
+                    detail="The document, check and risk summary below may be missing. Please don't decide until it loads."
+                    onRetry={() => fetchData()}
+                />
+            ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 stagger">
-                <KpiCard icon={FileText} label="Documents" value={`${rd.documents.received}/${rd.documents.total}`} sub={rd.documents.required_missing > 0 ? `${rd.documents.required_missing} required missing` : 'All received'} subTone={rd.documents.required_missing > 0 ? 'destructive' : 'success'} bar={pct(rd.documents.received, rd.documents.total)} />
+                <KpiCard icon={FileText} label="Documents" value={`${rd.documents.received}/${rd.documents.total}`} sub={rd.documents.required_missing > 0 ? `${rd.documents.required_missing} still needed` : 'All received'} subTone={rd.documents.required_missing > 0 ? 'destructive' : 'success'} bar={pct(rd.documents.received, rd.documents.total)} />
                 <KpiCard icon={ListChecks} label="Checks" value={`${rd.internal_checks.passed + rd.external_checks.passed}/${rd.internal_checks.total + rd.external_checks.total}`} sub={(rd.internal_checks.failed + rd.external_checks.failed) > 0 ? `${rd.internal_checks.failed + rd.external_checks.failed} failed` : (rd.internal_checks.pending + rd.external_checks.pending) > 0 ? `${rd.internal_checks.pending + rd.external_checks.pending} pending` : 'All passed'} subTone={(rd.internal_checks.failed + rd.external_checks.failed) > 0 ? 'destructive' : 'muted'} bar={pct(rd.internal_checks.passed + rd.external_checks.passed, rd.internal_checks.total + rd.external_checks.total)} />
-                <KpiCard icon={ShieldAlert} label="Open risks" value={`${openRisks.length}`} sub={rd.risk_flags.blocking > 0 ? `${rd.risk_flags.blocking} blocking approval` : openRisks.length ? 'review required' : 'none'} subTone={openRisks.length ? 'destructive' : 'success'} />
-                <KpiCard icon={Layers} label="Pipeline" value={`${pipelinePct}%`} sub={`${stageDone}/${stages.length} stages · ${stageBlocked} blocked`} subTone={stageBlocked > 0 ? 'destructive' : 'muted'} bar={pipelinePct} />
+                <KpiCard icon={ShieldAlert} label="Open risks" value={`${openRisks.length}`} sub={rd.risk_flags.blocking > 0 ? `${rd.risk_flags.blocking} to review before approval` : openRisks.length ? 'review needed' : 'none'} subTone={openRisks.length ? 'destructive' : 'success'} />
+                <KpiCard icon={Layers} label="Progress" value={`${pipelinePct}%`} sub={`${stageDone}/${stages.length} steps${stageBlocked > 0 ? ` · ${stageBlocked} need review` : ''}`} subTone={stageBlocked > 0 ? 'destructive' : 'muted'} bar={pipelinePct} />
             </div>
+            )}
 
             {/* Next best action */}
             {/* Tabs */}
@@ -459,11 +592,11 @@ export default function RequestSummary() {
                     <Tab id="overview" tab={tab} setTab={setTab} icon={Gauge}>Overview</Tab>
                     <Tab id="documents" tab={tab} setTab={setTab} icon={Files} count={rd.documents.total}>Documents</Tab>
                     <Tab id="risks" tab={tab} setTab={setTab} icon={ShieldAlert} count={openRisks.length}>Risks</Tab>
-                    <Tab id="pipeline" tab={tab} setTab={setTab} icon={Layers}>Pipeline</Tab>
+                    <Tab id="pipeline" tab={tab} setTab={setTab} icon={Layers}>Progress</Tab>
                     <Tab id="activity" tab={tab} setTab={setTab} icon={ActivityIcon} count={activity.length}>Activity</Tab>
                 </div>
                 <div className="hidden md:flex items-center gap-1.5 pb-1.5">
-                    <Link to={`/request/${requestId}/evidence-pack`}><Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs"><FileCheck className="h-3.5 w-3.5" /> Evidence pack</Button></Link>
+                    <Link to={`/request/${requestId}/evidence-pack`}><Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs"><FileCheck className="h-3.5 w-3.5" aria-hidden="true" /> Decision file</Button></Link>
                 </div>
             </div>
 
@@ -487,7 +620,7 @@ export default function RequestSummary() {
                             const byType = new Map<string, typeof criticalRisks>();
                             for (const r of criticalRisks) { const a = byType.get(r.flag_type) || []; a.push(r); byType.set(r.flag_type, a); }
                             const entries = Array.from(byType.entries())
-                                .sort((a, b) => (SEVERITY_ORDER[a[1][0].severity] ?? 9) - (SEVERITY_ORDER[b[1][0].severity] ?? 9))
+                                .sort(bySeverity((e) => e[1][0].severity))
                                 .slice(0, 4);
                             return (
                                 <div className="divide-y divide-border">
@@ -496,12 +629,12 @@ export default function RequestSummary() {
                                         const grouped = items.length > 1;
                                         return (
                                             <div key={ftype} className="flex items-start gap-3 py-2.5">
-                                                <Badge variant="outline" className={cn('text-[10px] uppercase font-bold shrink-0 mt-0.5', SEVERITY_STYLES[r0.severity])}>{r0.severity}</Badge>
+                                                <SeverityBadge sev={r0.severity} />
                                                 <div className="min-w-0 flex-1">
                                                     <p className="text-sm font-medium text-foreground">{grouped ? `${items.length} ${humanizeFlag(ftype)}` : r0.title}</p>
                                                     {(grouped ? (r0.description || r0.title) : r0.description) && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{grouped ? `e.g. ${r0.description || r0.title}` : r0.description}</p>}
                                                 </div>
-                                                <button onClick={() => navigate(`/request/${requestId}/workbench`)} className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline mt-0.5">Review <ArrowRight className="h-3 w-3" /></button>
+                                                <button onClick={() => navigate(`/request/${requestId}/workbench`)} className="shrink-0 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline mt-0.5">Review <ArrowRight className="h-3 w-3" aria-hidden="true" /></button>
                                             </div>
                                         );
                                     })}
@@ -510,7 +643,7 @@ export default function RequestSummary() {
                         })()}
                     </Section>
 
-                    <Section title="Pending documents" action={missingDocs.length > 8 ? { label: 'View all', onClick: () => setTab('documents') } : undefined}>
+                    <Section title="Documents still needed" action={missingDocs.length > 8 ? { label: 'View all', onClick: () => setTab('documents') } : undefined}>
                         {missingDocs.length === 0 ? <Empty icon={CheckCircle2} tone="success">All required documents received.</Empty> : (
                             <div className="grid sm:grid-cols-2 gap-x-6 gap-y-0.5">
                                 {missingDocs.slice(0, 8).map(d => (
@@ -524,17 +657,26 @@ export default function RequestSummary() {
 
             {/* ── DOCUMENTS ── */}
             {tab === 'documents' && (
-                <Section title="Documents" right={`${mappedDocs.length} mapped${unmappedDocs.length ? ` · ${unmappedDocs.length} unmapped` : ''} · ${missingDocs.length + failingDocs.length} pending`}>
+                <Section title="Documents" right={`${mappedDocs.length} recognised${unmappedDocs.length ? ` · ${unmappedDocs.length} need a type` : ''} · ${missingDocs.length + failingDocs.length} still needed`}>
+                    {(loadError.documents || loadError.readiness) && (
+                        <div className="mb-3">
+                            <InlineLoadError
+                                message="We couldn't load the full document list."
+                                detail="Some documents or requirements may be missing below."
+                                onRetry={() => fetchData()}
+                            />
+                        </div>
+                    )}
                     <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                        <div className="flex items-center gap-1.5">
-                            <FilterPill active={docFilter === 'pending'} onClick={() => setDocFilter('pending')} count={missingDocs.length + failingDocs.length}>Pending</FilterPill>
-                            <FilterPill active={docFilter === 'mapped'} onClick={() => setDocFilter('mapped')} count={mappedDocs.length}>Mapped</FilterPill>
-                            <FilterPill active={docFilter === 'unmapped'} onClick={() => setDocFilter('unmapped')} count={unmappedDocs.length}>Unmapped</FilterPill>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            <FilterPill active={docFilter === 'pending'} onClick={() => setDocFilter('pending')} count={missingDocs.length + failingDocs.length}>Still needed</FilterPill>
+                            <FilterPill active={docFilter === 'mapped'} onClick={() => setDocFilter('mapped')} count={mappedDocs.length}>Recognised</FilterPill>
+                            <FilterPill active={docFilter === 'unmapped'} onClick={() => setDocFilter('unmapped')} count={unmappedDocs.length}>Needs a type</FilterPill>
                             <FilterPill active={docFilter === 'optional'} onClick={() => setDocFilter('optional')} count={optionalDocs.length}>Optional</FilterPill>
                         </div>
                         <div className="flex items-center gap-1.5">
                             {requestId && <BulkZipUploadButton requestId={requestId} onComplete={() => fetchData(true)} className="h-7 text-xs" />}
-                            <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setComposeOpen(true)}><Send className="h-3.5 w-3.5" /> Request from broker</Button>
+                            <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs" onClick={() => setComposeOpen(true)}><Send className="h-3.5 w-3.5" aria-hidden="true" /> Ask broker for documents</Button>
                         </div>
                     </div>
                     {docFilter === 'pending' && (missingDocs.length + failingDocs.length === 0 ? <Empty icon={CheckCircle2} tone="success">All required documents received.</Empty> : (
@@ -547,9 +689,9 @@ export default function RequestSummary() {
                     {docFilter === 'mapped' && (mappedDocs.length === 0 ? <Empty icon={Files} tone="muted">Nothing uploaded yet.</Empty> : (
                         <div className="divide-y divide-border max-h-[58vh] overflow-y-auto">{mappedDocs.map((d: any) => <MappedRow key={d.id} doc={d} onReplace={handleReplace} />)}</div>
                     ))}
-                    {docFilter === 'unmapped' && (unmappedDocs.length === 0 ? <Empty icon={CheckCircle2} tone="success">Every uploaded document was auto-classified.</Empty> : (
+                    {docFilter === 'unmapped' && (unmappedDocs.length === 0 ? <Empty icon={CheckCircle2} tone="success">We sorted every uploaded file automatically.</Empty> : (
                         <>
-                            <p className="text-[11px] text-muted-foreground mb-2">Uploaded but auto-classification couldn't map these to a document type. Assign the correct type to run its checks.</p>
+                            <p className="text-[11px] text-muted-foreground mb-2">We couldn't tell what these files are. Choose the document type for each so we can run its checks.</p>
                             <div className="divide-y divide-border max-h-[58vh] overflow-y-auto">
                                 {unmappedDocs.map((d: any) => (
                                     <UnmappedRow key={d.id} doc={d} options={docTypeOptions} busy={remappingId === String(d.id)} onRemap={(docType) => handleRemap(String(d.id), docType)} onReplace={handleReplace} />
@@ -569,8 +711,8 @@ export default function RequestSummary() {
 
             {/* ── RISKS ── */}
             {tab === 'risks' && (
-                <Section title="Risk flags" right={`${openRisks.length} open · ${rd.risk_flags.blocking} blocking`}>
-                    <div className="flex items-center gap-1.5 mb-3">
+                <Section title="Risks" right={`${openRisks.length} open · ${rd.risk_flags.blocking} to review before approval`}>
+                    <div className="flex items-center gap-1.5 mb-3 flex-wrap">
                         <FilterPill active={riskFilter === 'all'} onClick={() => setRiskFilter('all')} count={openRisks.length}>All</FilterPill>
                         <FilterPill active={riskFilter === 'critical'} onClick={() => setRiskFilter('critical')} count={openRisks.filter(r => r.severity === 'critical').length}>Critical</FilterPill>
                         <FilterPill active={riskFilter === 'high'} onClick={() => setRiskFilter('high')} count={openRisks.filter(r => r.severity === 'high').length}>High</FilterPill>
@@ -583,13 +725,13 @@ export default function RequestSummary() {
                         const byType = new Map<string, typeof list>();
                         for (const r of list) { const a = byType.get(r.flag_type) || []; a.push(r); byType.set(r.flag_type, a); }
                         const groups = Array.from(byType.entries())
-                            .sort((a, b) => (SEVERITY_ORDER[a[1][0].severity] ?? 9) - (SEVERITY_ORDER[b[1][0].severity] ?? 9));
+                            .sort(bySeverity((e) => e[1][0].severity));
                         return (
                             <div className="divide-y divide-border max-h-[58vh] overflow-y-auto">
                                 {groups.flatMap(([ftype, items]) =>
                                     items.length > 5
-                                        ? [<GroupedRiskRow key={`g-${ftype}`} label={humanizeFlag(ftype)} items={items} onReview={() => navigate(`/request/${requestId}/workbench`)} onDismiss={handleResolveRisk} />]
-                                        : items.map(r => <RiskItemRow key={r.id} r={r} onDismiss={() => handleResolveRisk(r.id)} onReview={() => navigate(`/request/${requestId}/workbench`)} />)
+                                        ? [<GroupedRiskRow key={`g-${ftype}`} label={humanizeFlag(ftype)} items={items} onReview={() => navigate(`/request/${requestId}/workbench`)} onDismiss={(id, label) => setDismissTarget({ id, label })} />]
+                                        : items.map(r => <RiskItemRow key={r.id} r={r} onDismiss={() => setDismissTarget({ id: r.id, label: r.title })} onReview={() => navigate(`/request/${requestId}/workbench`)} />)
                                 )}
                             </div>
                         );
@@ -597,9 +739,14 @@ export default function RequestSummary() {
                 </Section>
             )}
 
-            {/* ── PIPELINE ── */}
+            {/* ── PROGRESS (steps) ── */}
             {tab === 'pipeline' && (
-                <Section title="Pipeline" action={{ label: 'Open in workbench', onClick: () => navigate(`/request/${requestId}/workbench`) }}>
+                <Section title="Progress through the steps" action={{ label: 'Open in workbench', onClick: () => navigate(`/request/${requestId}/workbench`) }}>
+                    {loadError.readiness && (
+                        <div className="mb-3">
+                            <InlineLoadError message="We couldn't load each step's checks." detail="Step status is shown, but check counts may be missing." onRetry={() => fetchData()} />
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                         {stages.map(s => {
                             const cfg = STAGE_STATUS[s.status] || STAGE_STATUS.pending;
@@ -608,7 +755,7 @@ export default function RequestSummary() {
                             return (
                                 <div key={s.id} className="rounded-lg border border-border bg-card p-3 card-interactive">
                                     <div className="flex items-center gap-2">
-                                        <span className={cn('flex items-center justify-center w-5 h-5 rounded-full border shrink-0', TONE_TEXT[cfg.tone], cfg.tone === 'success' && 'bg-success/10 border-success/30', cfg.tone === 'destructive' && 'bg-destructive/10 border-destructive/30', cfg.tone === 'info' && 'bg-info/10 border-info/30', cfg.tone === 'muted' && 'border-border')}><StageIcon className="h-3 w-3" /></span>
+                                        <span className={cn('flex items-center justify-center w-5 h-5 rounded-full border shrink-0', TONE_TEXT[cfg.tone], cfg.tone === 'success' && 'bg-success/10 border-success/30', cfg.tone === 'destructive' && 'bg-destructive/10 border-destructive/30', cfg.tone === 'info' && 'bg-info/10 border-info/30', cfg.tone === 'muted' && 'border-border')}><StageIcon className="h-3 w-3" aria-hidden="true" /></span>
                                         <p className="text-sm font-medium text-foreground truncate flex-1">{s.name}</p>
                                     </div>
                                     <p className="text-[11px] text-muted-foreground mt-2">{c.total} check{c.total === 1 ? '' : 's'} · <span className={TONE_TEXT[cfg.tone]}>{cfg.label}</span></p>
@@ -626,9 +773,13 @@ export default function RequestSummary() {
             {/* ── ACTIVITY ── */}
             {tab === 'activity' && (
                 <Section title="Activity timeline">
-                    <div className="max-h-[64vh] overflow-y-auto pr-1">
-                        <ActivityFeed items={activity} />
-                    </div>
+                    {loadError.timeline ? (
+                        <InlineLoadError message="We couldn't load the activity timeline." onRetry={() => fetchData()} />
+                    ) : (
+                        <div className="max-h-[64vh] overflow-y-auto pr-1">
+                            <ActivityFeed items={activity} />
+                        </div>
+                    )}
                 </Section>
             )}
 
@@ -636,7 +787,30 @@ export default function RequestSummary() {
             <MissingInfoEmailModal open={composeOpen} onOpenChange={setComposeOpen} requestId={requestId!} companyName={request.company_name} brokerEmail={listItem.brokerEmail} missingDocuments={missingDocs.map(d => d.doc_type as DocumentType)} onMarkAsSent={() => fetchData(true)} />
             <NotifyBrokerDialog open={notifyOpen} onOpenChange={setNotifyOpen} requestId={requestId!} />
 
-            {/* Inline "wrong file" warning surfaced right after upload */}
+            {/* One decision flow for approve / reject / send-to-insurer. Approve is
+                readiness-gated: when there are open blockers (or readiness couldn't
+                load) the user must enter a reason AND tick an override box, and that
+                reason is saved to the audit trail. */}
+            <DecisionModal
+                open={decisionAction !== null}
+                action={decisionAction ?? 'approve'}
+                companyName={request.company_name}
+                description={decisionAction === 'publish' ? 'This sends the approved details to the insurer.' : approveDescription}
+                reasonLabel={decisionAction === 'publish' ? 'Note (not recorded)' : undefined}
+                warning={approveWarning}
+                requireAcknowledge={approveNeedsOverride}
+                acknowledgeLabel="Approve anyway — I take responsibility for this override."
+                onCancel={() => setDecisionAction(null)}
+                onConfirm={submitDecision}
+            />
+
+            {/* Styled, audit-logged risk dismissal (replaces window.prompt). A note
+                is required, and the action is recorded — it can't be silently undone. */}
+            <RiskDismissDialog target={dismissTarget} onCancel={() => setDismissTarget(null)} onConfirm={confirmDismiss} />
+
+            {/* "Wrong file" warning surfaced right after upload. Default focus lands
+                on the recommended fix ("Change to …"); the destructive "Remove file"
+                is kept out of the primary-confirm slot. */}
             <AlertDialog open={!!classifierWarning} onOpenChange={(v) => { if (!v) setClassifierWarning(null); }}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -645,23 +819,99 @@ export default function RequestSummary() {
                             {classifierWarning?.message}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
-                    <AlertDialogFooter className="gap-2 sm:gap-2">
-                        <AlertDialogCancel onClick={keepAsIs}>
-                            Keep as {classifierWarning?.claimedDocName}
-                        </AlertDialogCancel>
-                        <AlertDialogAction onClick={acceptClassifierSuggestion}>
-                            Change to {classifierWarning?.classifiedName}
-                        </AlertDialogAction>
-                        <AlertDialogAction
+                    <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-between sm:gap-2">
+                        <Button
+                            variant="ghost"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive sm:mr-auto"
                             onClick={discardWrongUpload}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            aria-label={`Remove the uploaded file${classifierWarning ? ` (${classifierWarning.claimedDocName})` : ''}`}
                         >
                             Remove file
-                        </AlertDialogAction>
+                        </Button>
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:gap-2">
+                            <AlertDialogCancel onClick={keepAsIs}>
+                                Keep as {classifierWarning?.claimedDocName}
+                            </AlertDialogCancel>
+                            <AlertDialogAction onClick={acceptClassifierSuggestion}>
+                                Change to {classifierWarning?.classifiedName}
+                            </AlertDialogAction>
+                        </div>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
         </PageShell>
+    );
+}
+
+// Inline, plain-language load-failure notice with a Retry. Used wherever a
+// partial fetch failure would otherwise render a misleading "all clear".
+function InlineLoadError({ message, detail, onRetry }: { message: string; detail?: string; onRetry: () => void }) {
+    return (
+        <div role="alert" className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/10 px-4 py-3">
+            <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground">{message}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{detail ? `${detail} ` : ''}Check your connection and try again — nothing has been lost.</p>
+            </div>
+            <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs shrink-0" onClick={onRetry}>
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> Retry
+            </Button>
+        </div>
+    );
+}
+
+// Styled note dialog for dismissing a risk. Confirm stays disabled until a note
+// is entered (clear feedback instead of a silent no-op), and the note is saved
+// to the audit trail.
+function RiskDismissDialog({ target, onCancel, onConfirm }: { target: { id: number; label: string } | null; onCancel: () => void; onConfirm: (note: string) => Promise<void> | void }) {
+    const [note, setNote] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const noteId = useId();
+    useEffect(() => { if (target) { setNote(''); setSubmitting(false); } }, [target]);
+    const canConfirm = note.trim().length > 0 && !submitting;
+    const handle = async () => {
+        if (!canConfirm) return;
+        setSubmitting(true);
+        try { await onConfirm(note.trim()); } finally { setSubmitting(false); }
+    };
+    return (
+        <Dialog open={!!target} onOpenChange={(v) => { if (!v) onCancel(); }}>
+            <DialogContent className="sm:max-w-[460px]">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <ShieldAlert className="h-4 w-4 text-warning" aria-hidden="true" /> Dismiss this risk
+                    </DialogTitle>
+                    <DialogDescription>
+                        Mark this risk as reviewed. Add a short note explaining why it's safe to dismiss — it's saved to the audit trail and can't be silently undone.
+                    </DialogDescription>
+                </DialogHeader>
+                {target && (
+                    <div className="text-sm bg-muted/40 rounded-md px-3 py-2">
+                        <span className="text-xs text-muted-foreground">Risk: </span>
+                        <span className="font-medium">{target.label}</span>
+                    </div>
+                )}
+                <div className="space-y-2 py-1">
+                    <Label htmlFor={noteId} className="text-xs">Why are you dismissing this?</Label>
+                    <Textarea
+                        id={noteId}
+                        rows={4}
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        placeholder="e.g. Checked against the trade licence — the names refer to the same company."
+                        className="text-sm resize-none"
+                        autoFocus
+                    />
+                    {note.trim().length === 0 && (
+                        <p className="text-[11px] text-muted-foreground">A note is required so the decision stays auditable.</p>
+                    )}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={onCancel} disabled={submitting}>Cancel</Button>
+                    <Button onClick={handle} disabled={!canConfirm}>{submitting ? 'Saving…' : 'Dismiss risk'}</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -768,8 +1018,8 @@ function DocUploadRow({ label, required, failed, uploading, onSelect, wide }: { 
                 {required && <Badge variant="outline" className="text-[9px] font-bold uppercase py-0 h-4 bg-destructive/5 text-destructive border-destructive/20 shrink-0">Req</Badge>}
             </div>
             <input ref={ref} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onSelect(f); e.target.value = ''; }} />
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] gap-1 shrink-0" onClick={() => ref.current?.click()} disabled={uploading}>
-                {uploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />} Upload
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-[11px] gap-1 shrink-0" onClick={() => ref.current?.click()} disabled={uploading} aria-label={`Upload ${label}`}>
+                {uploading ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> : <Upload className="h-3 w-3" aria-hidden="true" />} Upload
             </Button>
         </div>
     );
@@ -806,15 +1056,16 @@ function MappedRow({ doc, onReplace }: { doc: any; onReplace?: (docId: string, d
                     />
                     <label
                         htmlFor={replaceInputId}
-                        className="shrink-0 h-7 px-2 inline-flex items-center gap-1 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                        className="shrink-0 h-7 px-2 inline-flex items-center gap-1 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer focus-within:ring-2 focus-within:ring-ring/60"
                         title="Upload a new file in place of the current one"
+                        aria-label={`Replace the file for ${label}`}
                     >
-                        <Upload className="h-3 w-3" />
+                        <Upload className="h-3 w-3" aria-hidden="true" />
                         Replace
                     </label>
                 </>
             )}
-            {previewHref && <a href={previewHref} target="_blank" rel="noreferrer" className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
+            {previewHref && <a href={previewHref} target="_blank" rel="noreferrer" aria-label={`Open ${label} in a new tab`} className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted focus-ring"><ExternalLink className="h-3.5 w-3.5" aria-hidden="true" /></a>}
         </div>
     );
 }
@@ -824,20 +1075,20 @@ function UnmappedRow({ doc, options, busy, onRemap, onReplace }: { doc: any; opt
     // type after a failed remap still fires onValueChange and retries the PATCH.
     const [nonce, setNonce] = useState(0);
     const fileName = (doc.file_url || doc.file || '').split('/').pop()?.split('?')[0] || 'attachment';
-    const current = doc.doc_type && doc.doc_type !== 'other' ? (DOCUMENT_TYPE_LABELS[doc.doc_type as DocumentType] || doc.doc_type) : 'Unclassified';
+    const current = doc.doc_type && doc.doc_type !== 'other' ? (DOCUMENT_TYPE_LABELS[doc.doc_type as DocumentType] || doc.doc_type) : 'Needs a type';
     const previewHref = doc.id ? `${(import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')}/documents/files/${doc.id}/stream/` : (doc.file_url || doc.file);
     const replaceInputId = `replace-unmapped-${doc.id}`;
     return (
         <div className="flex items-center gap-3 py-2.5">
-            <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
+            <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" aria-hidden="true" />
             <div className="min-w-0 flex-1 flex items-center gap-2">
                 <p className="text-sm font-medium text-foreground truncate font-mono">{fileName}</p>
-                <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-warning/10 text-warning border-warning/30 shrink-0">{current}</Badge>
+                <Badge variant="warning" className="text-[10px] h-4 px-1.5 shrink-0">{current}</Badge>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
                 <Select key={nonce} disabled={busy || options.length === 0} onValueChange={(v) => { onRemap(v); setNonce((n) => n + 1); }}>
-                    <SelectTrigger className="h-7 w-[200px] px-2 text-xs">
-                        {busy ? <span className="inline-flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" /> Mapping…</span> : <SelectValue placeholder="Assign document type" />}
+                    <SelectTrigger className="h-7 w-[150px] sm:w-[190px] px-2 text-xs" aria-label={`Set the document type for ${fileName}`}>
+                        {busy ? <span className="inline-flex items-center gap-1.5"><Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> Setting type…</span> : <SelectValue placeholder="Set the type" />}
                     </SelectTrigger>
                     <SelectContent className="max-h-72">
                         {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
@@ -858,15 +1109,16 @@ function UnmappedRow({ doc, options, busy, onRemap, onReplace }: { doc: any; opt
                         />
                         <label
                             htmlFor={replaceInputId}
-                            className="shrink-0 h-7 px-2 inline-flex items-center gap-1 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
+                            className="shrink-0 h-7 px-2 inline-flex items-center gap-1 rounded-md text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer focus-within:ring-2 focus-within:ring-ring/60"
                             title="Upload a new file in place of the current one"
+                            aria-label={`Replace the file ${fileName}`}
                         >
-                            <Upload className="h-3 w-3" />
+                            <Upload className="h-3 w-3" aria-hidden="true" />
                             Replace
                         </label>
                     </>
                 )}
-                {previewHref && <a href={previewHref} target="_blank" rel="noreferrer" className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"><ExternalLink className="h-3.5 w-3.5" /></a>}
+                {previewHref && <a href={previewHref} target="_blank" rel="noreferrer" aria-label={`Open ${fileName} in a new tab`} className="shrink-0 h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted focus-ring"><ExternalLink className="h-3.5 w-3.5" aria-hidden="true" /></a>}
             </div>
         </div>
     );
@@ -875,7 +1127,7 @@ function UnmappedRow({ doc, options, busy, onRemap, onReplace }: { doc: any; opt
 function RiskItemRow({ r, onDismiss, onReview }: { r: { id: number; severity: string; title: string; description: string; flag_type: string; document_type: string | null }; onDismiss: () => void; onReview: () => void }) {
     return (
         <div className="flex items-start gap-3 py-3">
-            <Badge variant="outline" className={cn('text-[10px] uppercase font-bold shrink-0 mt-0.5', SEVERITY_STYLES[r.severity])}>{r.severity}</Badge>
+            <SeverityBadge sev={r.severity} />
             <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">{r.title}</p>
                 {r.description && <p className="text-xs text-muted-foreground mt-0.5">{r.description}</p>}
@@ -883,13 +1135,13 @@ function RiskItemRow({ r, onDismiss, onReview }: { r: { id: number; severity: st
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
                 <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" onClick={onDismiss}>Dismiss</Button>
-                <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={onReview}>Review in workbench <ArrowRight className="h-3 w-3" /></Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={onReview}>Review in workbench <ArrowRight className="h-3 w-3" aria-hidden="true" /></Button>
             </div>
         </div>
     );
 }
 
-function GroupedRiskRow({ label, items, onReview, onDismiss }: { label: string; items: Array<{ id: number; severity: string; title: string; description: string; flag_type: string; document_type: string | null }>; onReview: () => void; onDismiss: (id: number) => void }) {
+function GroupedRiskRow({ label, items, onReview, onDismiss }: { label: string; items: Array<{ id: number; severity: string; title: string; description: string; flag_type: string; document_type: string | null }>; onReview: () => void; onDismiss: (id: number, label: string) => void }) {
     const [open, setOpen] = useState(false);
     const severity = items[0].severity;
     const sample = items[0].description || items[0].title;
@@ -897,20 +1149,20 @@ function GroupedRiskRow({ label, items, onReview, onDismiss }: { label: string; 
     return (
         <div>
             <div className="flex items-start gap-3 py-3">
-                <Badge variant="outline" className={cn('text-[10px] uppercase font-bold shrink-0 mt-0.5', SEVERITY_STYLES[severity])}>{severity}</Badge>
-                <button onClick={() => setOpen(o => !o)} className="min-w-0 flex-1 text-left">
+                <SeverityBadge sev={severity} />
+                <button onClick={() => setOpen(o => !o)} aria-expanded={open} className="focus-ring rounded min-w-0 flex-1 text-left">
                     <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                        {open ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                        {open ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />}
                         {items.length} {label}
                     </p>
                     {sample && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1 pl-5">e.g. {sample}</p>}
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mt-1 pl-5">{open ? 'Collapse' : 'Tap to expand all'}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70 mt-1 pl-5">{open ? 'Collapse' : 'Show all'}</p>
                 </button>
-                <Button variant="outline" size="sm" className="h-7 text-xs gap-1 shrink-0" onClick={onReview}>Review in workbench <ArrowRight className="h-3 w-3" /></Button>
+                <Button variant="outline" size="sm" className="h-7 text-xs gap-1 shrink-0" onClick={onReview}>Review in workbench <ArrowRight className="h-3 w-3" aria-hidden="true" /></Button>
             </div>
             {open && (
                 <div className="ml-2 pl-4 border-l border-border divide-y divide-border/60">
-                    {shown.map(r => <RiskItemRow key={r.id} r={r} onDismiss={() => onDismiss(r.id)} onReview={onReview} />)}
+                    {shown.map(r => <RiskItemRow key={r.id} r={r} onDismiss={() => onDismiss(r.id, r.title)} onReview={onReview} />)}
                     {items.length > shown.length && (
                         <p className="text-xs text-muted-foreground py-2.5">+{items.length - shown.length} more — open the workbench to review the full list.</p>
                     )}

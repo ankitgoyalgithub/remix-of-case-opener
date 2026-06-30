@@ -28,13 +28,15 @@ interface WorkbenchStagePanelProps {
   onAskBroker: () => void;
 }
 
+// Automated check types share the brand accent; manual/other stay muted. No
+// ad-hoc palette colours — colour is reserved for status meaning.
 function itemTypeIcon(type: string) {
   switch (type) {
-    case 'extraction': return <Sparkles className="h-3.5 w-3.5 text-blue-500" />;
-    case 'verification': return <ShieldCheck className="h-3.5 w-3.5 text-indigo-500" />;
-    case 'cross-validation': return <CheckCircle2 className="h-3.5 w-3.5 text-purple-500" />;
-    case 'mol-validation': return <Users className="h-3.5 w-3.5 text-teal-500" />;
-    case 'entity-screening': return <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />;
+    case 'extraction': return <Sparkles className="h-3.5 w-3.5 text-primary" />;
+    case 'verification': return <ShieldCheck className="h-3.5 w-3.5 text-primary" />;
+    case 'cross-validation': return <CheckCircle2 className="h-3.5 w-3.5 text-primary" />;
+    case 'mol-validation': return <Users className="h-3.5 w-3.5 text-primary" />;
+    case 'entity-screening': return <ShieldCheck className="h-3.5 w-3.5 text-primary" />;
     default: return <ListTodo className="h-3.5 w-3.5 text-muted-foreground" />;
   }
 }
@@ -85,7 +87,7 @@ export function WorkbenchStagePanel({
   // Compact status chip (matches prototype wording).
   const chip = (() => {
     if (stage.status === 'complete')
-      return { text: 'Stage complete — all validations passed', cls: 'text-success border-success/30 bg-success/10' };
+      return { text: 'Stage complete — all checks passed', cls: 'text-success border-success/30 bg-success/10' };
     if (failedItems.length > 0)
       return { text: failedItems.length === 1 ? failedItems[0].label : `${failedItems.length} checks failed`, cls: 'text-destructive border-destructive/30 bg-destructive/10' };
     if (missingDocs.length > 0)
@@ -183,7 +185,8 @@ export function WorkbenchStagePanel({
                       className={cn('h-8 w-8', item.result ? 'text-muted-foreground hover:text-primary' : 'text-primary bg-primary/10 hover:bg-primary/20')}
                       onClick={(e) => { e.stopPropagation(); runItem(item.id); }}
                       disabled={runningItems[item.id]}
-                      title={item.result ? 'Re-run validation' : 'Run validation'}
+                      title={item.result ? 'Run this check again' : 'Run this check'}
+                      aria-label={item.result ? `Run the check “${item.label}” again` : `Run the check “${item.label}”`}
                     >
                       {runningItems[item.id] ? <Loader2 className="h-4 w-4 animate-spin" /> : item.result ? <RefreshCw className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
                     </Button>

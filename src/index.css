@@ -1,133 +1,135 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Inter+Tight:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700;800&family=Inter+Tight:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ────────────────────────────────────────────────────────────────────────────
-   Axiom-style Design System
-   Cool-slate light / true-black dark · teal primary accent
-   Heavy editorial display · mono ticker labels · hairline boxes
+   "Underwriter Blue" (Trust-Slate) Design System
+   Cool-slate light (default) / charcoal dark · institutional trust-blue accent
+   Fraunces display on brand/login · Inter body · mono ticker labels · hairline boxes
+   Status colors (success/warning/destructive/info) are RESERVED for risk/compliance
+   signals only — never used for branding — and tuned to pass WCAG AA on tinted chips.
    ──────────────────────────────────────────────────────────────────────── */
 
 @layer base {
   :root {
-    /* Surfaces — soft slate (cool, professional) */
-    --background: 210 20% 98%;
-    --foreground: 0 0% 8%;
+    /* Surfaces — cool-slate paper (calm, low-glare for all-day work) */
+    --background: 213 30% 98%;
+    --foreground: 222 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 8%;
+    --card-foreground: 222 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 8%;
+    --popover-foreground: 222 25% 12%;
 
-    /* Primary accent — teal */
-    --primary: 175 84% 32%;
+    /* Primary accent — institutional trust-blue */
+    --primary: 221 72% 38%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 14% 92%;
-    --secondary-foreground: 0 0% 8%;
+    --secondary: 214 22% 93%;
+    --secondary-foreground: 222 25% 12%;
 
-    --muted: 210 14% 92%;
-    --muted-foreground: 0 0% 38%;
+    --muted: 214 22% 93%;
+    --muted-foreground: 222 12% 38%;
 
-    --accent: 210 14% 92%;
-    --accent-foreground: 0 0% 8%;
+    --accent: 214 22% 93%;
+    --accent-foreground: 222 25% 12%;
 
-    /* Semantic — destructive stays red, kept distinct from the teal primary */
-    --destructive: 354 75% 52%;
+    /* Semantic — RESERVED for risk/compliance status only. Lightness tuned so
+       `text-<token>` on a `bg-<token>/10` tint passes WCAG AA (≥4.5:1). */
+    --destructive: 356 70% 45%;
     --destructive-foreground: 0 0% 100%;
-    --success: 142 64% 36%;
+    --success: 152 60% 30%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 48%;
-    --warning-foreground: 0 0% 8%;
-    --info: 217 91% 50%;
+    --warning: 32 90% 36%;            /* deep amber-orange — AA on tint; amber chips use dark text */
+    --warning-foreground: 222 25% 12%;
+    --info: 206 85% 36%;
     --info-foreground: 0 0% 100%;
 
-    /* Hairlines — slightly cool */
-    --border: 214 16% 82%;
-    --input: 214 16% 82%;
-    --ring: 175 84% 32%;
+    /* Hairlines — cool */
+    --border: 214 20% 86%;
+    --input: 214 20% 86%;
+    --ring: 221 72% 38%;
 
-    /* 6px default — Linear/Vercel sweet spot. Square enough to feel precise,
-       rounded enough to feel humane after 8 hours in the app. */
+    /* 6px default — square enough to feel precise, humane after 8 hours. */
     --radius: 0.3125rem;
 
-    --sidebar-background: 210 20% 98%;
-    --sidebar-foreground: 0 0% 8%;
-    --sidebar-primary: 175 84% 32%;
+    --sidebar-background: 214 28% 96%;
+    --sidebar-foreground: 222 25% 12%;
+    --sidebar-primary: 221 72% 38%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 14% 92%;
-    --sidebar-accent-foreground: 0 0% 8%;
-    --sidebar-border: 214 16% 82%;
-    --sidebar-ring: 175 84% 32%;
+    --sidebar-accent: 214 22% 90%;
+    --sidebar-accent-foreground: 222 25% 12%;
+    --sidebar-border: 214 20% 84%;
+    --sidebar-ring: 221 72% 38%;
 
-    --stage-complete: 142 64% 36%;
-    --stage-active: 175 84% 32%;
-    --stage-pending: 0 0% 60%;
-    --confidence-high: 142 64% 36%;
-    --confidence-medium: 38 92% 48%;
-    --confidence-low: 354 75% 52%;
+    --stage-complete: 152 60% 30%;
+    --stage-active: 221 72% 38%;
+    --stage-pending: 222 10% 58%;
+    --confidence-high: 152 60% 30%;
+    --confidence-medium: 32 90% 36%;
+    --confidence-low: 356 70% 45%;
 
-    --glass-background: 210 20% 98% / 0.9;
-    --glass-border: 214 16% 82% / 0.6;
+    --glass-background: 213 30% 98% / 0.9;
+    --glass-border: 214 20% 86% / 0.6;
   }
 
   .dark {
-    /* Pure-ish black — Axiom dark surfaces */
-    --background: 0 0% 4%;
-    --foreground: 0 0% 96%;
+    /* Charcoal surfaces — never pure black */
+    --background: 222 24% 7%;
+    --foreground: 213 20% 95%;
 
-    --card: 0 0% 6%;
-    --card-foreground: 0 0% 96%;
+    --card: 222 20% 10%;
+    --card-foreground: 213 20% 95%;
 
-    --popover: 0 0% 6%;
-    --popover-foreground: 0 0% 96%;
+    --popover: 222 20% 10%;
+    --popover-foreground: 213 20% 95%;
 
-    --primary: 173 80% 40%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 214 90% 62%;            /* brightened trust-blue for dark surfaces */
+    --primary-foreground: 222 47% 11%;
 
-    --secondary: 0 0% 10%;
-    --secondary-foreground: 0 0% 96%;
+    --secondary: 222 16% 16%;
+    --secondary-foreground: 213 20% 95%;
 
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 60%;
+    --muted: 222 16% 16%;
+    --muted-foreground: 215 16% 65%;
 
-    --accent: 0 0% 12%;
-    --accent-foreground: 0 0% 96%;
+    --accent: 222 16% 18%;
+    --accent-foreground: 213 20% 95%;
 
-    --destructive: 354 80% 58%;
+    --destructive: 356 75% 62%;
     --destructive-foreground: 0 0% 100%;
-    --success: 142 64% 42%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 55%;
-    --warning-foreground: 0 0% 8%;
-    --info: 217 91% 60%;
-    --info-foreground: 0 0% 100%;
+    --success: 152 52% 48%;
+    --success-foreground: 222 47% 11%;
+    --warning: 38 92% 58%;
+    --warning-foreground: 222 47% 11%;
+    --info: 206 85% 60%;
+    --info-foreground: 222 47% 11%;
 
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 173 80% 40%;
+    --border: 222 16% 20%;
+    --input: 222 16% 20%;
+    --ring: 214 90% 62%;
 
-    --sidebar-background: 0 0% 4%;
-    --sidebar-foreground: 0 0% 96%;
-    --sidebar-primary: 173 80% 40%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 10%;
-    --sidebar-accent-foreground: 0 0% 96%;
-    --sidebar-border: 0 0% 18%;
-    --sidebar-ring: 173 80% 40%;
+    --sidebar-background: 222 24% 8%;
+    --sidebar-foreground: 213 20% 95%;
+    --sidebar-primary: 214 90% 62%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 222 16% 16%;
+    --sidebar-accent-foreground: 213 20% 95%;
+    --sidebar-border: 222 16% 20%;
+    --sidebar-ring: 214 90% 62%;
 
-    --stage-complete: 142 64% 42%;
-    --stage-active: 173 80% 40%;
-    --stage-pending: 0 0% 40%;
-    --confidence-high: 142 64% 42%;
-    --confidence-medium: 38 92% 55%;
-    --confidence-low: 354 80% 58%;
+    --stage-complete: 152 52% 48%;
+    --stage-active: 214 90% 62%;
+    --stage-pending: 222 10% 45%;
+    --confidence-high: 152 52% 48%;
+    --confidence-medium: 38 92% 58%;
+    --confidence-low: 356 75% 62%;
 
-    --glass-background: 0 0% 6% / 0.85;
-    --glass-border: 0 0% 18% / 0.6;
+    --glass-background: 222 20% 10% / 0.85;
+    --glass-border: 222 16% 20% / 0.6;
   }
 }
 
@@ -219,11 +221,18 @@
      Do NOT use on Dashboard, Inbox, Workbench, or any operational page —
      it's too loud for users who work in the app all day. */
   .ax-display {
-    font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
-    font-weight: 800;
-    letter-spacing: -0.035em;
-    line-height: 0.95;
+    font-family: 'Fraunces', 'Inter Tight', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.0;
     color: hsl(var(--foreground));
+  }
+
+  /* Brand wordmark — Fraunces, used in the sidebar/login logo lockup. */
+  .ax-brand {
+    font-family: 'Fraunces', 'Inter Tight', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
 
   /* ── Mono ticker labels (used sparingly) ────────────────────────────── */
@@ -372,8 +381,15 @@
   .stagger > *:nth-child(7) { animation-delay: 270ms; }
   .stagger > *:nth-child(8) { animation-delay: 315ms; }
 
-  /* Respect users who prefer reduced motion */
+  /* Respect users who prefer reduced motion — global override so Radix dialogs,
+     shimmer/pulse/spin loops, accordions and entrances all stop animating. */
   @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
     .refined-in { animation: none; }
     .stagger > * { animation-delay: 0ms !important; }
     .card-interactive { transition: none; }

@@ -106,7 +106,8 @@ export function CheckConfigDrawer({ open, onOpenChange, item, stages, onSaved }:
       onSaved();
       onOpenChange(false);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to save check');
+      toast.error("We couldn't save that check. Please try again.");
+      console.error(err);
     } finally {
       setSaving(false);
     }

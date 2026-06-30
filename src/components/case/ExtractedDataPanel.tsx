@@ -3,6 +3,14 @@ import { Badge } from '@/components/ui/badge';
 import { AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { confidenceTier } from '@/lib/status';
+
+// Chip styling per confidence tier — uses the single app-wide threshold set.
+const CONF_CHIP: Record<string, string> = {
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  critical: 'bg-destructive/10 text-destructive',
+};
 
 interface ExtractedDataPanelProps {
   sections: ExtractedDataSection[];
@@ -23,7 +31,7 @@ export function ExtractedDataPanel({ sections, isCompact, onFieldClick, activeFi
                   {section.title}
                 </span>
                 <Badge variant="secondary" className="text-xs">
-                  {section.fields.filter(f => f.value).length}/{section.fields.length} FIELDS
+                  {section.fields.filter(f => f.value).length}/{section.fields.length} fields
                 </Badge>
               </div>
             )}
@@ -118,7 +126,7 @@ function ExtractedFieldRow({ field, onClick, isActive }: ExtractedFieldRowProps)
             {typeof field.confidence === 'number' && field.confidence > 0 && (
               <div className={cn(
                 'px-2 py-0.5 rounded text-[10px] font-bold uppercase',
-                field.confidence > 90 ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                CONF_CHIP[confidenceTier(field.confidence).variant],
               )}>
                 {Math.round(field.confidence)}% AI
               </div>
@@ -207,8 +215,8 @@ function ExtractedFieldRow({ field, onClick, isActive }: ExtractedFieldRowProps)
       <div className="flex items-center gap-3 shrink-0">
         {hasValue && (
           <div className={cn(
-            'px-2 py-0.5 rounded text-xs font-bold uppercase shadow-sm border',
-            field.confidence > 90 ? 'bg-success/10 text-success border-success/10' : 'bg-warning/10 text-warning border-warning/10'
+            'px-2 py-0.5 rounded text-xs font-bold uppercase shadow-sm border border-transparent',
+            CONF_CHIP[confidenceTier(field.confidence).variant],
           )}>
             {Math.round(field.confidence)}% AI
           </div>

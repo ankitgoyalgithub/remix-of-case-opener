@@ -114,9 +114,9 @@ export function WizardStepChecklist() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col">
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold text-foreground">Validation Guardrails</h2>
+        <h2 className="text-xl font-semibold text-foreground">Validation checks</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Define precise verification checkpoints for each operational phase.
+          Set the checks the platform runs at each review stage.
         </p>
       </div>
 
@@ -327,11 +327,11 @@ export function WizardStepChecklist() {
 
                           <div className="w-full space-y-4">
                             <div className="flex items-center justify-between">
-                              <Label className="text-xs font-black uppercase tracking-widest text-primary">Verification Pipeline</Label>
+                              <Label className="text-xs font-black uppercase tracking-widest text-primary">Checks</Label>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button size="sm" variant="outline" className="h-8 text-xs font-bold border-primary/30 text-primary hover:bg-primary/5 uppercase gap-2">
-                                    <Plus className="h-3.5 w-3.5" /> Provision New Check
+                                    <Plus className="h-3.5 w-3.5" aria-hidden /> Add check
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent className="w-56">
@@ -340,24 +340,24 @@ export function WizardStepChecklist() {
                                     next.push({ id: Math.random().toString(36).substr(2, 9), type: 'manual', config: {} });
                                     updateItem(item.id, { verifications: next });
                                   }}>
-                                    <User className="h-3.5 w-3.5 text-blue-500" />
-                                    Manual Attestation
+                                    <User className="h-3.5 w-3.5 text-blue-500" aria-hidden />
+                                    Checked by a person
                                   </DropdownMenuItem>
                                   <DropdownMenuItem className="text-xs font-bold gap-2 cursor-pointer" onClick={() => {
                                     const next = [...(item.verifications || [])];
                                     next.push({ id: Math.random().toString(36).substr(2, 9), type: 'document_verification', config: { prompt: 'Verify that this document is valid, authentic, and not expired. Do not flag missing fields that are unrelated to the core document validity (like tax details) unless explicitly required.' } });
                                     updateItem(item.id, { verifications: next });
                                   }}>
-                                    <Zap className="h-3.5 w-3.5 text-indigo-500" />
-                                    AI Document Verification
+                                    <Zap className="h-3.5 w-3.5 text-indigo-500" aria-hidden />
+                                    AI document check
                                   </DropdownMenuItem>
                                   <DropdownMenuItem className="text-xs font-bold gap-2 cursor-pointer" onClick={() => {
                                     const next = [...(item.verifications || [])];
                                     next.push({ id: Math.random().toString(36).substr(2, 9), type: 'cross_validation', config: { prompt: 'Compare the following fields across the selected documents and ensure they are semantically consistent. Highlight any discrepancies.' } });
                                     updateItem(item.id, { verifications: next });
                                   }}>
-                                    <GitCompare className="h-3.5 w-3.5 text-purple-500" />
-                                    Intelligent Cross-Validation
+                                    <GitCompare className="h-3.5 w-3.5 text-purple-500" aria-hidden />
+                                    Compare across documents
                                   </DropdownMenuItem>
                                   <DropdownMenuItem className="text-xs font-bold gap-2 cursor-pointer" onClick={() => {
                                     const next = [...(item.verifications || [])];
@@ -369,8 +369,8 @@ export function WizardStepChecklist() {
                                     });
                                     updateItem(item.id, { verifications: next });
                                   }}>
-                                    <Zap className="h-3.5 w-3.5 text-amber-500" />
-                                    Agent (Prompt-Driven)
+                                    <Zap className="h-3.5 w-3.5 text-amber-500" aria-hidden />
+                                    Custom AI check
                                   </DropdownMenuItem>
                                   <DropdownMenuItem className="text-xs font-bold gap-2 cursor-pointer" onClick={() => {
                                     const next = [...(item.verifications || [])];
@@ -382,8 +382,8 @@ export function WizardStepChecklist() {
                                     });
                                     updateItem(item.id, { verifications: next });
                                   }}>
-                                    <Globe className="h-3.5 w-3.5 text-rose-500" />
-                                    Entity Screening (AML/PEP/Adverse)
+                                    <Globe className="h-3.5 w-3.5 text-rose-500" aria-hidden />
+                                    Background &amp; sanctions check
                                   </DropdownMenuItem>
                                   <DropdownMenuItem className="text-xs font-bold gap-2 cursor-pointer" onClick={() => {
                                     const next = [...(item.verifications || [])];
@@ -444,13 +444,13 @@ export function WizardStepChecklist() {
                                           <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                          <SelectItem value="manual">Manual Attestation</SelectItem>
-                                          <SelectItem value="document_verification">Document Verification</SelectItem>
-                                          <SelectItem value="cross_validation">Cross-Validation</SelectItem>
-                                          <SelectItem value="external_api">External API</SelectItem>
-                                          <SelectItem value="agent_orchestrator">Agent (Prompt-Driven)</SelectItem>
-                                          <SelectItem value="entity_screening">Entity Screening</SelectItem>
-                                          <SelectItem value="risk_review">Risk Review (Aggregate)</SelectItem>
+                                          <SelectItem value="manual">Checked by a person</SelectItem>
+                                          <SelectItem value="document_verification">AI document check</SelectItem>
+                                          <SelectItem value="cross_validation">Compare across documents</SelectItem>
+                                          <SelectItem value="external_api">Connected service</SelectItem>
+                                          <SelectItem value="agent_orchestrator">Custom AI check</SelectItem>
+                                          <SelectItem value="entity_screening">Background &amp; sanctions check</SelectItem>
+                                          <SelectItem value="risk_review">Overall risk review</SelectItem>
                                         </SelectContent>
                                       </Select>
                                     </div>
@@ -578,10 +578,10 @@ export function WizardStepChecklist() {
                                           </div>
                                           
                                           <div className="flex-1 space-y-2">
-                                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">Agent Cross-Validation Instruction</Label>
+                                            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider text-[10px]">What to compare</Label>
                                             <textarea
                                               className="flex min-h-[180px] w-full rounded-xl border border-input bg-background px-4 py-4 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-inner leading-relaxed"
-                                              placeholder="Detailed comparison rules for the AI agent..."
+                                              placeholder="Describe what should match across the documents…"
                                               value={verif.config?.prompt || ''}
                                               onChange={(e) => {
                                                 const next = [...(item.verifications || [])];

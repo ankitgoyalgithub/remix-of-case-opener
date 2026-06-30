@@ -52,8 +52,8 @@ export default function EmailTemplates() {
   };
 
   const handleSave = () => {
-    toast.success('Email templates saved', {
-      description: `${templates.length} templates configured`,
+    toast.success('Saved', {
+      description: `${templates.length} email templates updated.`,
     });
     setHasChanges(false);
   };
@@ -82,13 +82,13 @@ export default function EmailTemplates() {
   return (
     <>
       <PageHeader
-        eyebrow="Studio · Messages"
+        eyebrow="Configuration · Email templates"
         title="Email templates"
-        description="Configure notification templates for ops workflows."
+        description="Set up the standard emails the platform sends — for example, when documents are missing or a deadline is near."
         actions={
           <Button onClick={handleSave} disabled={!hasChanges} size="sm" className="gap-1.5">
-            <Save className="h-3.5 w-3.5" />
-            Save templates
+            <Save className="h-3.5 w-3.5" aria-hidden />
+            Save changes
           </Button>
         }
       />
@@ -167,6 +167,7 @@ export default function EmailTemplates() {
                       value={currentTemplate.subject}
                       onChange={(e) => handleUpdateTemplate('subject', e.target.value)}
                       className="mt-1"
+                      aria-label="Subject line"
                     />
                   )}
                 </div>
@@ -185,6 +186,7 @@ export default function EmailTemplates() {
                       value={currentTemplate.body}
                       onChange={(e) => handleUpdateTemplate('body', e.target.value)}
                       className="mt-1 min-h-[250px] font-mono text-sm"
+                      aria-label="Email body"
                     />
                   )}
                 </div>

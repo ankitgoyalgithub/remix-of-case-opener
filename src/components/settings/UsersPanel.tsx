@@ -222,10 +222,11 @@ export function UsersPanel({ currentUserId }: Props) {
         <CardContent className="p-0">
           <div className="px-5 py-3 border-b border-border">
             <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" aria-hidden />
               <Input
                 className="pl-9 h-9 text-sm"
                 placeholder="Search users by name or email…"
+                aria-label="Search users by name or email"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
@@ -277,17 +278,17 @@ export function UsersPanel({ currentUserId }: Props) {
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(u)} title="Edit">
-                      <Pencil className="h-3.5 w-3.5" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(u)} aria-label={`Edit ${u.full_name || u.email}`}>
+                      <Pencil className="h-3.5 w-3.5" aria-hidden />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setResetting(u); setResetPassword(''); }} title="Reset password">
-                      <KeyRound className="h-3.5 w-3.5" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setResetting(u); setResetPassword(''); }} aria-label={`Reset password for ${u.full_name || u.email}`}>
+                      <KeyRound className="h-3.5 w-3.5" aria-hidden />
                     </Button>
                     {currentUserId !== u.id && (
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" title="Delete">
-                            <Trash2 className="h-3.5 w-3.5" />
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10" aria-label={`Delete ${u.full_name || u.email}`}>
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -361,8 +362,9 @@ export function UsersPanel({ currentUserId }: Props) {
             <DialogDescription>Send the new password to them through a secure channel.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
-            <Label className="text-xs">New password</Label>
+            <Label htmlFor="reset-password" className="text-xs">New password</Label>
             <Input
+              id="reset-password"
               type="password"
               autoComplete="new-password"
               value={resetPassword}
@@ -394,17 +396,18 @@ function UserForm({
     <div className="space-y-3 py-2">
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label className="text-xs">First name</Label>
-          <Input value={form.first_name} onChange={e => onChange({ ...form, first_name: e.target.value })} />
+          <Label htmlFor="user-first-name" className="text-xs">First name</Label>
+          <Input id="user-first-name" value={form.first_name} onChange={e => onChange({ ...form, first_name: e.target.value })} />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Last name</Label>
-          <Input value={form.last_name} onChange={e => onChange({ ...form, last_name: e.target.value })} />
+          <Label htmlFor="user-last-name" className="text-xs">Last name</Label>
+          <Input id="user-last-name" value={form.last_name} onChange={e => onChange({ ...form, last_name: e.target.value })} />
         </div>
       </div>
       <div className="space-y-1.5">
-        <Label className="text-xs">Email</Label>
+        <Label htmlFor="user-email" className="text-xs">Email</Label>
         <Input
+          id="user-email"
           type="email"
           autoComplete="email"
           value={form.email}
@@ -413,9 +416,9 @@ function UserForm({
         />
       </div>
       <div className="space-y-1.5">
-        <Label className="text-xs">Role</Label>
+        <Label htmlFor="user-role" className="text-xs">Role</Label>
         <Select value={form.role} onValueChange={(v) => onChange({ ...form, role: v as Role })}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectTrigger id="user-role" aria-label="Role"><SelectValue /></SelectTrigger>
           <SelectContent>
             {(['admin', 'operator', 'viewer'] as Role[]).map(r => (
               <SelectItem key={r} value={r}>
@@ -430,8 +433,9 @@ function UserForm({
       </div>
       {mode === 'create' && (
         <div className="space-y-1.5">
-          <Label className="text-xs">Initial password <span className="text-muted-foreground">(optional)</span></Label>
+          <Label htmlFor="user-password" className="text-xs">Initial password <span className="text-muted-foreground">(optional)</span></Label>
           <Input
+            id="user-password"
             type="password"
             autoComplete="new-password"
             value={form.password}
@@ -445,10 +449,10 @@ function UserForm({
       )}
       <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
         <div>
-          <Label className="text-sm">Active</Label>
+          <Label htmlFor="user-active" className="text-sm">Active</Label>
           <p className="text-[11px] text-muted-foreground">Disabled users can't sign in.</p>
         </div>
-        <Switch checked={form.is_active} onCheckedChange={(v) => onChange({ ...form, is_active: v })} />
+        <Switch id="user-active" aria-label="Active" checked={form.is_active} onCheckedChange={(v) => onChange({ ...form, is_active: v })} />
       </div>
     </div>
   );

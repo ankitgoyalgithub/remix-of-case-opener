@@ -133,6 +133,30 @@ export const api = {
             method: 'POST',
             body: JSON.stringify({ resolution_note: resolutionNote }),
         }),
+        // Dynamic Census Rulebook (member-register validation config).
+        census: {
+            rulebooks: {
+                list: () => fetchApi('/workflow/census-rulebooks/'),
+                get: (id: string | number) => fetchApi(`/workflow/census-rulebooks/${id}/`),
+                create: (data: any) => fetchApi('/workflow/census-rulebooks/', { method: 'POST', body: JSON.stringify(data) }),
+                update: (id: string | number, data: any) => fetchApi(`/workflow/census-rulebooks/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+                delete: (id: string | number) => fetchApi(`/workflow/census-rulebooks/${id}/`, { method: 'DELETE' }),
+                resetToDefaults: (id: string | number) => fetchApi(`/workflow/census-rulebooks/${id}/reset-to-code-defaults/`, { method: 'POST' }),
+                // Upload a census file → draft a rulebook (created inactive for review). data: FormData(file[, name, slug, description]).
+                createFromFile: (data: FormData) => fetchApi('/workflow/census-rulebooks/create-from-file/', { method: 'POST', body: data }),
+            },
+            fieldRules: {
+                list: (rulebookId: string | number, actionType?: string) =>
+                    fetchApi(`/workflow/census-field-rules/?rulebook=${rulebookId}${actionType ? `&action_type=${actionType}` : ''}`),
+                create: (data: any) => fetchApi('/workflow/census-field-rules/', { method: 'POST', body: JSON.stringify(data) }),
+                update: (id: string | number, data: any) => fetchApi(`/workflow/census-field-rules/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+                delete: (id: string | number) => fetchApi(`/workflow/census-field-rules/${id}/`, { method: 'DELETE' }),
+            },
+            conditionalRules: {
+                update: (id: string | number, data: any) => fetchApi(`/workflow/census-conditional-rules/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+            },
+            metadata: () => fetchApi('/workflow/census-rulebook-metadata/'),
+        },
     },
     documents: {
         list: (opts: { requestId?: string } = {}) => {

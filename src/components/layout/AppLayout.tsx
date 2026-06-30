@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
+import { MobileNav } from './MobileNav';
 import { api } from '@/lib/api';
 
 const AUTO_POLL_INTERVAL_MS = 300_000;
@@ -15,6 +16,7 @@ export const INBOUND_POLL_EVENT = 'inbound-email:polled';
 
 export function AppLayout() {
     const inFlightRef = useRef(false);
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
     useEffect(() => {
         const tick = async () => {
@@ -40,10 +42,20 @@ export function AppLayout() {
 
     return (
         <div className="h-screen flex bg-background">
+            {/* Skip link — first focusable element, jumps past the nav to content */}
+            <a
+                href="#main"
+                className="sr-only focus:not-sr-only focus:fixed focus:z-[100] focus:top-3 focus:left-3 focus:rounded-md focus:bg-foreground focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-background focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+                Skip to main content
+            </a>
+
             <Sidebar />
+            <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
+
             <div className="flex-1 min-w-0 flex flex-col">
-                <TopBar />
-                <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                <TopBar onOpenMobileNav={() => setMobileNavOpen(true)} />
+                <main id="main" tabIndex={-1} className="flex-1 min-h-0 flex flex-col overflow-hidden focus:outline-none">
                     <Outlet />
                 </main>
             </div>

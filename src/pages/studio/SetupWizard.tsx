@@ -14,11 +14,11 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 const wizardSteps: WizardStep[] = [
-  { id: 1, label: 'Workflow Stages' },
+  { id: 1, label: 'Review stages' },
   { id: 2, label: 'Documents' },
-  { id: 3, label: 'Stage Checklist' },
-  { id: 4, label: 'Emails' },
-  { id: 5, label: 'Review & Publish' },
+  { id: 3, label: 'Checks' },
+  { id: 4, label: 'Email templates' },
+  { id: 5, label: 'Review & finish' },
 ];
 
 export default function SetupWizard() {
@@ -46,8 +46,8 @@ export default function SetupWizard() {
   };
 
   const handleComplete = () => {
-    toast.success('Enterprise Configuration Published', {
-      description: 'The operational environment has been recalibrated and deployed.',
+    toast.success('Setup complete', {
+      description: 'Your configuration has been saved and is now in effect.',
     });
     // Reset to first step or redirect in a real app
     setTimeout(() => {
@@ -76,9 +76,9 @@ export default function SetupWizard() {
   return (
     <>
       <PageHeader
-        eyebrow="Studio · Setup"
-        title="Studio setup"
-        description="Configure your workspace preferences and standard operations."
+        eyebrow="Configuration · Guided setup"
+        title="Guided setup"
+        description="Set up the essentials step by step — review stages, documents, checks, and the emails the platform sends."
       />
 
       <div className="flex flex-col md:flex-row gap-8 items-stretch relative">

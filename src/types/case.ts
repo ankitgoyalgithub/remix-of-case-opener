@@ -299,28 +299,31 @@ export function getSlaStatus(remaining: number, targetHours: number): 'green' | 
 }
 
 
+// Plain-language labels shown to users. Where a term is genuinely industry-standard
+// (census, MOA, MOL, KYC) the original term is kept in parentheses so specialists still
+// recognise it while new/non-technical staff get the plain meaning.
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  'census': 'Census',
-  'finalized-census': 'Final Census',
-  'initial-census': 'Initial Census',
-  'trade-license': 'Trade License',
-  'customer-signed-quote': 'Customer Signed Quote',
-  'medical-application-form': 'Medical Application Form',
-  'establishment-card': 'Establishment Card',
-  'vat-certificate': 'VAT Certificate',
-  'moa': 'MOA (Memorandum of Association)',
-  'mol-list': 'MOL List',
-  'group-declaration': 'Group Declaration Form',
-  'salary-declaration': 'Salary Declaration Form',
-  'coc': 'Certificate of Continuation',
-  'kyc-signatory': 'KYC of Authorised Signatory',
+  'census': 'Employee list (census)',
+  'finalized-census': 'Final employee list',
+  'initial-census': 'Initial employee list',
+  'trade-license': 'Trade licence',
+  'customer-signed-quote': 'Signed quote',
+  'medical-application-form': 'Medical application form',
+  'establishment-card': 'Establishment card',
+  'vat-certificate': 'VAT certificate',
+  'moa': 'Ownership document (MOA)',
+  'mol-list': 'Government labour records (MOL)',
+  'group-declaration': 'Group declaration form',
+  'salary-declaration': 'Salary declaration form',
+  'coc': 'Certificate of continuation',
+  'kyc-signatory': 'Signatory ID check (KYC)',
   'quote': 'Quote',
   'emirates-id': 'Emirates ID',
   'passport': 'Passport',
-  'payment-receipt': 'Payment Receipt',
-  'claims-history': 'Claims History',
-  'quote-acceptance': 'Quote Acceptance',
-  'other': 'Other Document',
+  'payment-receipt': 'Payment receipt',
+  'claims-history': 'Claims history',
+  'quote-acceptance': 'Quote acceptance',
+  'other': 'Other document',
 };
 
 export function getMissingDocuments(documents: Document[], docDefs: DocDef[]): DocumentType[] {

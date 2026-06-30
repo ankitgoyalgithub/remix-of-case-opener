@@ -1,13 +1,44 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, Check, ExternalLink, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+    FileText,
+    CheckCircle2,
+    AlertCircle,
+    Clock3,
+    CircleDot,
+    ExternalLink,
+    ChevronDown,
+    ChevronRight,
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { Document, DOCUMENT_TYPE_LABELS } from '@/types/case';
 import { cn } from '@/lib/utils';
+import { confidenceTier, type BadgeVariant } from '@/lib/status';
 
 interface EvidencePackDocumentsProps {
     documents: Document[];
+}
+
+/** Plain-language presentation for a document's processing state. */
+function docStatusMeta(status: Document['status']): {
+    label: string;
+    variant: BadgeVariant;
+    Icon: typeof CheckCircle2;
+} {
+    switch (status) {
+        case 'verified':
+            return { label: 'Checked', variant: 'success', Icon: CheckCircle2 };
+        case 'extracted':
+        case 'processed':
+            return { label: 'Read', variant: 'success', Icon: CheckCircle2 };
+        case 'processing':
+            return { label: 'Reading…', variant: 'info', Icon: Clock3 };
+        case 'failed':
+            return { label: "Couldn't read", variant: 'critical', Icon: AlertCircle };
+        default:
+            return { label: 'Uploaded', variant: 'neutral', Icon: CircleDot };
+    }
 }
 
 function extractionEntries(extraction: any): Array<{ label: string; value: string; confidence?: number; verified?: boolean; source?: string }> {
@@ -54,19 +85,24 @@ function DocumentRow({ doc }: { doc: Document }) {
                     </div>
                 </button>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
-                    <Badge className={cn(
-                        'border-0 text-xs gap-1',
-                        doc.status === 'verified' || doc.status === 'extracted'
-                            ? 'bg-success/15 text-success'
-                            : 'bg-muted text-muted-foreground',
-                    )}>
-                        <Check className="h-3 w-3" />
-                        {doc.status}
-                    </Badge>
+                    {(() => {
+                        const m = docStatusMeta(doc.status);
+                        return (
+                            <Badge variant={m.variant} className="gap-1">
+                                <m.Icon className="h-3 w-3" aria-hidden />
+                                {m.label}
+                            </Badge>
+                        );
+                    })()}
                     {doc.url && (
-                        <a href={doc.url} target="_blank" rel="noreferrer">
+                        <a
+                            href={doc.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`Open ${doc.name} in a new tab`}
+                        >
                             <Button variant="ghost" size="sm" className="h-7 px-2 gap-1">
-                                <ExternalLink className="h-3 w-3" />
+                                <ExternalLink className="h-3 w-3" aria-hidden />
                                 <span className="text-xs">Open</span>
                             </Button>
                         </a>
@@ -89,7 +125,7 @@ function DocumentRow({ doc }: { doc: Document }) {
                                 />
                             ) : (
                                 <div className="px-3 py-2 text-xs text-muted-foreground">
-                                    Preview not available — use “Open” to view in a new tab.
+                                    We can't preview this file here — use "Open" to view it in a new tab.
                                 </div>
                             )}
                         </div>
@@ -99,7 +135,7 @@ function DocumentRow({ doc }: { doc: Document }) {
                     {entries.length > 0 ? (
                         <div className="space-y-1">
                             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                Extracted fields
+                                Details read from this document
                             </p>
                             <div className="border border-border rounded-md divide-y divide-border">
                                 {entries.map((e, idx) => (
@@ -112,11 +148,11 @@ function DocumentRow({ doc }: { doc: Document }) {
                                             )}
                                         </div>
                                         {typeof e.confidence === 'number' && (
-                                            <span className={cn(
-                                                'text-xs shrink-0',
-                                                e.confidence >= 95 ? 'text-success' : e.confidence >= 85 ? 'text-warning' : 'text-destructive',
-                                            )}>
-                                                {e.confidence}%
+                                            <span
+                                                className={cn('text-xs shrink-0 tabular-nums', confidenceTier(e.confidence).textClass)}
+                                                title={`${confidenceTier(e.confidence).label} confidence`}
+                                            >
+                                                {Math.round(e.confidence)}%
                                             </span>
                                         )}
                                     </div>
@@ -124,7 +160,7 @@ function DocumentRow({ doc }: { doc: Document }) {
                             </div>
                         </div>
                     ) : (
-                        <p className="text-xs text-muted-foreground italic">No extracted fields recorded.</p>
+                        <p className="text-xs text-muted-foreground italic">Nothing was read from this document.</p>
                     )}
                 </div>
             )}

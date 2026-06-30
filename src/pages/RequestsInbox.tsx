@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import {
   Filter, RefreshCw, Loader2, Plus, Trash2, AlertTriangle,
   Check, X as XIcon, ChevronUp, ChevronDown, ChevronRight, Keyboard, Sparkles,
   Bookmark, Save, Send, ArrowUpDown, Rows, LayoutList,
+  Clock3, CheckCircle2, AlertCircle, CircleDot, ShieldAlert, WifiOff,
 } from 'lucide-react';
 import { useUiPref } from '@/hooks/useUiPref';
 import { cn } from '@/lib/utils';
@@ -34,6 +35,16 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -47,17 +58,21 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { PageShell, PageHeader } from '@/components/layout/PageShell';
+import { DecisionModal, type DecisionAction } from '@/components/request/DecisionModal';
+import { requestStatusMeta, slaMeta, type StatusIconName } from '@/lib/status';
 
-const STATUS_STYLES: Record<RequestListItem['status'], string> = {
-  'New': 'bg-muted text-foreground',
-  'In Review': 'bg-info/10 text-info',
-  'Missing Info': 'bg-warning/10 text-warning',
-  'Ready for Export': 'bg-success/10 text-success',
-  'Issued': 'bg-primary/10 text-primary',
-  'Approved': 'bg-success/10 text-success',
-  'Rejected': 'bg-destructive/10 text-destructive',
-  'Published': 'bg-primary/10 text-primary',
+// Lucide icon lookup for the SLA "time left" cue (icon + text, never colour-only).
+const SLA_ICONS: Record<StatusIconName, typeof Clock3> = {
+  AlertTriangle, AlertCircle, Clock3, CheckCircle2, CircleDot, ShieldAlert,
 };
+
+// ONE canonical, plain-language status set — drives the Filter menu and chips.
+// Underlying rows still carry the raw display value; we compare via the shared
+// helper so "Issued" / "Published" both read as "Sent to insurer", etc.
+const STATUS_FILTER_OPTIONS = ['New', 'In review', 'Awaiting info', 'Approved', 'Sent to insurer', 'Rejected'] as const;
+
+const slaTextClass = (s: RequestListItem['slaStatus']) =>
+  s === 'red' ? 'text-destructive' : s === 'amber' ? 'text-warning' : 'text-success';
 
 type SlaBucket = 'red' | 'amber' | 'green';
 type SortKey = 'smartId' | 'companyName' | 'priority' | 'status' | 'owner' | 'slaRemaining' | 'createdAt';
@@ -78,6 +93,7 @@ interface SavedView {
 
 const EMPTY_FILTERS: FilterState = { status: [], priority: [], sla: [], owner: [] };
 const SAVED_VIEWS_KEY = 'insureauto.inbox.savedViews.v1';
+const UNDO_WINDOW_MS = 6000;
 
 function loadSavedViews(): SavedView[] {
   try {
@@ -100,11 +116,26 @@ function filtersEqual(a: FilterState, b: FilterState) {
     && arrEq(a.sla, b.sla) && arrEq(a.owner, b.owner);
 }
 
+// Read pre-applied filters carried in from the Dashboard KPI tiles, e.g.
+// /requests?status=Awaiting%20info  ·  /requests?sla=red.
+function filtersFromParams(params: URLSearchParams): FilterState {
+  const multi = (key: string) => params.getAll(key).flatMap(v => v.split(',')).map(v => v.trim()).filter(Boolean);
+  const status = multi('status');
+  const priority = multi('priority');
+  const sla = multi('sla').filter((v): v is SlaBucket => v === 'red' || v === 'amber' || v === 'green');
+  const owner = multi('owner');
+  if (!status.length && !priority.length && !sla.length && !owner.length) return EMPTY_FILTERS;
+  return { status, priority, sla, owner };
+}
+
 export default function RequestsInbox() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [requests, setRequests] = useState<RequestListItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
+  const [loadError, setLoadError] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [filters, setFilters] = useState<FilterState>(() => filtersFromParams(searchParams));
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('slaRemaining');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -118,8 +149,12 @@ export default function RequestsInbox() {
   const [nlBusy, setNlBusy] = useState(false);
   const [nlExplain, setNlExplain] = useState<string | null>(null);
   const [bulkActing, setBulkActing] = useState(false);
-  const [bulkCommentOpen, setBulkCommentOpen] = useState<null | 'approve' | 'reject'>(null);
-  const [bulkComment, setBulkComment] = useState('');
+
+  // Unified decision flow (shared DecisionModal) for row + bulk approve/reject/send.
+  const [rowDecision, setRowDecision] = useState<{ id: string; companyName: string; action: DecisionAction } | null>(null);
+  const [bulkDecision, setBulkDecision] = useState<DecisionAction | null>(null);
+  // Styled delete confirm (replaces window.confirm); paired with an Undo toast.
+  const [confirmDelete, setConfirmDelete] = useState<{ ids: string[]; label: string } | null>(null);
 
   // View mode — Triage groups by SLA (default, decision-grade) vs Flat sortable
   // table (power-user). Persisted so the user's preference sticks.
@@ -130,6 +165,7 @@ export default function RequestsInbox() {
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
+  const undoTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const fetchRequests = useCallback(async (opts?: { withInboundPoll?: boolean; toastResult?: boolean }) => {
     try {
@@ -141,20 +177,28 @@ export default function RequestsInbox() {
           const res = await api.inboundEmail.accounts.pollAll();
           if (opts.toastResult && res?.accounts_polled > 0) {
             toast.success(
-              `Inbound polled — ${res.matched ?? 0} new request${res.matched === 1 ? '' : 's'}`,
-              { description: `${res.fetched ?? 0} fetched · ${res.skipped ?? 0} skipped` },
+              `Checked the mailbox — ${res.matched ?? 0} new request${res.matched === 1 ? '' : 's'}`,
+              { description: `${res.fetched ?? 0} received · ${res.skipped ?? 0} skipped` },
             );
           }
         } catch {
-          // Don't block the request refresh on inbound poll failures.
+          // Don't block the request refresh on mailbox-check failures.
         }
       }
       const data = await api.requests.list();
       const mappedData = data.map(mapBackendRequestToListItem);
       setRequests(mappedData);
+      setLoadError(false);
+      setLastUpdated(new Date());
     } catch (error) {
+      // Engineering detail goes to the console only — never to the user.
       console.error('Failed to fetch requests:', error);
-      toast.error('Failed to load requests from server');
+      setLoadError(true);
+      // Keep any previously-loaded rows on screen so an outage never reads as
+      // "inbox zero". Only surface a toast when the user explicitly refreshed.
+      if (opts?.toastResult) {
+        toast.error("We couldn't load your requests. Check your connection and try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -181,7 +225,7 @@ export default function RequestsInbox() {
   const filteredRequests = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const out = requests.filter(req => {
-      if (filters.status.length > 0 && !filters.status.includes(req.status)) return false;
+      if (filters.status.length > 0 && !filters.status.includes(requestStatusMeta(req.status).label)) return false;
       if (filters.priority.length > 0 && !filters.priority.includes(req.priority)) return false;
       if (filters.sla.length > 0 && !filters.sla.includes(req.slaStatus)) return false;
       if (filters.owner.length > 0 && !filters.owner.includes(req.owner)) return false;
@@ -192,9 +236,14 @@ export default function RequestsInbox() {
       return true;
     });
 
+    const sortVal = (r: RequestListItem): any => {
+      if (sortKey === 'status') return requestStatusMeta(r.status).label;
+      return (r as any)[sortKey];
+    };
+
     const sorted = [...out].sort((a, b) => {
-      let av: any = (a as any)[sortKey];
-      let bv: any = (b as any)[sortKey];
+      let av: any = sortVal(a);
+      let bv: any = sortVal(b);
       if (av instanceof Date) av = av.getTime();
       if (bv instanceof Date) bv = bv.getTime();
       if (av == null) av = sortDir === 'asc' ? Infinity : -Infinity;
@@ -220,7 +269,8 @@ export default function RequestsInbox() {
   }, [filteredRequests]);
 
   // Rows actually visible in the table — flat mode shows all, triage mode
-  // omits rows from collapsed groups. Keyboard nav (j/k) and rowRefs walk this.
+  // omits rows from collapsed groups. Keyboard nav (j/k), select-all and
+  // rowRefs all walk this list so they never touch hidden rows.
   const visibleRows = useMemo(() => {
     if (viewMode === 'flat') return filteredRequests;
     return [
@@ -237,29 +287,31 @@ export default function RequestsInbox() {
     return { amber, red };
   }, [requests]);
 
+  // Broker / owner data isn't sent by the backend yet (empty string). Hide the
+  // columns + their filters/sorts entirely until real data arrives, rather than
+  // render blank cells or a fake "Unassigned".
   const ownersList = useMemo(() => {
     const set = new Set<string>();
     requests.forEach(r => r.owner && set.add(r.owner));
     return Array.from(set).sort();
   }, [requests]);
+  const hasOwners = ownersList.length > 0;
+  const hasBrokers = useMemo(() => requests.some(r => r.brokerName), [requests]);
+
+  // checkbox + Request + Company + (Broker?) + Time left + Stage + Status + (Owner?) + Actions
+  const colCount = 7 + (hasBrokers ? 1 : 0) + (hasOwners ? 1 : 0);
 
   const activeFilterCount = filters.status.length + filters.priority.length + filters.sla.length + filters.owner.length;
 
-  // ─── Selection logic ────────────────────────────────────────────
-  const allVisibleSelected = filteredRequests.length > 0 && filteredRequests.every(r => selectedIds.has(r.id));
-  const someVisibleSelected = !allVisibleSelected && filteredRequests.some(r => selectedIds.has(r.id));
+  // ─── Selection logic (only ever acts on truly-visible rows) ──────
+  const allVisibleSelected = visibleRows.length > 0 && visibleRows.every(r => selectedIds.has(r.id));
+  const someVisibleSelected = !allVisibleSelected && visibleRows.some(r => selectedIds.has(r.id));
 
   const toggleSelectAll = () => {
-    if (allVisibleSelected) {
-      // Deselect those currently visible
-      const next = new Set(selectedIds);
-      filteredRequests.forEach(r => next.delete(r.id));
-      setSelectedIds(next);
-    } else {
-      const next = new Set(selectedIds);
-      filteredRequests.forEach(r => next.add(r.id));
-      setSelectedIds(next);
-    }
+    const next = new Set(selectedIds);
+    if (allVisibleSelected) visibleRows.forEach(r => next.delete(r.id));
+    else visibleRows.forEach(r => next.add(r.id));
+    setSelectedIds(next);
   };
 
   const toggleRowSelect = (id: string) => {
@@ -293,33 +345,135 @@ export default function RequestsInbox() {
     toast.success(`Saved view: ${name}`);
   };
 
-  // ─── Bulk actions ───────────────────────────────────────────────
-  const runBulk = async (action: 'approve' | 'reject' | 'delete' | 'publish', comment?: string) => {
-    const ids = Array.from(selectedIds);
+  // ─── Decision flow (shared DecisionModal) ───────────────────────
+  const runRowDecision = async (id: string, action: DecisionAction, reason: string) => {
+    const name = requests.find(r => r.id === id)?.companyName || 'this request';
+    try {
+      if (action === 'approve') await api.requests.approve(id, reason || 'Approved');
+      else if (action === 'reject') await api.requests.reject(id, reason || 'Rejected');
+      else await api.requests.publish(id);
+      toast.success(
+        action === 'publish' ? `${name} sent to insurer`
+          : action === 'approve' ? `${name} approved`
+          : `${name} rejected`,
+      );
+      fetchRequests();
+    } catch (err) {
+      console.error('Decision failed for', id, err);
+      const verb = action === 'publish' ? 'send' : action;
+      toast.error(`We couldn't ${verb} ${name}. Please try again — if it keeps happening, contact support.`);
+    }
+  };
+
+  // Bulk approve / reject / send. Collects which items failed and offers a
+  // one-click retry for just those, instead of a bare "X ok, Y failed".
+  const runBulk = async (action: DecisionAction, reason: string, idsOverride?: string[]) => {
+    const ids = idsOverride ?? Array.from(selectedIds);
     if (ids.length === 0) return;
     setBulkActing(true);
-    const t = toast.loading(`${action === 'delete' ? 'Deleting' : action === 'publish' ? 'Publishing' : action + 'ing'} ${ids.length} request${ids.length > 1 ? 's' : ''}…`);
-    let ok = 0;
-    let fail = 0;
+    const ing = action === 'publish' ? 'Sending' : action === 'approve' ? 'Approving' : 'Rejecting';
+    const t = toast.loading(`${ing} ${ids.length} request${ids.length > 1 ? 's' : ''}…`);
+    const failedIds: string[] = [];
     for (const id of ids) {
       try {
-        if (action === 'approve') await api.requests.approve(id, comment || 'Bulk-approved');
-        else if (action === 'reject') await api.requests.reject(id, comment || 'Bulk-rejected');
-        else if (action === 'publish') await api.requests.publish(id);
-        else if (action === 'delete') await api.requests.delete(id);
-        ok++;
+        if (action === 'approve') await api.requests.approve(id, reason || 'Approved');
+        else if (action === 'reject') await api.requests.reject(id, reason || 'Rejected');
+        else await api.requests.publish(id);
       } catch (err) {
         console.error('Bulk action failed for', id, err);
-        fail++;
+        failedIds.push(id);
       }
     }
     toast.dismiss(t);
-    if (fail === 0) toast.success(`${action === 'delete' ? 'Deleted' : action === 'publish' ? 'Published' : action + 'd'} ${ok} request${ok > 1 ? 's' : ''}`);
-    else toast.error(`${ok} succeeded, ${fail} failed`);
+    const okCount = ids.length - failedIds.length;
+    const done = action === 'publish' ? 'Sent to insurer' : action === 'approve' ? 'Approved' : 'Rejected';
+    if (failedIds.length === 0) {
+      toast.success(`${done} ${okCount} request${okCount !== 1 ? 's' : ''}`);
+    } else {
+      const failedNames = failedIds.map(id => requests.find(r => r.id === id)?.companyName || id);
+      toast.error(
+        okCount > 0
+          ? `${done} ${okCount}, but ${failedIds.length} didn't go through.`
+          : `${failedIds.length} request${failedIds.length > 1 ? 's' : ''} didn't go through.`,
+        {
+          description: `Not done: ${failedNames.join(', ')}. You can retry just these.`,
+          duration: 12000,
+          action: { label: 'Retry failed', onClick: () => runBulk(action, reason, failedIds) },
+        },
+      );
+    }
     setBulkActing(false);
-    clearSelection();
+    if (!idsOverride) clearSelection();
     fetchRequests();
   };
+
+  // ─── Soft delete with Undo ──────────────────────────────────────
+  // Optimistically removes the rows, shows an Undo toast, and only calls the
+  // API after the undo window closes. Failures restore the rows and explain.
+  const finalizeDelete = async (ids: string[], removed: RequestListItem[]) => {
+    const failed: RequestListItem[] = [];
+    await Promise.all(ids.map(async id => {
+      try {
+        await api.requests.delete(id);
+      } catch (err) {
+        console.error('Delete failed for', id, err);
+        const item = removed.find(r => r.id === id);
+        if (item) failed.push(item);
+      }
+    }));
+    if (failed.length) {
+      setRequests(prev => {
+        const have = new Set(prev.map(r => r.id));
+        return [...failed.filter(r => !have.has(r.id)), ...prev];
+      });
+      toast.error(
+        failed.length === 1
+          ? `We couldn't delete ${failed[0].companyName}. It's back in your list — please try again.`
+          : `We couldn't delete ${failed.length} requests. They're back in your list — please try again.`,
+        { description: failed.length > 1 ? failed.map(f => f.companyName).join(', ') : undefined },
+      );
+    }
+  };
+
+  const softDelete = (ids: string[]) => {
+    if (ids.length === 0) return;
+    const removed = requests.filter(r => ids.includes(r.id));
+    setRequests(prev => prev.filter(r => !ids.includes(r.id)));
+    setSelectedIds(prev => {
+      const n = new Set(prev);
+      ids.forEach(id => n.delete(id));
+      return n;
+    });
+    const token = `del-${Date.now()}`;
+    const label = ids.length === 1
+      ? `${removed[0]?.companyName || 'Request'} deleted`
+      : `${ids.length} requests deleted`;
+    undoTimers.current[token] = setTimeout(() => {
+      delete undoTimers.current[token];
+      finalizeDelete(ids, removed);
+    }, UNDO_WINDOW_MS);
+    toast(label, {
+      id: token,
+      duration: UNDO_WINDOW_MS,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          clearTimeout(undoTimers.current[token]);
+          delete undoTimers.current[token];
+          setRequests(prev => {
+            const have = new Set(prev.map(r => r.id));
+            return [...removed.filter(r => !have.has(r.id)), ...prev];
+          });
+          toast.dismiss(token);
+        },
+      },
+    });
+  };
+
+  // Flush any pending deletes on unmount so they aren't silently lost.
+  useEffect(() => () => {
+    Object.values(undoTimers.current).forEach(clearTimeout);
+  }, []);
 
   // ─── NL filter ─────────────────────────────────────────────────
   const runNlQuery = async () => {
@@ -330,8 +484,11 @@ export default function RequestsInbox() {
     try {
       const res = await api.requests.nlFilter(q);
       if (res?.filters) {
+        // Backend returns raw display statuses — translate to canonical labels
+        // so they line up with the simplified Filter menu.
+        const status = (res.filters.status || []).map((s: string) => requestStatusMeta(s).label);
         setFilters({
-          status: res.filters.status || [],
+          status,
           priority: res.filters.priority || [],
           sla: res.filters.sla || [],
           owner: res.filters.owner || [],
@@ -341,24 +498,24 @@ export default function RequestsInbox() {
         toast.success('Filter applied');
         if (!res.explanation) setShowNlDialog(false);
       } else {
-        toast.error('Could not translate query');
+        toast.error("We couldn't turn that into a filter. Try rephrasing it.");
       }
     } catch (err: any) {
       console.error('NL filter failed', err);
-      toast.error(err?.message || 'Natural-language search failed');
+      toast.error("Search didn't work this time. Please try again.");
     } finally {
       setNlBusy(false);
     }
   };
 
-  // ─── New request (unchanged) ────────────────────────────────────
+  // ─── New request (unchanged logic) ──────────────────────────────
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
   const [newRequestData, setNewRequestData] = useState({ companyName: '', entityName: '', priority: 'normal' });
   const [creating, setCreating] = useState(false);
 
   const handleCreateRequest = async () => {
     if (!newRequestData.companyName) {
-      toast.error('Company Name is required');
+      toast.error('Please enter a company name to continue.');
       return;
     }
     try {
@@ -368,31 +525,23 @@ export default function RequestsInbox() {
         entity_name: newRequestData.entityName.trim() || newRequestData.companyName.trim(),
         priority: newRequestData.priority,
       });
-      toast.success('Request created successfully');
+      toast.success('Request created');
       setIsNewRequestOpen(false);
       setNewRequestData({ companyName: '', entityName: '', priority: 'normal' });
       fetchRequests();
       navigate(`/request/${res.id}`);
     } catch (error) {
       console.error('Failed to create request:', error);
-      toast.error('Failed to create request');
+      toast.error("We couldn't create the request. Please try again.");
     } finally {
       setCreating(false);
     }
   };
 
-  const handleDeleteRequest = async (e: React.MouseEvent, requestId: string) => {
+  const requestDelete = (e: React.MouseEvent, requestId: string) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this request?')) return;
-    try {
-      toast.loading('Deleting request...', { id: 'delete-request' });
-      await api.requests.delete(requestId);
-      toast.success('Request deleted successfully', { id: 'delete-request' });
-      fetchRequests();
-    } catch (error) {
-      console.error('Failed to delete request:', error);
-      toast.error('Failed to delete request', { id: 'delete-request' });
-    }
+    const r = requests.find(x => x.id === requestId);
+    setConfirmDelete({ ids: [requestId], label: r?.companyName || 'this request' });
   };
 
   // ─── Keyboard shortcuts ────────────────────────────────────────
@@ -438,6 +587,10 @@ export default function RequestsInbox() {
         e.preventDefault();
         const row = visibleRows[focusedIndex];
         if (row) toggleRowSelect(row.id);
+      } else if (e.key === 'x' && focusedIndex != null) {
+        e.preventDefault();
+        const row = visibleRows[focusedIndex];
+        if (row) setConfirmDelete({ ids: [row.id], label: row.companyName });
       }
     };
     window.addEventListener('keydown', onKey);
@@ -453,23 +606,47 @@ export default function RequestsInbox() {
     else { setSortKey(key); setSortDir('asc'); }
   };
 
-  const sortIndicator = (key: SortKey) => {
-    if (sortKey !== key) return <ArrowUpDown className="h-3 w-3 text-muted-foreground/40" />;
-    return sortDir === 'asc' ? <ChevronUp className="h-3 w-3 text-primary" /> : <ChevronDown className="h-3 w-3 text-primary" />;
-  };
-
-  const renderSlaDot = (status: RequestListItem['slaStatus']) => {
-    const color = status === 'red' ? 'bg-destructive' : status === 'amber' ? 'bg-warning' : 'bg-success';
-    return <span className={cn('inline-block w-2 h-2 rounded-full', color)} />;
-  };
-
   const renderSlaTime = (remaining: number) => {
     if (remaining > 0) return `${remaining}h left`;
     if (remaining === 0) return 'Due now';
     return `${Math.abs(remaining)}h overdue`;
   };
 
+  const renderSlaCell = (request: RequestListItem) => {
+    const meta = slaMeta(request.slaStatus);
+    const Icon = SLA_ICONS[meta.icon];
+    return (
+      <div className="flex items-center gap-1.5">
+        <Icon className={cn('h-3.5 w-3.5 shrink-0', slaTextClass(request.slaStatus))} aria-hidden />
+        <span className={cn('text-xs', slaTextClass(request.slaStatus), request.slaStatus === 'green' && 'text-muted-foreground')}>
+          {renderSlaTime(request.slaRemaining)}
+        </span>
+      </div>
+    );
+  };
+
   const selectionCount = selectedIds.size;
+
+  const rowCtx: RowRender = {
+    rowRefs,
+    hasBrokers,
+    hasOwners,
+    onRowClick: handleRowClick,
+    onRowSelect: toggleRowSelect,
+    onRowDelete: requestDelete,
+    onRowApprove: (r) => setRowDecision({ id: r.id, companyName: r.companyName, action: 'approve' }),
+    onRowReject: (r) => setRowDecision({ id: r.id, companyName: r.companyName, action: 'reject' }),
+    renderSlaCell,
+  };
+
+  const bulkTitle = bulkDecision === 'reject'
+    ? `Reject ${selectionCount} request${selectionCount > 1 ? 's' : ''}`
+    : bulkDecision === 'publish'
+      ? `Send ${selectionCount} request${selectionCount > 1 ? 's' : ''} to insurer`
+      : `Approve ${selectionCount} request${selectionCount > 1 ? 's' : ''}`;
+  const bulkDesc = bulkDecision === 'publish'
+    ? `This sends the approved details for ${selectionCount} request${selectionCount > 1 ? 's' : ''} to the insurer. A note is saved to the audit trail.`
+    : `Your reason is saved to the audit trail on all ${selectionCount} selected request${selectionCount > 1 ? 's' : ''}.`;
 
   return (
     <PageShell fullBleed>
@@ -479,13 +656,15 @@ export default function RequestsInbox() {
           eyebrow="Operations · Inbox"
           title="Requests"
           description={
-            loading
+            loading && requests.length === 0
               ? 'Loading…'
-              : slaRisk.red > 0
-                ? `${slaRisk.red} overdue · ${slaRisk.amber} at risk · ${requests.length} total`
-                : slaRisk.amber > 0
-                  ? `${slaRisk.amber} at risk · ${requests.length} total`
-                  : `${requests.length} total · all on track`
+              : loadError && requests.length === 0
+                ? "We couldn't load your requests."
+                : slaRisk.red > 0
+                  ? `${slaRisk.red} overdue · ${slaRisk.amber} at risk · ${requests.length} total`
+                  : slaRisk.amber > 0
+                    ? `${slaRisk.amber} at risk · ${requests.length} total`
+                    : `${requests.length} total · all on track`
           }
           actions={
             <Dialog open={isNewRequestOpen} onOpenChange={setIsNewRequestOpen}>
@@ -497,11 +676,12 @@ export default function RequestsInbox() {
               </DialogTrigger>
             <DialogContent className="sm:max-w-[420px]">
               <DialogHeader>
-                <DialogTitle>Create New Request</DialogTitle>
+                <DialogTitle>Create new request</DialogTitle>
+                <DialogDescription>Start a new underwriting request. You can add documents next.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-2">
                 <div className="grid gap-2">
-                  <Label htmlFor="companyName" className="text-xs">Company Name</Label>
+                  <Label htmlFor="companyName" className="text-xs">Company name</Label>
                   <Input
                     id="companyName"
                     placeholder="e.g. Acme Corp"
@@ -510,10 +690,10 @@ export default function RequestsInbox() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="entityName" className="text-xs">Entity Name (optional, for AML screening)</Label>
+                  <Label htmlFor="entityName" className="text-xs">Legal entity name (optional — used for the background check)</Label>
                   <Input
                     id="entityName"
-                    placeholder="Defaults to Company Name if blank"
+                    placeholder="Defaults to the company name if left blank"
                     value={newRequestData.entityName}
                     onChange={(e) => setNewRequestData({ ...newRequestData, entityName: e.target.value })}
                   />
@@ -524,7 +704,7 @@ export default function RequestsInbox() {
                     value={newRequestData.priority}
                     onValueChange={(value) => setNewRequestData({ ...newRequestData, priority: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="priority">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -549,18 +729,20 @@ export default function RequestsInbox() {
 
       {/* Toolbar */}
       <div className="border-b border-border bg-background px-4 md:px-6 lg:px-8 py-2.5 flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 min-w-[160px] max-w-sm">
           <Input
             ref={searchInputRef}
             placeholder="Search by company, ID, broker… (press /)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-8 text-sm pr-8"
+            aria-label="Search requests"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus-ring rounded"
+              aria-label="Clear search"
             >
               <XIcon className="h-3.5 w-3.5" />
             </button>
@@ -580,7 +762,7 @@ export default function RequestsInbox() {
                 ? 'bg-foreground text-background'
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted',
             )}
-            title="Triage view — grouped by SLA"
+            title="Triage view — grouped by time left"
           >
             <LayoutList className="h-3.5 w-3.5" />
             Triage
@@ -629,7 +811,7 @@ export default function RequestsInbox() {
           <DropdownMenuContent align="start" className="w-56">
             <DropdownMenuLabel className="text-xs">Status</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {(['New', 'In Review', 'Missing Info', 'Ready for Export', 'Issued', 'Approved', 'Rejected', 'Published'] as const).map((status) => (
+            {STATUS_FILTER_OPTIONS.map((status) => (
               <DropdownMenuCheckboxItem
                 key={status}
                 checked={filters.status.includes(status)}
@@ -655,7 +837,7 @@ export default function RequestsInbox() {
               </DropdownMenuCheckboxItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-xs">SLA</DropdownMenuLabel>
+            <DropdownMenuLabel className="text-xs">Time left</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {([
               { v: 'red' as const, label: 'Overdue' },
@@ -672,7 +854,7 @@ export default function RequestsInbox() {
                 {label}
               </DropdownMenuCheckboxItem>
             ))}
-            {ownersList.length > 0 && (
+            {hasOwners && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-xs">Owner</DropdownMenuLabel>
@@ -721,7 +903,8 @@ export default function RequestsInbox() {
                   </button>
                   <button
                     onClick={() => deleteSavedView(v.id)}
-                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                    className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-destructive focus-ring rounded"
+                    aria-label={`Delete saved view ${v.name}`}
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -753,10 +936,17 @@ export default function RequestsInbox() {
 
         <div className="flex-1" />
 
+        {lastUpdated && !loadError && (
+          <span className="hidden md:inline text-[11px] text-muted-foreground tabular-nums" aria-live="polite">
+            Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+
         <Button
           variant="ghost"
           size="sm"
           className="h-8 w-8 p-0 text-muted-foreground"
+          aria-label="Keyboard shortcuts: / search, j or k to move, Enter to open, Space to select, x to delete"
           title="Keyboard shortcuts: / search · j/k nav · Enter open · Space select · x delete"
         >
           <Keyboard className="h-3.5 w-3.5" />
@@ -768,12 +958,33 @@ export default function RequestsInbox() {
           className="h-8 gap-1.5 text-muted-foreground"
           onClick={() => fetchRequests({ withInboundPoll: true, toastResult: true })}
           disabled={loading}
-          title="Refresh — also polls connected mailboxes"
+          aria-label="Refresh requests and check the mailbox"
+          title="Refresh — also checks connected mailboxes"
         >
           {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
           <span className="hidden sm:inline">Refresh</span>
         </Button>
       </div>
+
+      {/* Persistent outage banner — distinguishes "system down" from "no work" */}
+      {loadError && (
+        <div role="alert" className="border-b border-destructive/30 bg-destructive/10 px-4 md:px-6 lg:px-8 py-2.5 flex items-center gap-2 flex-wrap text-sm">
+          <WifiOff className="h-4 w-4 text-destructive shrink-0" aria-hidden />
+          <span className="text-foreground">
+            We couldn't load your requests. Check your connection and try again — your work is safe.
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1.5 ml-auto"
+            onClick={() => fetchRequests({ toastResult: true })}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            Retry
+          </Button>
+        </div>
+      )}
 
       {/* Active filter chips */}
       {(activeFilterCount > 0 || nlExplain) && (
@@ -785,7 +996,7 @@ export default function RequestsInbox() {
             <FilterChip key={`p-${p}`} label={`Priority: ${p}`} onRemove={() => setFilters(f => ({ ...f, priority: f.priority.filter(x => x !== p) }))} />
           ))}
           {filters.sla.map(s => (
-            <FilterChip key={`sla-${s}`} label={`SLA: ${s === 'red' ? 'Overdue' : s === 'amber' ? 'At risk' : 'On track'}`} onRemove={() => setFilters(f => ({ ...f, sla: f.sla.filter(x => x !== s) }))} />
+            <FilterChip key={`sla-${s}`} label={`Time left: ${s === 'red' ? 'Overdue' : s === 'amber' ? 'At risk' : 'On track'}`} onRemove={() => setFilters(f => ({ ...f, sla: f.sla.filter(x => x !== s) }))} />
           ))}
           {filters.owner.map(o => (
             <FilterChip key={`o-${o}`} label={`Owner: ${o}`} onRemove={() => setFilters(f => ({ ...f, owner: f.owner.filter(x => x !== o) }))} />
@@ -810,7 +1021,7 @@ export default function RequestsInbox() {
           <Button
             size="sm" variant="outline"
             className="h-7 gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
-            onClick={() => { setBulkComment(''); setBulkCommentOpen('reject'); }}
+            onClick={() => setBulkDecision('reject')}
             disabled={bulkActing}
           >
             <XIcon className="h-3.5 w-3.5" /> Reject
@@ -818,21 +1029,21 @@ export default function RequestsInbox() {
           <Button
             size="sm"
             className="h-7 gap-1.5 bg-success hover:bg-success/90 text-success-foreground"
-            onClick={() => { setBulkComment(''); setBulkCommentOpen('approve'); }}
+            onClick={() => setBulkDecision('approve')}
             disabled={bulkActing}
           >
             <Check className="h-3.5 w-3.5" /> Approve
           </Button>
           <Button
             size="sm" variant="outline" className="h-7 gap-1.5"
-            onClick={() => runBulk('publish')}
+            onClick={() => setBulkDecision('publish')}
             disabled={bulkActing}
           >
-            <Send className="h-3.5 w-3.5" /> Publish
+            <Send className="h-3.5 w-3.5" /> Send to insurer
           </Button>
           <Button
             size="sm" variant="ghost" className="h-7 gap-1.5 text-destructive hover:bg-destructive/10"
-            onClick={() => { if (window.confirm(`Delete ${selectionCount} request${selectionCount > 1 ? 's' : ''}?`)) runBulk('delete'); }}
+            onClick={() => setConfirmDelete({ ids: Array.from(selectedIds), label: `${selectionCount} request${selectionCount > 1 ? 's' : ''}` })}
             disabled={bulkActing}
           >
             <Trash2 className="h-3.5 w-3.5" /> Delete
@@ -849,17 +1060,17 @@ export default function RequestsInbox() {
                 <Checkbox
                   checked={allVisibleSelected || (someVisibleSelected && 'indeterminate')}
                   onCheckedChange={toggleSelectAll}
-                  aria-label="Select all"
+                  aria-label={allVisibleSelected ? 'Deselect all visible requests' : 'Select all visible requests'}
                 />
               </TableHead>
-              <SortableHead label="Request" active={sortKey === 'smartId'} dir={sortDir} onClick={() => toggleSort('smartId')} className="w-[140px]" />
-              <SortableHead label="Company" active={sortKey === 'companyName'} dir={sortDir} onClick={() => toggleSort('companyName')} />
-              <TableHead className="h-9 hidden lg:table-cell text-xs font-medium">Broker</TableHead>
-              <SortableHead label="SLA" active={sortKey === 'slaRemaining'} dir={sortDir} onClick={() => toggleSort('slaRemaining')} className="w-[120px]" />
+              <SortableHead label="Request" sortKey="smartId" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="w-[140px]" />
+              <SortableHead label="Company" sortKey="companyName" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+              {hasBrokers && <TableHead className="h-9 hidden lg:table-cell text-xs font-medium">Broker</TableHead>}
+              <SortableHead label="Time left" sortKey="slaRemaining" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="w-[130px]" />
               <TableHead className="h-9 hidden md:table-cell text-xs font-medium">Stage</TableHead>
-              <SortableHead label="Status" active={sortKey === 'status'} dir={sortDir} onClick={() => toggleSort('status')} className="w-[140px]" />
-              <SortableHead label="Owner" active={sortKey === 'owner'} dir={sortDir} onClick={() => toggleSort('owner')} className="hidden sm:table-cell" />
-              <TableHead className="h-9 w-8"></TableHead>
+              <SortableHead label="Status" sortKey="status" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="w-[150px]" />
+              {hasOwners && <SortableHead label="Owner" sortKey="owner" activeKey={sortKey} dir={sortDir} onSort={toggleSort} className="hidden sm:table-cell" />}
+              <TableHead className="h-9 w-[120px] text-right text-xs font-medium pr-3">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -869,32 +1080,47 @@ export default function RequestsInbox() {
                   <TableCell className="py-2.5 w-10"><Skeleton className="h-4 w-4 rounded-sm" /></TableCell>
                   <TableCell className="py-2.5"><Skeleton className="h-3 w-24" /></TableCell>
                   <TableCell className="py-2.5"><Skeleton className="h-3.5 w-44" /></TableCell>
-                  <TableCell className="py-2.5 hidden lg:table-cell"><Skeleton className="h-3 w-32" /></TableCell>
+                  {hasBrokers && <TableCell className="py-2.5 hidden lg:table-cell"><Skeleton className="h-3 w-32" /></TableCell>}
                   <TableCell className="py-2.5"><Skeleton className="h-3 w-16" /></TableCell>
                   <TableCell className="py-2.5 hidden md:table-cell"><Skeleton className="h-3 w-20" /></TableCell>
                   <TableCell className="py-2.5"><Skeleton className="h-5 w-20 rounded-md" /></TableCell>
-                  <TableCell className="py-2.5 hidden sm:table-cell"><Skeleton className="h-3 w-24" /></TableCell>
+                  {hasOwners && <TableCell className="py-2.5 hidden sm:table-cell"><Skeleton className="h-3 w-24" /></TableCell>}
                   <TableCell className="py-2.5"></TableCell>
                 </TableRow>
               ))
             ) : filteredRequests.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-48 text-center">
-                  <div className="flex flex-col items-center justify-center gap-3 animate-in fade-in duration-300">
-                    <div className="h-10 w-10 rounded-md border border-border bg-muted/40 flex items-center justify-center">
-                      <Sparkles className="h-4 w-4 text-muted-foreground" />
+                <TableCell colSpan={colCount} className="h-48 text-center">
+                  {loadError ? (
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="h-10 w-10 rounded-md border border-destructive/30 bg-destructive/10 flex items-center justify-center">
+                        <WifiOff className="h-4 w-4 text-destructive" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">We couldn't load your requests</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Check your connection and try again — your work is safe.</p>
+                      </div>
+                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => fetchRequests({ toastResult: true })}>
+                        <RefreshCw className="h-3.5 w-3.5" /> Retry
+                      </Button>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">
-                        {searchQuery || activeFilterCount > 0 ? 'No matches' : 'Inbox zero'}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {searchQuery || activeFilterCount > 0
-                          ? 'Try adjusting your filters or clearing the search.'
-                          : 'No requests yet — create one to get started.'}
-                      </p>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-3 animate-in fade-in duration-300">
+                      <div className="h-10 w-10 rounded-md border border-border bg-muted/40 flex items-center justify-center">
+                        <Sparkles className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">
+                          {searchQuery || activeFilterCount > 0 ? 'No matches' : 'Nothing in your inbox'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {searchQuery || activeFilterCount > 0
+                            ? 'Try adjusting your filters or clearing the search.'
+                            : "You're all caught up — new requests will appear here."}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </TableCell>
               </TableRow>
             ) : viewMode === 'triage' ? (
@@ -904,48 +1130,36 @@ export default function RequestsInbox() {
                   label="Overdue"
                   rows={groups.red}
                   startIdx={0}
+                  colCount={colCount}
                   collapsed={collapsedRed}
                   onToggle={() => setCollapsedRed(v => !v)}
                   selectedIds={selectedIds}
                   focusedIndex={focusedIndex}
-                  rowRefs={rowRefs}
-                  onRowClick={handleRowClick}
-                  onRowSelect={toggleRowSelect}
-                  onRowDelete={handleDeleteRequest}
-                  renderSlaDot={renderSlaDot}
-                  renderSlaTime={renderSlaTime}
+                  {...rowCtx}
                 />
                 <TriageGroup
                   bucket="amber"
-                  label="Due 24h"
+                  label="Due within 24h"
                   rows={groups.amber}
                   startIdx={collapsedRed ? 0 : groups.red.length}
+                  colCount={colCount}
                   collapsed={collapsedAmber}
                   onToggle={() => setCollapsedAmber(v => !v)}
                   selectedIds={selectedIds}
                   focusedIndex={focusedIndex}
-                  rowRefs={rowRefs}
-                  onRowClick={handleRowClick}
-                  onRowSelect={toggleRowSelect}
-                  onRowDelete={handleDeleteRequest}
-                  renderSlaDot={renderSlaDot}
-                  renderSlaTime={renderSlaTime}
+                  {...rowCtx}
                 />
                 <TriageGroup
                   bucket="green"
                   label="On track"
                   rows={groups.green}
                   startIdx={(collapsedRed ? 0 : groups.red.length) + (collapsedAmber ? 0 : groups.amber.length)}
+                  colCount={colCount}
                   collapsed={collapsedGreen}
                   onToggle={() => setCollapsedGreen(v => !v)}
                   selectedIds={selectedIds}
                   focusedIndex={focusedIndex}
-                  rowRefs={rowRefs}
-                  onRowClick={handleRowClick}
-                  onRowSelect={toggleRowSelect}
-                  onRowDelete={handleDeleteRequest}
-                  renderSlaDot={renderSlaDot}
-                  renderSlaTime={renderSlaTime}
+                  {...rowCtx}
                 />
               </>
             ) : (
@@ -954,12 +1168,7 @@ export default function RequestsInbox() {
                   request, idx,
                   isSelected: selectedIds.has(request.id),
                   isFocused: focusedIndex === idx,
-                  rowRefs,
-                  onRowClick: handleRowClick,
-                  onRowSelect: toggleRowSelect,
-                  onRowDelete: handleDeleteRequest,
-                  renderSlaDot,
-                  renderSlaTime,
+                  ...rowCtx,
                 })
               )
             )}
@@ -979,6 +1188,7 @@ export default function RequestsInbox() {
             value={newViewName}
             onChange={(e) => setNewViewName(e.target.value)}
             autoFocus
+            aria-label="View name"
             onKeyDown={(e) => { if (e.key === 'Enter') saveCurrentAsView(); }}
           />
           <DialogFooter>
@@ -997,15 +1207,16 @@ export default function RequestsInbox() {
               Ask about the inbox
             </DialogTitle>
             <DialogDescription>
-              Describe what you want to see in plain English. The AI translates it into inbox filters.
+              Describe what you want to see in plain English. The AI turns it into inbox filters.
             </DialogDescription>
           </DialogHeader>
           <Textarea
             value={nlQuery}
             onChange={(e) => setNlQuery(e.target.value)}
             rows={3}
-            placeholder={`e.g. "urgent requests overdue on SLA" · "anything rejected this week" · "requests missing info owned by Sarah"`}
+            placeholder={`e.g. "urgent requests overdue" · "anything rejected this week" · "requests awaiting info owned by Sarah"`}
             className="text-sm resize-none"
+            aria-label="Describe what you want to see"
             onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) runNlQuery(); }}
           />
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
@@ -1022,58 +1233,83 @@ export default function RequestsInbox() {
         </DialogContent>
       </Dialog>
 
-      {/* Bulk approve/reject with comment */}
-      <Dialog open={bulkCommentOpen !== null} onOpenChange={(v) => { if (!v) setBulkCommentOpen(null); }}>
-        <DialogContent className="sm:max-w-[460px]">
-          <DialogHeader>
-            <DialogTitle>
-              {bulkCommentOpen === 'approve' ? 'Approve' : 'Reject'} {selectionCount} request{selectionCount > 1 ? 's' : ''}
-            </DialogTitle>
-            <DialogDescription>
-              Your comment is stamped on every selected request for audit.
-            </DialogDescription>
-          </DialogHeader>
-          <Textarea
-            value={bulkComment}
-            onChange={(e) => setBulkComment(e.target.value)}
-            rows={3}
-            placeholder={bulkCommentOpen === 'approve'
-              ? 'e.g. Docs verified, risk checks clean'
-              : 'e.g. KYC failed; broker to resubmit'}
-            className="text-sm resize-none"
-            autoFocus
-          />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkCommentOpen(null)}>Cancel</Button>
-            <Button
-              onClick={async () => {
-                const action = bulkCommentOpen!;
-                setBulkCommentOpen(null);
-                await runBulk(action, bulkComment.trim());
+      {/* Per-row decision (approve / reject) — shared DecisionModal */}
+      <DecisionModal
+        open={rowDecision !== null}
+        action={rowDecision?.action ?? 'approve'}
+        companyName={rowDecision?.companyName}
+        onCancel={() => setRowDecision(null)}
+        onConfirm={async (reason) => {
+          const d = rowDecision!;
+          setRowDecision(null);
+          await runRowDecision(d.id, d.action, reason);
+        }}
+      />
+
+      {/* Bulk decision (approve / reject / send to insurer) — shared DecisionModal */}
+      <DecisionModal
+        open={bulkDecision !== null}
+        action={bulkDecision ?? 'approve'}
+        title={bulkTitle}
+        description={bulkDesc}
+        onCancel={() => setBulkDecision(null)}
+        onConfirm={async (reason) => {
+          const a = bulkDecision!;
+          setBulkDecision(null);
+          await runBulk(a, reason);
+        }}
+      />
+
+      {/* Styled delete confirm — soft delete + Undo after confirming */}
+      <AlertDialog open={confirmDelete !== null} onOpenChange={(v) => { if (!v) setConfirmDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {confirmDelete?.label}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the request from your inbox. You'll have a few seconds to undo before it's gone for good.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              onClick={() => {
+                const ids = confirmDelete?.ids ?? [];
+                setConfirmDelete(null);
+                softDelete(ids);
               }}
-              disabled={!bulkComment.trim()}
-              className={cn(bulkCommentOpen === 'reject' && 'bg-destructive hover:bg-destructive/90 text-destructive-foreground')}
             >
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageShell>
   );
 }
 
-function SortableHead({ label, active, dir, onClick, className }: {
-  label: string; active: boolean; dir: SortDir; onClick: () => void; className?: string;
+function SortableHead({ label, sortKey: key, activeKey, dir, onSort, className }: {
+  label: string; sortKey: SortKey; activeKey: SortKey; dir: SortDir; onSort: (k: SortKey) => void; className?: string;
 }) {
+  const active = activeKey === key;
+  const ariaSort: 'ascending' | 'descending' | 'none' = active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none';
   return (
-    <TableHead className={cn('h-9 text-xs font-medium cursor-pointer select-none hover:bg-muted/40', className)} onClick={onClick}>
-      <span className="inline-flex items-center gap-1">
+    <TableHead className={cn('h-9 p-0 text-xs font-medium', className)} aria-sort={ariaSort}>
+      <button
+        type="button"
+        onClick={() => onSort(key)}
+        className="flex items-center gap-1 w-full h-9 px-3 text-left select-none hover:bg-muted/40 focus-ring"
+      >
         {label}
         {active
           ? (dir === 'asc' ? <ChevronUp className="h-3 w-3 text-primary" /> : <ChevronDown className="h-3 w-3 text-primary" />)
           : <ArrowUpDown className="h-3 w-3 text-muted-foreground/40" />}
-      </span>
+        <span className="sr-only">
+          {active ? `, sorted ${dir === 'asc' ? 'ascending' : 'descending'}` : ', not sorted, activate to sort'}
+        </span>
+      </button>
     </TableHead>
   );
 }
@@ -1082,7 +1318,7 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
   return (
     <span className="inline-flex items-center gap-1 h-6 px-2 rounded-full bg-background border border-border text-xs">
       {label}
-      <button onClick={onRemove} className="text-muted-foreground hover:text-foreground">
+      <button onClick={onRemove} className="text-muted-foreground hover:text-foreground focus-ring rounded-full" aria-label={`Remove filter ${label}`}>
         <XIcon className="h-3 w-3" />
       </button>
     </span>
@@ -1100,15 +1336,8 @@ const AVATAR_PALETTE = [
   'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300',
 ];
 
+// Only rendered when there's a real owner (column is hidden otherwise).
 function OwnerChip({ name }: { name: string }) {
-  if (!name || name === 'Unassigned') {
-    return (
-      <span className="inline-flex items-center gap-2 text-muted-foreground text-sm">
-        <span className="h-6 w-6 rounded-full border border-dashed border-border" />
-        Unassigned
-      </span>
-    );
-  }
   const initials = name
     .split(' ')
     .map(p => p[0])
@@ -1116,13 +1345,12 @@ function OwnerChip({ name }: { name: string }) {
     .slice(0, 2)
     .join('')
     .toUpperCase();
-  // Stable palette pick by name hash
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
   const palette = AVATAR_PALETTE[Math.abs(h) % AVATAR_PALETTE.length];
   return (
     <span className="inline-flex items-center gap-2 text-sm text-foreground">
-      <span className={cn('h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold', palette)}>
+      <span className={cn('h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold', palette)} aria-hidden>
         {initials}
       </span>
       <span className="truncate">{name}</span>
@@ -1131,17 +1359,17 @@ function OwnerChip({ name }: { name: string }) {
 }
 
 // ─── Triage rendering ──────────────────────────────────────────────
-// Group of rows that share an SLA bucket. Renders a sticky-style header row
-// (clickable to collapse) + the data rows. Fragment children flow up to the
-// enclosing <TableBody>.
 
 interface RowRender {
   rowRefs: React.MutableRefObject<Array<HTMLTableRowElement | null>>;
+  hasBrokers: boolean;
+  hasOwners: boolean;
   onRowClick: (id: string) => void;
   onRowSelect: (id: string) => void;
   onRowDelete: (e: React.MouseEvent, id: string) => void;
-  renderSlaDot: (s: RequestListItem['slaStatus']) => React.ReactNode;
-  renderSlaTime: (n: number) => string;
+  onRowApprove: (r: RequestListItem) => void;
+  onRowReject: (r: RequestListItem) => void;
+  renderSlaCell: (r: RequestListItem) => React.ReactNode;
 }
 
 interface GroupCtx extends RowRender {
@@ -1150,22 +1378,24 @@ interface GroupCtx extends RowRender {
 }
 
 function TriageGroup({
-  bucket, label, rows, startIdx, collapsed, onToggle, ...ctx
+  bucket, label, rows, startIdx, colCount, collapsed, onToggle, selectedIds, focusedIndex, ...ctx
 }: {
   bucket: 'red' | 'amber' | 'green';
   label: string;
   rows: RequestListItem[];
   startIdx: number;
+  colCount: number;
   collapsed: boolean;
   onToggle: () => void;
 } & GroupCtx) {
   if (rows.length === 0) return null;
 
   const tone = {
-    red:   { dot: 'bg-destructive', text: 'text-destructive', tint: 'bg-destructive/[0.04]' },
-    amber: { dot: 'bg-warning',     text: 'text-warning',     tint: 'bg-warning/[0.04]' },
-    green: { dot: 'bg-success',     text: 'text-muted-foreground', tint: 'bg-muted/30' },
+    red:   { icon: AlertTriangle, dot: 'bg-destructive', text: 'text-destructive', tint: 'bg-destructive/[0.04]' },
+    amber: { icon: Clock3,        dot: 'bg-warning',     text: 'text-warning',     tint: 'bg-warning/[0.04]' },
+    green: { icon: CheckCircle2,  dot: 'bg-success',     text: 'text-muted-foreground', tint: 'bg-muted/30' },
   }[bucket];
+  const ToneIcon = tone.icon;
 
   return (
     <>
@@ -1173,20 +1403,21 @@ function TriageGroup({
         className={cn('hover:bg-transparent border-border cursor-pointer', tone.tint)}
         onClick={onToggle}
       >
-        <TableCell colSpan={9} className="py-1.5">
+        <TableCell colSpan={colCount} className="py-1.5">
           <div className="flex items-center gap-2 px-1">
             {collapsed ? (
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
             ) : (
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
             )}
-            <span className={cn('w-1.5 h-1.5 rounded-full', tone.dot)} />
+            <ToneIcon className={cn('h-3.5 w-3.5', tone.text)} aria-hidden />
             <span className={cn('text-[11px] font-semibold uppercase tracking-wider', tone.text)}>
               {label}
             </span>
             <span className="text-[11px] font-mono text-muted-foreground tabular-nums">
               · {rows.length}
             </span>
+            <span className="sr-only">{collapsed ? 'collapsed, activate to expand' : 'expanded, activate to collapse'}</span>
           </div>
         </TableCell>
       </TableRow>
@@ -1196,29 +1427,42 @@ function TriageGroup({
         return renderInboxRow({
           request,
           idx: visibleIdx,
-          isSelected: ctx.selectedIds.has(request.id),
-          isFocused: ctx.focusedIndex === visibleIdx,
-          rowRefs: ctx.rowRefs,
-          onRowClick: ctx.onRowClick,
-          onRowSelect: ctx.onRowSelect,
-          onRowDelete: ctx.onRowDelete,
-          renderSlaDot: ctx.renderSlaDot,
-          renderSlaTime: ctx.renderSlaTime,
+          isSelected: selectedIds.has(request.id),
+          isFocused: focusedIndex === visibleIdx,
+          ...ctx,
         });
       })}
     </>
   );
 }
 
+function RowAction({ icon: Icon, label, className, onClick, hideOnMobile }: {
+  icon: typeof Check; label: string; className?: string; onClick: (e: React.MouseEvent) => void; hideOnMobile?: boolean;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className={cn('h-7 w-7 p-0 text-muted-foreground', hideOnMobile && 'hidden md:inline-flex', className)}
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+    >
+      <Icon className="h-3.5 w-3.5" />
+    </Button>
+  );
+}
+
 function renderInboxRow({
-  request, idx, isSelected, isFocused, rowRefs,
-  onRowClick, onRowSelect, onRowDelete, renderSlaDot, renderSlaTime,
+  request, idx, isSelected, isFocused, rowRefs, hasBrokers, hasOwners,
+  onRowClick, onRowSelect, onRowDelete, onRowApprove, onRowReject, renderSlaCell,
 }: {
   request: RequestListItem;
   idx: number;
   isSelected: boolean;
   isFocused: boolean;
 } & RowRender) {
+  const sm = requestStatusMeta(request.status);
   return (
     <TableRow
       key={request.id}
@@ -1232,7 +1476,7 @@ function renderInboxRow({
       onClick={() => onRowClick(request.id)}
     >
       <TableCell className="py-2.5 w-10" onClick={(e) => { e.stopPropagation(); onRowSelect(request.id); }}>
-        <Checkbox checked={isSelected} aria-label="Select row" />
+        <Checkbox checked={isSelected} aria-label={`Select ${request.companyName}`} />
       </TableCell>
       <TableCell className="font-mono text-xs text-muted-foreground py-2.5">
         {request.smartId || request.id.slice(0, 8)}
@@ -1242,49 +1486,40 @@ function renderInboxRow({
           <span className="text-sm font-medium text-foreground truncate">{request.companyName}</span>
           {request.priority === 'Urgent' && (
             <Badge variant="critical" className="h-4 px-1 text-[10px]">
-              <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+              <AlertTriangle className="h-2.5 w-2.5 mr-0.5" aria-hidden />
               Urgent
             </Badge>
           )}
         </div>
-        <span className="text-xs text-muted-foreground lg:hidden">{request.brokerName}</span>
+        {hasBrokers && <span className="text-xs text-muted-foreground lg:hidden">{request.brokerName}</span>}
       </TableCell>
-      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground py-2.5">
-        {request.brokerName}
-      </TableCell>
+      {hasBrokers && (
+        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground py-2.5">
+          {request.brokerName}
+        </TableCell>
+      )}
       <TableCell className="py-2.5">
-        <div className="flex items-center gap-2">
-          {renderSlaDot(request.slaStatus)}
-          <span className={cn(
-            'text-xs',
-            request.slaStatus === 'red' && 'text-destructive font-medium',
-            request.slaStatus === 'amber' && 'text-warning',
-            request.slaStatus === 'green' && 'text-muted-foreground'
-          )}>
-            {renderSlaTime(request.slaRemaining)}
-          </span>
-        </div>
+        {renderSlaCell(request)}
       </TableCell>
       <TableCell className="hidden md:table-cell text-sm text-muted-foreground py-2.5">
         {request.currentStage}
       </TableCell>
       <TableCell className="py-2.5">
-        <span className={cn('inline-flex items-center px-2 h-5 rounded text-[11px] font-medium', STATUS_STYLES[request.status])}>
-          {request.status}
-        </span>
+        <Badge variant={sm.variant}>{sm.label}</Badge>
       </TableCell>
-      <TableCell className="hidden sm:table-cell py-2.5">
-        <OwnerChip name={request.owner} />
-      </TableCell>
-      <TableCell className="py-2.5" onClick={(e) => e.stopPropagation()}>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 w-7 p-0 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive"
-          onClick={(e) => onRowDelete(e, request.id)}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+      {hasOwners && (
+        <TableCell className="hidden sm:table-cell py-2.5">
+          {request.owner
+            ? <OwnerChip name={request.owner} />
+            : <span className="text-sm text-muted-foreground">—</span>}
+        </TableCell>
+      )}
+      <TableCell className="py-2.5 pr-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity">
+          <RowAction icon={Check} label={`Approve ${request.companyName}`} className="hover:text-success" onClick={() => onRowApprove(request)} hideOnMobile />
+          <RowAction icon={XIcon} label={`Reject ${request.companyName}`} className="hover:text-destructive" onClick={() => onRowReject(request)} hideOnMobile />
+          <RowAction icon={Trash2} label={`Delete ${request.companyName}`} className="hover:text-destructive" onClick={(e) => onRowDelete(e, request.id)} />
+        </div>
       </TableCell>
     </TableRow>
   );

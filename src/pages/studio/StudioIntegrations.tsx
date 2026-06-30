@@ -76,7 +76,7 @@ export default function StudioIntegrations() {
             setCredentials(c);
         } catch (err) {
             console.error(err);
-            toast.error('Failed to load integrations');
+            toast.error("We couldn't load your connected services. Please refresh to try again.");
         } finally {
             setLoading(false);
         }
@@ -91,76 +91,76 @@ export default function StudioIntegrations() {
             await api.integrations.providers.update(provider.id, { enabled: next });
         } catch {
             setProviders(prev => prev.map(p => p.id === provider.id ? { ...p, enabled: !next } : p));
-            toast.error('Failed to update provider');
+            toast.error("We couldn't update that service. Please try again.");
         }
     };
 
     const deleteProvider = async (provider: Provider) => {
-        if (!window.confirm(`Delete provider "${provider.name}"? Its capabilities go too.`)) return;
+        if (!window.confirm(`Delete the service "${provider.name}"? Its actions will be removed too.`)) return;
         try {
             await api.integrations.providers.delete(provider.id);
-            toast.success('Provider deleted');
+            toast.success('Service deleted');
             refresh();
         } catch {
-            toast.error('Failed to delete provider');
+            toast.error("We couldn't delete that service. Please try again.");
         }
     };
 
     const deleteCredential = async (cred: Credential) => {
-        if (!window.confirm(`Delete credential "${cred.name}"?`)) return;
+        if (!window.confirm(`Delete the saved key "${cred.name}"?`)) return;
         try {
             await api.integrations.credentials.delete(cred.id);
-            toast.success('Credential deleted');
+            toast.success('Saved key deleted');
             refresh();
         } catch {
-            toast.error('Failed to delete — it may be in use');
+            toast.error("We couldn't delete that key — it may still be in use by a service.");
         }
     };
 
     const deleteCapability = async (cap: Capability) => {
-        if (!window.confirm(`Delete capability "${cap.display_name}"?`)) return;
+        if (!window.confirm(`Delete the action "${cap.display_name}"?`)) return;
         try {
             await api.integrations.capabilities.delete(cap.id);
-            toast.success('Capability deleted');
+            toast.success('Action deleted');
             refresh();
         } catch {
-            toast.error('Failed to delete capability');
+            toast.error("We couldn't delete that action. Please try again.");
         }
     };
 
     return (
         <>
             <PageHeader
-                eyebrow="Studio · Integrations"
-                title="External API providers"
-                description="Wire aggregators (Karza, Signzy, IDfy…) in once. Agents pick them up as tools automatically when referenced by a checklist item."
+                eyebrow="Configuration · Connected services"
+                title="Connected services"
+                description="Connect the outside services the platform uses to run background checks. Set each one up once, and your validation checks can use it."
                 actions={
                     <>
                         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowCredDialog('new')}>
-                            <Key className="h-3.5 w-3.5" />
-                            Add credential
+                            <Key className="h-3.5 w-3.5" aria-hidden />
+                            Add saved key
                         </Button>
                         <Button size="sm" className="gap-1.5" onClick={() => setShowProviderDialog('new')}>
-                            <Plus className="h-3.5 w-3.5" />
-                            Add provider
+                            <Plus className="h-3.5 w-3.5" aria-hidden />
+                            Add service
                         </Button>
                     </>
                 }
             />
 
-            {/* Credentials panel */}
+            {/* Saved keys panel */}
             <Card>
                 <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                        <Key className="h-4 w-4 text-warning" />
-                        Credentials
+                        <Key className="h-4 w-4 text-warning" aria-hidden />
+                        Saved keys
                         <Badge variant="outline" className="text-[10px]">{credentials.length}</Badge>
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     {credentials.length === 0 ? (
                         <div className="text-center py-6 text-sm text-muted-foreground">
-                            No credentials yet. Add one before configuring a provider.
+                            No saved keys yet. Add one before connecting a service.
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
@@ -173,7 +173,7 @@ export default function StudioIntegrations() {
                                         <div className="min-w-0">
                                             <p className="text-sm font-medium truncate">{cred.name}</p>
                                             <p className="text-[11px] text-muted-foreground truncate">
-                                                {cred.has_secret ? 'Secret set' : 'No secret'} {cred.description && `· ${cred.description}`}
+                                                {cred.has_secret ? 'Key saved' : 'No key yet'} {cred.description && `· ${cred.description}`}
                                             </p>
                                         </div>
                                     </div>
@@ -181,8 +181,8 @@ export default function StudioIntegrations() {
                                         <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowCredDialog(cred)}>
                                             Edit
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteCredential(cred)}>
-                                            <Trash2 className="h-3.5 w-3.5" />
+                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteCredential(cred)} aria-label={`Delete saved key ${cred.name}`}>
+                                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
                                         </Button>
                                     </div>
                                 </div>
@@ -201,15 +201,15 @@ export default function StudioIntegrations() {
                 <Card>
                     <CardContent className="py-12 text-center">
                         <div className="h-12 w-12 rounded-full bg-gradient-to-br from-warning/20 to-warning/5 flex items-center justify-center mx-auto mb-3 text-warning">
-                            <Plug className="h-5 w-5" />
+                            <Plug className="h-5 w-5" aria-hidden />
                         </div>
-                        <p className="text-sm font-medium">No providers configured yet.</p>
+                        <p className="text-sm font-medium">No services connected yet.</p>
                         <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
-                            Add a credential, then a provider (e.g. Karza), then register one or more capabilities (e.g. <code className="text-[11px]">karza.gstin_verify</code>).
+                            First add a saved key, then connect a service, then add the actions it can perform (for example, a Trade Licence activity check).
                         </p>
                         <Button size="sm" className="mt-4 gap-1.5" onClick={() => setShowProviderDialog('new')}>
-                            <Plus className="h-3.5 w-3.5" />
-                            Add first provider
+                            <Plus className="h-3.5 w-3.5" aria-hidden />
+                            Connect your first service
                         </Button>
                     </CardContent>
                 </Card>
@@ -230,14 +230,14 @@ export default function StudioIntegrations() {
                                             )}
                                             <Badge variant="outline" className="text-[10px] h-4 px-1.5">{AUTH_LABELS[provider.auth_type] || provider.auth_type}</Badge>
                                             {provider.credential_name ? (
-                                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-success/10 text-success border-success/30 gap-1">
-                                                    <ShieldCheck className="h-2.5 w-2.5" />
+                                                <Badge variant="success" className="text-[10px] h-4 px-1.5 gap-1">
+                                                    <ShieldCheck className="h-2.5 w-2.5" aria-hidden />
                                                     {provider.credential_name}
                                                 </Badge>
                                             ) : (
-                                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-warning/10 text-warning border-warning/30 gap-1">
-                                                    <AlertTriangle className="h-2.5 w-2.5" />
-                                                    No credential
+                                                <Badge variant="warning" className="text-[10px] h-4 px-1.5 gap-1">
+                                                    <AlertTriangle className="h-2.5 w-2.5" aria-hidden />
+                                                    No key
                                                 </Badge>
                                             )}
                                         </div>
@@ -246,12 +246,12 @@ export default function StudioIntegrations() {
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                     <div className="flex items-center gap-1.5">
-                                        <Switch checked={provider.enabled} onCheckedChange={() => toggleProvider(provider)} className="scale-90" />
-                                        <span className="text-xs text-muted-foreground">{provider.enabled ? 'Enabled' : 'Disabled'}</span>
+                                        <Switch checked={provider.enabled} onCheckedChange={() => toggleProvider(provider)} className="scale-90" aria-label={`Turn ${provider.name} on or off`} />
+                                        <span className="text-xs text-muted-foreground">{provider.enabled ? 'On' : 'Off'}</span>
                                     </div>
                                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowProviderDialog(provider)}>Edit</Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteProvider(provider)}>
-                                        <Trash2 className="h-3.5 w-3.5" />
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => deleteProvider(provider)} aria-label={`Delete service ${provider.name}`}>
+                                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
                                     </Button>
                                 </div>
                             </div>
@@ -259,7 +259,7 @@ export default function StudioIntegrations() {
                             <div className="p-4">
                                 <div className="flex items-center justify-between mb-2">
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                                        Capabilities ({provider.capabilities.length})
+                                        Actions ({provider.capabilities.length})
                                     </p>
                                     <Button
                                         size="sm"
@@ -267,13 +267,13 @@ export default function StudioIntegrations() {
                                         className="h-7 gap-1.5 text-xs"
                                         onClick={() => setShowCapabilityDialog({ provider, capability: null })}
                                     >
-                                        <Plus className="h-3 w-3" />
-                                        Add capability
+                                        <Plus className="h-3 w-3" aria-hidden />
+                                        Add action
                                     </Button>
                                 </div>
                                 {provider.capabilities.length === 0 ? (
                                     <p className="text-xs text-muted-foreground italic py-2">
-                                        No capabilities registered yet. Add one to let checklist items invoke this provider.
+                                        No actions set up yet. Add one so your validation checks can use this service.
                                     </p>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -299,8 +299,8 @@ export default function StudioIntegrations() {
                                                     <Button variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={() => setShowCapabilityDialog({ provider, capability: cap })}>
                                                         Edit
                                                     </Button>
-                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteCapability(cap)}>
-                                                        <Trash2 className="h-3 w-3" />
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => deleteCapability(cap)} aria-label={`Delete action ${cap.display_name}`}>
+                                                        <Trash2 className="h-3 w-3" aria-hidden />
                                                     </Button>
                                                 </div>
                                             </div>
@@ -313,16 +313,16 @@ export default function StudioIntegrations() {
                 </div>
             )}
 
-            {/* How to wire note */}
+            {/* Plain how-it-works note */}
             <Card className="bg-muted/20 border-dashed">
                 <CardContent className="py-4 flex items-start gap-3">
                     <div className="h-7 w-7 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
                     </div>
                     <div className="text-xs text-muted-foreground">
-                        <p className="font-medium text-foreground">Using a capability in a checklist item</p>
+                        <p className="font-medium text-foreground">How services are used</p>
                         <p className="mt-0.5">
-                            Set handler to <code className="px-1 py-0.5 rounded bg-background border text-[11px]">external_api_verification</code> and config_payload to <code className="px-1 py-0.5 rounded bg-background border text-[11px]">{'{'} capability_key, input_mapping, pass_condition {'}'}</code>.
+                            Once a service and its actions are set up here, you can point a validation check at one of those actions on the Validation checks page. The platform handles the rest behind the scenes.
                         </p>
                     </div>
                 </CardContent>
@@ -394,11 +394,12 @@ function ProviderDialog({ open, provider, credentials, onClose, onSaved }: {
             const payload = { ...form, credential: form.credential || null };
             if (isEdit && provider) await api.integrations.providers.update(provider.id, payload);
             else await api.integrations.providers.create(payload);
-            toast.success(isEdit ? 'Provider updated' : 'Provider created');
+            toast.success(isEdit ? 'Service saved' : 'Service connected');
             onSaved();
             onClose();
         } catch (e: any) {
-            toast.error(e?.message || 'Save failed');
+            toast.error("We couldn't save that service. Please check the details and try again.");
+            console.error(e);
         } finally { setSaving(false); }
     };
 
@@ -406,27 +407,27 @@ function ProviderDialog({ open, provider, credentials, onClose, onSaved }: {
         <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
             <DialogContent className="sm:max-w-[520px]">
                 <DialogHeader>
-                    <DialogTitle>{isEdit ? 'Edit provider' : 'Add provider'}</DialogTitle>
-                    <DialogDescription>Configure an external API vendor.</DialogDescription>
+                    <DialogTitle>{isEdit ? 'Edit service' : 'Add service'}</DialogTitle>
+                    <DialogDescription>Connect an outside service the platform can call to run checks.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3 py-2">
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                             <Label className="text-xs">Name</Label>
-                            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Karza Primary" />
+                            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Trade Licence checks" />
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Vendor key <span className="text-muted-foreground/60">(optional)</span></Label>
-                            <Input value={form.vendor_key} onChange={(e) => setForm({ ...form, vendor_key: e.target.value })} placeholder="karza" />
+                            <Label className="text-xs">Short code <span className="text-muted-foreground/60">(optional)</span></Label>
+                            <Input value={form.vendor_key} onChange={(e) => setForm({ ...form, vendor_key: e.target.value })} placeholder="trade-licence" />
                         </div>
                     </div>
                     <div className="space-y-1.5">
                         <Label className="text-xs">Base URL</Label>
-                        <Input value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} placeholder="https://api.karza.in/v3" />
+                        <Input value={form.base_url} onChange={(e) => setForm({ ...form, base_url: e.target.value })} placeholder="https://api.example.com/v1" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Auth type</Label>
+                            <Label className="text-xs">Sign-in method</Label>
                             <Select value={form.auth_type} onValueChange={(v) => setForm({ ...form, auth_type: v })}>
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -435,7 +436,7 @@ function ProviderDialog({ open, provider, credentials, onClose, onSaved }: {
                             </Select>
                         </div>
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Credential</Label>
+                            <Label className="text-xs">Saved key</Label>
                             <Select value={form.credential || 'none'} onValueChange={(v) => setForm({ ...form, credential: v === 'none' ? '' : v })}>
                                 <SelectTrigger><SelectValue placeholder="— none —" /></SelectTrigger>
                                 <SelectContent>
@@ -448,7 +449,7 @@ function ProviderDialog({ open, provider, credentials, onClose, onSaved }: {
                     {(form.auth_type === 'api_key_header' || form.auth_type === 'api_key_query') && (
                         <div className="space-y-1.5">
                             <Label className="text-xs">{form.auth_type === 'api_key_header' ? 'Header name' : 'Query param name'}</Label>
-                            <Input value={form.auth_header_name} onChange={(e) => setForm({ ...form, auth_header_name: e.target.value })} placeholder={form.auth_type === 'api_key_header' ? 'x-karza-key' : 'api_key'} />
+                            <Input value={form.auth_header_name} onChange={(e) => setForm({ ...form, auth_header_name: e.target.value })} placeholder={form.auth_type === 'api_key_header' ? 'x-api-key' : 'api_key'} />
                         </div>
                     )}
                     <div className="grid grid-cols-2 gap-3 items-end">
@@ -495,11 +496,12 @@ function CredentialDialog({ open, credential, onClose, onSaved }: {
             if (form.secret_value) payload.secret_value = form.secret_value;
             if (isEdit && credential) await api.integrations.credentials.update(credential.id, payload);
             else await api.integrations.credentials.create(payload);
-            toast.success(isEdit ? 'Credential updated' : 'Credential created');
+            toast.success(isEdit ? 'Saved key updated' : 'Saved key added');
             onSaved();
             onClose();
         } catch (e: any) {
-            toast.error(e?.message || 'Save failed');
+            toast.error("We couldn't save that key. Please try again.");
+            console.error(e);
         } finally { setSaving(false); }
     };
 
@@ -507,20 +509,20 @@ function CredentialDialog({ open, credential, onClose, onSaved }: {
         <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
             <DialogContent className="sm:max-w-[460px]">
                 <DialogHeader>
-                    <DialogTitle>{isEdit ? 'Edit credential' : 'Add credential'}</DialogTitle>
-                    <DialogDescription>API key / bearer token / shared secret. Stored write-only — never displayed back.</DialogDescription>
+                    <DialogTitle>{isEdit ? 'Edit saved key' : 'Add saved key'}</DialogTitle>
+                    <DialogDescription>The key or token the service gave you. It's stored securely and never shown again.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3 py-2">
                     <div className="space-y-1.5">
                         <Label className="text-xs">Name</Label>
-                        <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="karza-primary" />
+                        <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Trade Licence key" />
                     </div>
                     <div className="space-y-1.5">
                         <Label className="text-xs">Description <span className="text-muted-foreground/60">(optional)</span></Label>
                         <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Production key, rotated quarterly" />
                     </div>
                     <div className="space-y-1.5">
-                        <Label className="text-xs">Secret value {isEdit && <span className="text-muted-foreground/60">(leave blank to keep existing)</span>}</Label>
+                        <Label className="text-xs">Key or token {isEdit && <span className="text-muted-foreground/60">(leave blank to keep the current one)</span>}</Label>
                         <Input type="password" value={form.secret_value} onChange={(e) => setForm({ ...form, secret_value: e.target.value })} placeholder="••••••••" />
                     </div>
                 </div>
@@ -563,7 +565,7 @@ function CapabilityDialog({ open, provider, capability, onClose, onSaved }: {
 
     const save = async () => {
         if (!provider) return;
-        if (!form.key.trim() || !form.display_name.trim()) { toast.error('Key and name required'); return; }
+        if (!form.key.trim() || !form.display_name.trim()) { toast.error('Code and name are required'); return; }
         let input_schema: any, output_mapping: any, passed_when: any;
         try {
             input_schema = JSON.parse(form.input_schema || '{}');
@@ -584,11 +586,12 @@ function CapabilityDialog({ open, provider, capability, onClose, onSaved }: {
             };
             if (isEdit && capability) await api.integrations.capabilities.update(capability.id, payload);
             else await api.integrations.capabilities.create(payload);
-            toast.success(isEdit ? 'Capability updated' : 'Capability created');
+            toast.success(isEdit ? 'Action saved' : 'Action added');
             onSaved();
             onClose();
         } catch (e: any) {
-            toast.error(e?.message || 'Save failed');
+            toast.error("We couldn't save that action. Please check the details and try again.");
+            console.error(e);
         } finally { setSaving(false); }
     };
 
@@ -596,21 +599,21 @@ function CapabilityDialog({ open, provider, capability, onClose, onSaved }: {
         <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
             <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>{isEdit ? 'Edit capability' : 'Add capability'}</DialogTitle>
+                    <DialogTitle>{isEdit ? 'Edit action' : 'Add action'}</DialogTitle>
                     <DialogDescription>
-                        {provider && <>Under <strong>{provider.name}</strong>. </>}
-                        The <code className="text-[11px]">key</code> is the stable identifier you'll reference from checklist items.
+                        {provider && <>Part of <strong>{provider.name}</strong>. </>}
+                        The <strong>code</strong> is the short identifier your validation checks use to call this action.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3 py-2">
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                            <Label className="text-xs">Key</Label>
-                            <Input value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value })} placeholder="karza.gstin_verify" className="font-mono text-sm" />
+                            <Label className="text-xs">Code</Label>
+                            <Input value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value })} placeholder="trade-licence.activity-check" className="font-mono text-sm" />
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-xs">Display name</Label>
-                            <Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="GSTIN verification" />
+                            <Input value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} placeholder="Trade Licence activity check" />
                         </div>
                     </div>
                     <div className="space-y-1.5">

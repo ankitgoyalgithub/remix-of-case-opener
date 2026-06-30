@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Check, AlertCircle } from 'lucide-react';
 import { ExtractedDataSection } from '@/types/case';
 import { cn } from '@/lib/utils';
+import { confidenceTier } from '@/lib/status';
 
 interface EvidencePackExtractedDataProps {
   extractedData: ExtractedDataSection[];
@@ -42,7 +43,7 @@ function renderFieldValue(value: unknown): ReactNode {
 
 export function EvidencePackExtractedData({ extractedData }: EvidencePackExtractedDataProps) {
   if (!extractedData || extractedData.length === 0) {
-    return <p className="text-[13px] text-muted-foreground italic">No extracted data recorded.</p>;
+    return <p className="text-[13px] text-muted-foreground italic">Nothing was read from the documents.</p>;
   }
 
   return (
@@ -58,7 +59,7 @@ export function EvidencePackExtractedData({ extractedData }: EvidencePackExtract
                 'font-mono text-[11px] font-semibold',
                 allVerified ? 'text-success' : verifiedCount > 0 ? 'text-warning' : 'text-muted-foreground'
               )}>
-                {verifiedCount}/{section.fields.length} verified
+                {verifiedCount}/{section.fields.length} checked
               </span>
             </div>
             <div className="border border-border rounded-md divide-y divide-border">
@@ -71,17 +72,25 @@ export function EvidencePackExtractedData({ extractedData }: EvidencePackExtract
                     {field.label}
                   </span>
                   <span className="font-medium break-words min-w-0">{renderFieldValue(field.value)}</span>
-                  <span className={cn(
-                    'text-[11px] font-mono font-semibold tabular-nums',
-                    field.confidence >= 95 ? 'text-success' :
-                    field.confidence >= 85 ? 'text-warning' : 'text-destructive'
-                  )}>
-                    {field.confidence}%
+                  <span
+                    className={cn(
+                      'text-[11px] font-mono font-semibold tabular-nums',
+                      confidenceTier(field.confidence).textClass,
+                    )}
+                    title={`${confidenceTier(field.confidence).label} confidence`}
+                  >
+                    {Math.round(field.confidence)}%
                   </span>
                   {field.status === 'verified' ? (
-                    <Check className="h-3.5 w-3.5 text-success" />
+                    <>
+                      <Check className="h-3.5 w-3.5 text-success" aria-hidden />
+                      <span className="sr-only">Checked</span>
+                    </>
                   ) : (
-                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                    <>
+                      <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                      <span className="sr-only">Not checked</span>
+                    </>
                   )}
                 </div>
               ))}

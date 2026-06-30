@@ -135,6 +135,14 @@ export interface ChecklistRuleResult {
   target_passport?: string | null;
   target_nationality?: string | null;
   confidence?: number | null;  // percentage int 0-100
+  /* MOL per-employee rows — stable key for durable reviewer decisions, plus any
+     persisted decision merged in by the backend (durable, audited). */
+  employee_key?: string;
+  reviewer_decision?: 'confirm' | 'override' | 'reject' | 'missing' | 'review';
+  reviewer_decision_label?: string;
+  reviewer_note?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
   /* MOL Summary row only — the matching rules actually applied to this run,
      so the report's "Match rules" chips reflect the real config. */
   rules?: {

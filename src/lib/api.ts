@@ -96,6 +96,14 @@ export const api = {
             method: 'POST',
             body: JSON.stringify({ owner }),
         }),
+        // Durable + audited MOL / member-list reviewer decisions (replaces localStorage).
+        molDecisions: (id: string) => fetchApi(`/requests/${id}/mol_decisions/`),
+        molDecide: (id: string, payload: {
+            employee_key: string; decision: string; census_name?: string; mol_name?: string; note?: string;
+        }) => fetchApi(`/requests/${id}/mol_decisions/`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }),
         nlFilter: (query: string) => fetchApi('/requests/nl_filter/', {
             method: 'POST',
             body: JSON.stringify({ query }),

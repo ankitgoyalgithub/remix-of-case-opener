@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { useUiPref } from '@/hooks/useUiPref';
+import { api } from '@/lib/api';
 import { exportMolCsv, type MolExportRow } from '@/lib/molExport';
 
 interface MolValidationReportProps {
@@ -257,25 +257,50 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
     return employeeRows.map(buildParsedRow);
   }, [employeeRows]);
 
-  // Manual overrides — keyed by the census name (rule), value is the new
-  // status. Persisted per-request in localStorage so confirmations survive
-  // navigation between checklist items / tab switches / reloads. Swap the
-  // storage hook for an API call when the backend grows a "confirm MOL match"
-  // endpoint. Keying by name is a small gamble on uniqueness — fine for
-  // typical cases, fix server-side when API lands.
-  const [overrides, setOverrides] = useUiPref<Record<string, RowStatus>>(
-    `mol.overrides.${requestId || 'unknown'}`,
-    {},
-  );
-  const overrideKey = (r: ParsedRow) => r.source.rule || r.census.name || '';
+  // Reviewer decisions — durable + AUDITED, persisted server-side (replaces the
+  // old per-browser localStorage). Keyed by the backend's stable employee_key so
+  // a decision survives re-runs, other devices, and lands in the evidence pack.
+  type Action = 'confirm' | 'override' | 'reject' | 'missing' | 'review';
+  const [decisionByKey, setDecisionByKey] = useState<Record<string, Action>>({});
+  const decisionKey = (r: ParsedRow) =>
+    r.source.employee_key || r.source.rule || r.census.name || '';
 
-  // Apply overrides on top of the parsed rows.
+  const ACTION_TO_STATUS: Record<Action, RowStatus> = {
+    confirm:  'auto',
+    override: 'auto',
+    reject:   'failed',
+    missing:  'missing',
+    review:   'review',
+  };
+  // Confirming a 'Needs Review' row promotes it to 'Manually Reviewed', not 'Auto confirmed'.
+  const getNewStatus = (action: Action, currentStatus: RowStatus): RowStatus => {
+    if ((action === 'confirm' || action === 'override') && currentStatus === 'review') return 'manual';
+    return ACTION_TO_STATUS[action];
+  };
+
+  // Load persisted decisions for this request once, and overlay them on the rows.
+  useEffect(() => {
+    if (!requestId) return;
+    let cancelled = false;
+    api.requests.molDecisions(requestId)
+      .then((list: Array<{ employee_key: string; decision: Action }>) => {
+        if (cancelled) return;
+        const map: Record<string, Action> = {};
+        for (const d of list || []) if (d.employee_key) map[d.employee_key] = d.decision;
+        setDecisionByKey(map);
+      })
+      .catch(() => { /* non-fatal — rows just show their computed status */ });
+    return () => { cancelled = true; };
+  }, [requestId]);
+
+  // Apply decisions on top of the parsed rows.
   const parsedRows: ParsedRow[] = useMemo(() => {
     return baseRows.map(r => {
-      const ov = overrides[overrideKey(r)];
-      return ov ? { ...r, status: ov } : r;
+      const act = decisionByKey[decisionKey(r)];
+      return act ? { ...r, status: getNewStatus(act, r.status) } : r;
     });
-  }, [baseRows, overrides]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseRows, decisionByKey]);
 
   const [filter, setFilter] = useState<FilterKey>('all');
   const counts = useMemo(() => {
@@ -327,17 +352,6 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
   // ─── Review drawer state ──────────────────────────────────────────
   const [reviewingIdx, setReviewingIdx] = useState<number | null>(null);
 
-  // Apply an override to a set of row keys (census names). Local-only for now;
-  // when the backend exposes a confirm-MOL-match endpoint, call it from here
-  // and reconcile from the server response.
-  type Action = 'confirm' | 'override' | 'reject' | 'missing' | 'review';
-  const ACTION_TO_STATUS: Record<Action, RowStatus> = {
-    confirm:  'auto',
-    override: 'auto',
-    reject:   'failed',
-    missing:  'missing',
-    review:   'review',
-  };
   const ACTION_LABEL: Record<Action, string> = {
     confirm:  'Confirmed',
     override: 'Confirmed (manually overridden)',
@@ -346,39 +360,55 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
     review:   'Flagged for review',
   };
 
-  // Confirming a 'Needs Review' row promotes it to 'Manually Reviewed', not 'Auto confirmed'.
-  const getNewStatus = (action: Action, currentStatus: RowStatus): RowStatus => {
-    if ((action === 'confirm' || action === 'override') && currentStatus === 'review') {
-      return 'manual';
-    }
-    return ACTION_TO_STATUS[action];
-  };
+  type DecisionEntry = { key: string; censusName: string; molName: string };
 
-  const applyAction = (action: Action, entries: Array<{ key: string; currentStatus: RowStatus }>) => {
-    if (entries.length === 0) return;
-    setOverrides(prev => {
+  // Record a decision for a set of rows: optimistic local update, then persist +
+  // audit server-side. On failure we re-sync from the server.
+  const applyAction = async (action: Action, entries: DecisionEntry[], note?: string) => {
+    if (entries.length === 0 || !requestId) return;
+    setDecisionByKey(prev => {
       const next = { ...prev };
-      for (const { key, currentStatus } of entries) next[key] = getNewStatus(action, currentStatus);
+      for (const e of entries) next[e.key] = action;
       return next;
     });
-    toast.success(`${ACTION_LABEL[action]} · ${entries.length} record${entries.length === 1 ? '' : 's'}`);
     setSelectedIdx(new Set());
     setReviewingIdx(null);
+    try {
+      await Promise.all(entries.map(e => api.requests.molDecide(requestId, {
+        employee_key: e.key,
+        decision: action,
+        census_name: e.censusName,
+        mol_name: e.molName,
+        note: note || '',
+      })));
+      toast.success(`${ACTION_LABEL[action]} · ${entries.length} record${entries.length === 1 ? '' : 's'}`);
+    } catch (err) {
+      console.error('Failed to save member-list review', err);
+      toast.error("We couldn't save that review. Please try again — if it keeps happening, contact support.");
+      // Re-sync the authoritative state from the server.
+      api.requests.molDecisions(requestId)
+        .then((list: Array<{ employee_key: string; decision: Action }>) => {
+          const map: Record<string, Action> = {};
+          for (const d of list || []) if (d.employee_key) map[d.employee_key] = d.decision;
+          setDecisionByKey(map);
+        })
+        .catch(() => {});
+    }
   };
+
+  const toEntry = (r: ParsedRow): DecisionEntry =>
+    ({ key: decisionKey(r), censusName: r.census.name, molName: r.mol.name || '' });
 
   // Bulk action — rows from the current selection.
   const handleBulk = (action: Action) => {
-    const entries = Array.from(selectedIdx)
-      .map(i => visibleRows[i])
-      .filter(Boolean)
-      .map(r => ({ key: overrideKey(r), currentStatus: r.status }));
+    const entries = Array.from(selectedIdx).map(i => visibleRows[i]).filter(Boolean).map(toEntry);
     applyAction(action, entries);
   };
 
-  // Single-row action — from the review dialog.
-  const handleSingle = (action: Action, row: ParsedRow | null) => {
+  // Single-row action — from the review dialog (with the reviewer's note).
+  const handleSingle = (action: Action, row: ParsedRow | null, note?: string) => {
     if (!row) return;
-    applyAction(action, [{ key: overrideKey(row), currentStatus: row.status }]);
+    applyAction(action, [toEntry(row)], note);
   };
 
   // ─── Export ───────────────────────────────────────────────────────
@@ -699,7 +729,7 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
       <ReviewDialog
         row={reviewingIdx != null ? visibleRows[reviewingIdx] : null}
         onClose={() => setReviewingIdx(null)}
-        onAction={(action) => handleSingle(action, reviewingIdx != null ? visibleRows[reviewingIdx] : null)}
+        onAction={(action, note) => handleSingle(action, reviewingIdx != null ? visibleRows[reviewingIdx] : null, note)}
       />
     </div>
     </TooltipProvider>
@@ -838,7 +868,7 @@ function ReviewDialog({
 }: {
   row: ParsedRow | null;
   onClose: () => void;
-  onAction: (action: 'confirm' | 'override' | 'reject' | 'missing' | 'review') => void;
+  onAction: (action: 'confirm' | 'override' | 'reject' | 'missing' | 'review', note?: string) => void;
 }) {
   const [note, setNote] = useState('');
 
@@ -918,19 +948,19 @@ function ReviewDialog({
         <DialogFooter className="flex flex-wrap gap-2 pt-2">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
           <div className="flex-1" />
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onAction('review')}>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onAction('review', note)}>
             <Send className="h-3.5 w-3.5" />
             Flag for review
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => onAction('missing')}>
+          <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => onAction('missing', note)}>
             <XCircle className="h-3.5 w-3.5" />
             Mark not in records
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => onAction('reject')}>
+          <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => onAction('reject', note)}>
             <XIcon className="h-3.5 w-3.5" />
             Reject
           </Button>
-          <Button size="sm" variant="success" className="gap-1.5" onClick={() => onAction(row.status === 'review' ? 'override' : 'confirm')}>
+          <Button size="sm" variant="success" className="gap-1.5" onClick={() => onAction(row.status === 'review' ? 'override' : 'confirm', note)}>
             <Check className="h-3.5 w-3.5" />
             {row.status === 'review' ? 'Confirm anyway' : 'Confirm'}
           </Button>

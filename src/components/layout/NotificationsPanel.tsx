@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, BellOff } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -49,16 +49,14 @@ function linkFor(n: NotificationLike): string | undefined {
 }
 
 /**
- * Real notifications panel. The old bell was inert (a dot, no click). This
- * lists the latest items from /notifications/ and links through to the related
- * request where one is referenced.
- *
- * NOTE: the backend exposes no mark-read endpoint yet, so this is a read-only
- * list (per the plan's fallback). Phase B: add mark-read + a "view all" route.
+ * Real notifications panel. Lists the latest items from /notifications/, links
+ * through to the related request, and marks items read (on open, or all at once)
+ * via the mark-read endpoints — with an optimistic unread-count update.
  */
 export function NotificationsPanel() {
     const [open, setOpen] = useState(false);
     const navigate = useNavigate();
+    const qc = useQueryClient();
 
     const { data: notifications = [], isLoading, isError, refetch } = useQuery({
         queryKey: ['notifications'],
@@ -68,12 +66,28 @@ export function NotificationsPanel() {
     const list = Array.isArray(notifications) ? notifications : [];
     const unreadCount = useMemo(() => list.filter(n => !n.is_read).length, [list]);
 
+    // Optimistically flip is_read in the cache, then persist; re-sync on failure.
+    const markReadLocal = (id: string | number) => {
+        qc.setQueryData<NotificationLike[]>(['notifications'], (old) =>
+            Array.isArray(old) ? old.map(x => (x.id === id ? { ...x, is_read: true } : x)) : old);
+    };
+
     const open_ = (n: NotificationLike) => {
+        if (!n.is_read && n.id != null) {
+            markReadLocal(n.id);
+            api.notifications.markRead(n.id).catch(() => qc.invalidateQueries({ queryKey: ['notifications'] }));
+        }
         const to = linkFor(n);
         if (to) {
             setOpen(false);
             navigate(to);
         }
+    };
+
+    const markAll = () => {
+        qc.setQueryData<NotificationLike[]>(['notifications'], (old) =>
+            Array.isArray(old) ? old.map(x => ({ ...x, is_read: true })) : old);
+        api.notifications.markAllRead().catch(() => qc.invalidateQueries({ queryKey: ['notifications'] }));
     };
 
     const bellLabel = unreadCount > 0
@@ -110,7 +124,13 @@ export function NotificationsPanel() {
                 <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border">
                     <h2 className="text-sm font-semibold text-foreground">Notifications</h2>
                     {unreadCount > 0 && (
-                        <span className="text-[11px] text-muted-foreground">{unreadCount} unread</span>
+                        <button
+                            type="button"
+                            onClick={markAll}
+                            className="text-[11px] font-medium text-primary hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+                        >
+                            Mark all as read
+                        </button>
                     )}
                 </div>
 

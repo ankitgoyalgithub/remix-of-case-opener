@@ -233,6 +233,8 @@ export const api = {
     },
     notifications: {
         list: () => fetchApi('/notifications/'),
+        markRead: (id: number | string) => fetchApi(`/notifications/${id}/mark_read/`, { method: 'POST', body: '{}' }),
+        markAllRead: () => fetchApi('/notifications/mark_all_read/', { method: 'POST', body: '{}' }),
     },
     dashboard: {
         metrics: () => fetchApi('/dashboard/metrics/'),

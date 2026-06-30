@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/command';
 import { Building2, ArrowRight, Wand2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { isAuthenticated } from '@/lib/auth';
 import { mapBackendRequestToListItem } from '@/lib/mappers';
 import { getNavGroups, canSeeConfiguration, type Role } from './layout/navItems';
 
@@ -30,7 +31,9 @@ export function CommandPalette() {
     const navigate = useNavigate();
     const fetchedAtRef = useRef<number>(0);
 
-    const { data: user } = useQuery({ queryKey: ['userMe'], queryFn: () => api.user.me(), staleTime: 5 * 60_000 });
+    // Mounted globally (outside <Routes>), so this renders on /login too — guard
+    // the fetch behind auth so it never hits /user/me/ while logged out.
+    const { data: user } = useQuery({ queryKey: ['userMe'], queryFn: () => api.user.me(), staleTime: 5 * 60_000, enabled: isAuthenticated() });
     const role = (user as any)?.role as Role | undefined;
     // Same vocabulary + role-gating as the sidebar (Work · Configuration · Account).
     const navGroups = getNavGroups(role);

@@ -34,6 +34,10 @@ const StudioInboundEmail = lazy(() => import("./pages/studio/StudioInboundEmail"
 const StudioInboundJobs = lazy(() => import("./pages/studio/StudioInboundJobs"));
 const StudioSettings = lazy(() => import("./pages/studio/StudioSettings"));
 
+// Public marketing/landing page — lazy so its WebGL (three.js) + framer-motion
+// payload never lands in the operational app bundle.
+const HomePage = lazy(() => import("./pages/HomePage"));
+
 function RouteSpinner() {
     return (
         <div className="flex-1 min-h-0 flex items-center justify-center py-24 text-muted-foreground" role="status" aria-live="polite">
@@ -56,6 +60,8 @@ const App = () => (
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/portal/:token" element={<BrokerPortal />} />
+          {/* Public marketing/landing page — manually navigable, NOT the default. */}
+          <Route path="/home-page" element={<Suspense fallback={<RouteSpinner />}><HomePage /></Suspense>} />
 
           {/* Protected Routes */}
           <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" replace /></ProtectedRoute>} />

@@ -1,0 +1,212 @@
+/* ────────────────────────────────────────────────────────────────────────────
+   Insure Auto — marketing / landing page atmosphere (page-scoped)
+   ----------------------------------------------------------------------------
+   Imported ONCE by the landing page. This file is intentionally standalone:
+   the page sets its own light/dark "section rhythm" regardless of the app theme.
+
+   HOW THE TONE CLASSES WORK
+   -------------------------
+   `.home-dark` and `.home-light` redefine the SAME design tokens the app already
+   uses (--background / --foreground / --card / --muted / --muted-foreground /
+   --border / --primary / --ring ...) scoped to the section. Because CSS custom
+   properties resolve at the use-site via inheritance, ANY Tailwind token utility
+   used inside a toned section automatically adapts:
+
+       <SectionShell tone="dark">   →  text-foreground, bg-card, text-primary,
+                                        border-border, text-muted-foreground …
+                                        all render in the dark palette.
+
+   So section builders should NEVER hardcode hex — just use the normal tokens and
+   wrap content in the right tone. The trust-blue accent is `--primary` in both.
+
+   `.home-tokens-dark` / `.home-tokens-light` set ONLY the tokens (no background,
+   no base color) — used by the nav / overlays that paint their own background.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* ── Token contexts ───────────────────────────────────────────────────────── */
+.home-dark,
+.home-tokens-dark {
+  /* Deep-navy "space" surface — never pure black */
+  --background: 222 47% 8%;
+  --foreground: 213 31% 95%;
+
+  --card: 222 42% 11%;
+  --card-foreground: 213 31% 95%;
+
+  --popover: 222 42% 11%;
+  --popover-foreground: 213 31% 95%;
+
+  --muted: 221 32% 16%;
+  --muted-foreground: 215 24% 70%;
+
+  --accent: 221 32% 18%;
+  --accent-foreground: 213 31% 95%;
+
+  /* Brightened trust-blue for glow on dark */
+  --primary: 214 90% 62%;
+  --primary-foreground: 222 47% 11%;
+
+  --border: 215 30% 22%;
+  --input: 215 30% 22%;
+  --ring: 214 90% 62%;
+}
+
+.home-light,
+.home-tokens-light {
+  /* Cool-slate paper — content reads calm on light */
+  --background: 213 36% 97%;
+  --foreground: 222 28% 12%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 222 28% 12%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 28% 12%;
+
+  --muted: 214 24% 93%;
+  --muted-foreground: 222 13% 38%;
+
+  --accent: 214 24% 93%;
+  --accent-foreground: 222 28% 12%;
+
+  --primary: 221 72% 38%;
+  --primary-foreground: 0 0% 100%;
+
+  --border: 214 22% 85%;
+  --input: 214 22% 85%;
+  --ring: 221 72% 38%;
+}
+
+/* Full surfaces also paint background + base text colour. */
+.home-dark {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+.home-light {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+/* The page root — sets a calm default base and smooth anchor scrolling. */
+.home-root {
+  background-color: hsl(222 47% 8%);
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+/* ── Mesh-gradient atmosphere — radial trust-blue glows ───────────────────── */
+.home-mesh {
+  background-image:
+    radial-gradient(60% 50% at 12% 0%,   hsl(var(--primary) / 0.20), transparent 60%),
+    radial-gradient(55% 45% at 88% 12%,  hsl(var(--primary) / 0.14), transparent 58%),
+    radial-gradient(70% 60% at 50% 112%, hsl(var(--primary) / 0.12), transparent 62%);
+}
+/* Softer mesh for light sections so it stays a whisper, not a wash. */
+.home-light .home-mesh,
+.home-mesh-soft {
+  background-image:
+    radial-gradient(55% 45% at 18% 4%,  hsl(var(--primary) / 0.10), transparent 60%),
+    radial-gradient(50% 40% at 86% 18%, hsl(var(--primary) / 0.07), transparent 58%);
+}
+
+/* ── Fine technical grid ──────────────────────────────────────────────────── */
+.home-grid {
+  background-image:
+    linear-gradient(hsl(var(--border) / 0.55) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--border) / 0.55) 1px, transparent 1px);
+  background-size: 56px 56px;
+  background-position: center;
+}
+/* Grid that fades to nothing at the edges (radial mask) — great behind heroes. */
+.home-grid-fade {
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 78%);
+          mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 30%, transparent 78%);
+}
+
+/* ── Subtle film grain overlay (decorative, non-interactive) ──────────────── */
+.home-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Glow utilities ───────────────────────────────────────────────────────── */
+.home-glow {
+  box-shadow: 0 0 60px -12px hsl(var(--primary) / 0.55);
+}
+.home-glow-sm {
+  box-shadow: 0 0 28px -8px hsl(var(--primary) / 0.45);
+}
+/* Hairline ring + faint inner sheen for glass panels. */
+.home-glass {
+  background-color: hsl(var(--card) / 0.6);
+  border: 1px solid hsl(var(--border) / 0.8);
+  -webkit-backdrop-filter: blur(14px);
+          backdrop-filter: blur(14px);
+}
+.home-dark .home-glass {
+  background-color: hsl(var(--card) / 0.55);
+  box-shadow: inset 0 1px 0 0 hsl(0 0% 100% / 0.04);
+}
+
+/* ── Gradient text for headline accents ───────────────────────────────────── */
+.home-gradient-text {
+  background-image: linear-gradient(
+    100deg,
+    hsl(var(--primary)) 0%,
+    hsl(var(--primary) / 0.72) 55%,
+    hsl(var(--foreground) / 0.85) 100%
+  );
+  -webkit-background-clip: text;
+          background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Top hairline divider used between alternating sections. */
+.home-divider {
+  border-top: 1px solid hsl(var(--border) / 0.7);
+}
+
+/* ── Ambient motion (gated behind reduced-motion) ─────────────────────────── */
+@keyframes home-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+.home-float {
+  animation: home-float 7s ease-in-out infinite;
+}
+
+@keyframes home-pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+.home-pulse-glow {
+  animation: home-pulse-glow 4.5s ease-in-out infinite;
+}
+
+@keyframes home-aurora-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.home-aurora {
+  background-size: 200% 200%;
+  animation: home-aurora-shift 18s ease infinite;
+}
+
+/* Freeze every heavy/infinite loop and disable smooth scroll for users who
+   prefer reduced motion. Static fallbacks (mesh/grid/grain) stay visible. */
+@media (prefers-reduced-motion: reduce) {
+  .home-root { scroll-behavior: auto; }
+  .home-float,
+  .home-pulse-glow,
+  .home-aurora {
+    animation: none !important;
+  }
+}

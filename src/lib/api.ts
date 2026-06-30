@@ -236,6 +236,13 @@ export const api = {
         markRead: (id: number | string) => fetchApi(`/notifications/${id}/mark_read/`, { method: 'POST', body: '{}' }),
         markAllRead: () => fetchApi('/notifications/mark_all_read/', { method: 'POST', body: '{}' }),
     },
+    interest: {
+        // Public lead capture from the marketing home page.
+        submit: (data: {
+            name: string; email: string; company?: string; role?: string;
+            interest?: string; message?: string; source?: string;
+        }) => fetchApi('/interest/', { method: 'POST', body: JSON.stringify(data) }),
+    },
     dashboard: {
         metrics: () => fetchApi('/dashboard/metrics/'),
     },

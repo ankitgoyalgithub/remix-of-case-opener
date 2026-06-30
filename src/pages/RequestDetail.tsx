@@ -518,7 +518,7 @@ export default function RequestDetail() {
     }));
   };
 
-  const handleAssignOwner = (owner: string, queue: 'Senior Ops Queue' | 'Standard Ops Queue') => {
+  const handleAssignOwner = async (owner: string, queue: 'Senior Ops Queue' | 'Standard Ops Queue') => {
     const newTimeline: TimelineEvent = {
       id: `t${Date.now()}`,
       timestamp: new Date(),
@@ -533,13 +533,17 @@ export default function RequestDetail() {
       queue,
       timeline: [...prev.timeline, newTimeline],
     }));
-    // Best-effort server persistence. The backend owner field isn't confirmed yet
-    // (see Phase B), so we attempt the PATCH but never refetch here — refetching
-    // would overwrite the optimistic owner while the server doesn't return it.
-    if (requestData?.id) {
-      api.requests
-        .update(requestData.id, { owner, assigned_to: owner })
-        .catch((err) => console.error('Failed to persist owner assignment', err));
+    if (!requestData?.id) return;
+    try {
+      // Persisted + audited server-side (POST /requests/:id/assign/); refetch to
+      // reconcile with the saved owner and pick up the audit-log timeline entry.
+      // (queue stays local for now — there is no backend queue field yet.)
+      await api.requests.assign(requestData.id, owner);
+      toast.success(`Assigned to ${owner}.`);
+      fetchRequestDetails({ silent: true });
+    } catch (err) {
+      console.error('Failed to persist owner assignment', err);
+      toast.error("We couldn't save the assignment. Please try again — if it keeps happening, contact support.");
     }
   };
 

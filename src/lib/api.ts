@@ -88,6 +88,11 @@ export const api = {
             method: 'POST',
             body: JSON.stringify({}),
         }),
+        // Assign (or clear, with owner='') the ops owner. Persisted + audited server-side.
+        assign: (id: string, owner: string) => fetchApi(`/requests/${id}/assign/`, {
+            method: 'POST',
+            body: JSON.stringify({ owner }),
+        }),
         nlFilter: (query: string) => fetchApi('/requests/nl_filter/', {
             method: 'POST',
             body: JSON.stringify({ query }),

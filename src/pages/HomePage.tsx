@@ -7,6 +7,7 @@ import { FeaturesSection } from "@/components/home/sections/FeaturesSection";
 import { PipelineSection } from "@/components/home/sections/PipelineSection";
 import { ShowcaseSection } from "@/components/home/sections/ShowcaseSection";
 import { StatsSection } from "@/components/home/sections/StatsSection";
+import { ReviewsSection } from "@/components/home/sections/ReviewsSection";
 import { InterestSection } from "@/components/home/sections/InterestSection";
 
 /**
@@ -31,6 +32,7 @@ export default function HomePage() {
         <PipelineSection />
         <ShowcaseSection />
         <StatsSection />
+        <ReviewsSection />
         <InterestSection />
       </main>
       <HomeFooter />

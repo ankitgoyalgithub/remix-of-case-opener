@@ -43,6 +43,7 @@ export const SECTION_IDS = {
   howItWorks: "how-it-works",
   platform: "platform",
   stats: "stats",
+  reviews: "reviews",
   contact: "contact",
 } as const;
 
@@ -57,6 +58,7 @@ export const NAV_LINKS: NavLink[] = [
   { id: "features", label: "Features", href: "#features" },
   { id: "how-it-works", label: "How it works", href: "#how-it-works" },
   { id: "platform", label: "Platform", href: "#platform" },
+  { id: "reviews", label: "Reviews", href: "#reviews" },
   { id: "contact", label: "Contact", href: "#contact" },
 ];
 
@@ -346,8 +348,95 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: "About", href: "#" },
       { label: "Security & compliance", href: "#platform" },
+      { label: "Reviews", href: "#reviews" },
       { label: "Contact", href: "#contact" },
       { label: "Request a demo", href: "#contact" },
     ],
+  },
+];
+
+/* ── Reviews / testimonials ───────────────────────────────────────────────────
+ * ILLUSTRATIVE, role-based testimonials for a UAE group-medical underwriting
+ * platform. Personas and organisations are GENERIC by design — no real customer,
+ * person or company is named. Render with the <Marquee> + <SpotlightCard> + <Rating>
+ * primitives (and/or <PipelineFlow>) from `modern.tsx`.
+ */
+export interface Review {
+  /** The testimonial body. */
+  quote: string;
+  /** Person (illustrative persona). */
+  author: string;
+  /** Job title / function. */
+  role: string;
+  /** Generic organisation descriptor (never a real company name). */
+  org: string;
+  /** Optional star rating, 1–5. */
+  rating?: number;
+}
+
+export const REVIEWS: Review[] = [
+  {
+    quote:
+      "What used to take my team two days now clears before lunch. It reads the whole submission, runs every check, and hands us a decision we can actually stand behind.",
+    author: "Layla Al-Mansoori",
+    role: "Head of Underwriting",
+    org: "UAE health insurer",
+    rating: 5,
+  },
+  {
+    quote:
+      "It pulls 140-plus fields off a census and trade licence without a single keystroke from us. The accuracy is the part that surprised everyone on the desk.",
+    author: "Omar Haddad",
+    role: "Senior Underwriter",
+    org: "Group-medical insurer",
+    rating: 5,
+  },
+  {
+    quote:
+      "Our inbox finally makes sense. Every submission is triaged by urgency with a clear owner and an SLA, so nothing slips through the cracks anymore.",
+    author: "Priya Nair",
+    role: "Operations Lead",
+    org: "Third-party administrator (TPA)",
+    rating: 5,
+  },
+  {
+    quote:
+      "Sanctions, PEP and AML screening sit in one place, and every action is logged. When the regulator asks, the evidence pack already has the answer.",
+    author: "Hassan Al-Farsi",
+    role: "Compliance Manager",
+    org: "Health insurer, UAE",
+    rating: 5,
+  },
+  {
+    quote:
+      "Brokers upload missing documents through a secure link and the case updates itself. Honestly, half of the back-and-forth just disappeared overnight.",
+    author: "James Whitfield",
+    role: "Account Manager",
+    org: "Insurance brokerage, Dubai",
+    rating: 4,
+  },
+  {
+    quote:
+      "We configured our own document types, review stages and rules in the AI Studio — no developers, no waiting on a roadmap. That flexibility sold the team.",
+    author: "Sara Khan",
+    role: "Product Owner",
+    org: "Health insurance platform",
+    rating: 5,
+  },
+  {
+    quote:
+      "Critical risks block approval until they're resolved or signed off with a reason. It made our decisions consistent across the entire underwriting desk.",
+    author: "Daniel Okoro",
+    role: "Chief Underwriting Officer",
+    org: "Group-medical insurer, Abu Dhabi",
+    rating: 5,
+  },
+  {
+    quote:
+      "Member lists are matched against MOL and MOHRE records automatically. The four-stage match catches discrepancies we used to miss reviewing by hand.",
+    author: "Fatima Rashed",
+    role: "Risk & Governance Lead",
+    org: "UAE health insurer",
+    rating: 5,
   },
 ];

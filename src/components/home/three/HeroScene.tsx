@@ -99,13 +99,13 @@ function GlowSprite({ color }: { color: Color }) {
 
   return (
     <mesh position={[0, 0, -1.2]} renderOrder={-1}>
-      <planeGeometry args={[6, 6]} />
+      <planeGeometry args={[5.2, 5.2]} />
       <meshBasicMaterial
         map={texture}
         transparent
         depthWrite={false}
         blending={AdditiveBlending}
-        opacity={0.7}
+        opacity={0.55}
         toneMapped={false}
       />
     </mesh>
@@ -132,42 +132,46 @@ function Core({
   return (
     <Float speed={1.0} rotationIntensity={0.3} floatIntensity={0.55} floatingRange={[-0.05, 0.05]}>
       <group ref={spin}>
-        {/* Distorted glassy core — calmer distortion reads as crystal, not blob */}
-        <Icosahedron args={[1.05, 6]}>
+        {/* Translucent glass core — low roughness = ONE crisp sheen (single key
+           light), low opacity = you see through it; reads as a cut gem, not a
+           milky planet. Smaller so the faceted shell + network can breathe. */}
+        <Icosahedron args={[0.92, 6]}>
           <MeshDistortMaterial
             color={deep}
             emissive={primary}
-            emissiveIntensity={0.5}
-            metalness={0.62}
-            roughness={0.34}
+            emissiveIntensity={0.42}
+            metalness={0.35}
+            roughness={0.1}
             distort={0.16}
             speed={1.0}
             transparent
-            opacity={0.9}
+            opacity={0.55}
+            depthWrite={false}
           />
         </Icosahedron>
 
-        {/* Crystalline faceted shell (flat-shaded, near-transparent) */}
-        <Icosahedron args={[1.5, 1]}>
+        {/* Crystalline faceted shell (flat-shaded) — the crystal's cut facets. */}
+        <Icosahedron args={[1.28, 1]}>
           <meshStandardMaterial
             color={primary}
             emissive={primary}
-            emissiveIntensity={0.15}
+            emissiveIntensity={0.18}
             metalness={0.9}
-            roughness={0.3}
+            roughness={0.28}
             transparent
-            opacity={0.08}
+            opacity={0.12}
             flatShading
+            depthWrite={false}
           />
         </Icosahedron>
 
         {/* Crisp wireframe shield */}
-        <Icosahedron args={[1.6, 0]}>
-          <meshBasicMaterial color={primary} wireframe transparent opacity={0.55} toneMapped={false} />
+        <Icosahedron args={[1.4, 0]}>
+          <meshBasicMaterial color={primary} wireframe transparent opacity={0.5} toneMapped={false} />
         </Icosahedron>
 
         {/* Faint outer wire halo for depth */}
-        <Icosahedron args={[1.95, 1]}>
+        <Icosahedron args={[1.74, 1]}>
           <meshBasicMaterial color={primary} wireframe transparent opacity={0.12} toneMapped={false} />
         </Icosahedron>
       </group>
@@ -332,7 +336,7 @@ export function HeroScene() {
 
       <ambientLight intensity={0.4} />
       {/* Single clean key light → one soft glass sheen instead of twin hotspots. */}
-      <pointLight position={[6, 5, 7]} intensity={2.0} decay={0} color={foreground} />
+      <pointLight position={[6, 5, 7]} intensity={1.8} decay={0} color={foreground} />
       {/* Low cool rim from behind for edge definition, not a second specular. */}
       <pointLight position={[-7, 1, -5]} intensity={0.9} decay={0} color={accent} />
       <directionalLight position={[2, 3, 4]} intensity={0.3} color={primary} />

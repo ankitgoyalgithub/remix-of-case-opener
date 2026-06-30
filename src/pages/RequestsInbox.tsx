@@ -358,10 +358,16 @@ export default function RequestsInbox() {
           : `${name} rejected`,
       );
       fetchRequests();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Decision failed for', id, err);
-      const verb = action === 'publish' ? 'send' : action;
-      toast.error(`We couldn't ${verb} ${name}. Please try again — if it keeps happening, contact support.`);
+      if (err?.code === 'readiness_blocked') {
+        toast.error(`${name} isn't ready: ${err.message}`, {
+          description: 'Open the request to review the blockers and override if needed.',
+        });
+      } else {
+        const verb = action === 'publish' ? 'send' : action;
+        toast.error(`We couldn't ${verb} ${name}. Please try again — if it keeps happening, contact support.`);
+      }
     }
   };
 

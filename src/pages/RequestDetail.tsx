@@ -384,27 +384,42 @@ export default function RequestDetail() {
 
   const [bypassItem, setBypassItem] = useState<{ id: string; label: string } | null>(null);
   const [decisionAction, setDecisionAction] = useState<DecisionAction | null>(null);
+  // Server-reported readiness block (set when the backend 409s): forces the
+  // override-acknowledge path even if the client didn't predict the block.
+  const [decisionBlock, setDecisionBlock] = useState<string | null>(null);
 
   const submitDecision = async (reason: string) => {
     if (!requestData || !decisionAction) return;
+    // Override when the user acknowledged a blocker (open risks, or a server 409).
+    const override = decisionAction !== 'reject'
+      && ((decisionAction === 'approve' && openRiskCount > 0) || !!decisionBlock);
     try {
       if (decisionAction === 'approve') {
-        await api.requests.approve(requestData.id, reason);
+        await api.requests.approve(requestData.id, reason, override);
         toast.success('Request approved.');
       } else if (decisionAction === 'reject') {
         await api.requests.reject(requestData.id, reason);
         toast.success('Request rejected.');
       } else {
-        await api.requests.publish(requestData.id);
+        await api.requests.publish(requestData.id, override);
         toast.success('Sent to insurer.');
       }
+      setDecisionAction(null);
+      setDecisionBlock(null);
       await fetchRequestDetails();
     } catch (err: any) {
       // Keep the technical detail in the console only; show a calm, plain message.
       console.error('Decision failed', err);
-      toast.error("We couldn't save your decision. Please try again — if it keeps happening, contact support.");
-    } finally {
-      setDecisionAction(null);
+      if (err?.code === 'readiness_blocked') {
+        // Surface the server reason and keep the modal open for an acknowledged override.
+        setDecisionBlock(err.message || "This request isn't ready yet.");
+        toast.error(err.message || "This request isn't ready yet.", {
+          description: 'Tick “approve anyway” to override with a logged reason, or resolve the blockers first.',
+        });
+      } else {
+        toast.error("We couldn't save your decision. Please try again — if it keeps happening, contact support.");
+        setDecisionAction(null);
+      }
     }
   };
 
@@ -789,12 +804,14 @@ export default function RequestDetail() {
         open={decisionAction !== null}
         action={decisionAction || 'approve'}
         companyName={requestData.companyName}
-        warning={decisionAction === 'approve' && openRiskCount > 0
+        warning={decisionBlock
+          ? <>{decisionBlock} You can override with a logged reason below.</>
+          : decisionAction === 'approve' && openRiskCount > 0
           ? <>This request has <b>{openRiskCount}</b> open risk{openRiskCount === 1 ? '' : 's'} that normally need to be cleared before approval.</>
           : undefined}
-        requireAcknowledge={decisionAction === 'approve' && openRiskCount > 0}
+        requireAcknowledge={(decisionAction === 'approve' && openRiskCount > 0) || !!decisionBlock}
         acknowledgeLabel="Approve anyway — I take responsibility for this override."
-        onCancel={() => setDecisionAction(null)}
+        onCancel={() => { setDecisionAction(null); setDecisionBlock(null); }}
         onConfirm={submitDecision}
       />
     </div>

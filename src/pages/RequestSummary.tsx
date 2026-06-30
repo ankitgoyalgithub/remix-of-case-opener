@@ -155,6 +155,9 @@ export default function RequestSummary() {
     // Which approve/reject/send confirmation is open (null = none). Replaces the
     // old window.prompt flow with the shared, audit-logged DecisionModal.
     const [decisionAction, setDecisionAction] = useState<DecisionAction | null>(null);
+    // Server-reported readiness block (set when the backend 409s on approve/publish):
+    // forces the override-acknowledge path even if the client didn't predict it.
+    const [decisionBlock, setDecisionBlock] = useState<string | null>(null);
     // Risk being dismissed via the styled note dialog (replaces window.prompt).
     const [dismissTarget, setDismissTarget] = useState<{ id: number; label: string } | null>(null);
     // Per-source load failures so a failed fetch is surfaced inline (with Retry)
@@ -329,17 +332,32 @@ export default function RequestSummary() {
         if (!requestId || !decisionAction) return;
         const verb = decisionAction === 'approve' ? 'Approving' : decisionAction === 'reject' ? 'Rejecting' : 'Sending to insurer';
         const done = decisionAction === 'approve' ? 'Request approved' : decisionAction === 'reject' ? 'Request rejected' : 'Sent to insurer';
+        // Override when the user has acknowledged a blocker (proactively or after a
+        // server 409). reject is never gated.
+        const override = decisionAction !== 'reject' && (approveNeedsOverride || !!decisionBlock);
         const t = toast.loading(`${verb}…`);
         try {
-            if (decisionAction === 'approve') await api.requests.approve(requestId, reason);
+            if (decisionAction === 'approve') await api.requests.approve(requestId, reason, override);
             else if (decisionAction === 'reject') await api.requests.reject(requestId, reason);
-            else await api.requests.publish(requestId);
+            else await api.requests.publish(requestId, override);
             toast.success(done, { id: t });
             setDecisionAction(null);
+            setDecisionBlock(null);
             await fetchData(true);
         } catch (err: any) {
             console.error('Could not record decision', err);
-            toast.error("We couldn't save your decision. Please try again.", { id: t });
+            if (err?.code === 'readiness_blocked') {
+                // Surface the server's reason and keep the modal open so the user can
+                // tick "approve anyway" and retry with a logged override.
+                setDecisionBlock(err.message || "This request isn't ready yet.");
+                toast.error(err.message || "This request isn't ready yet.", {
+                    id: t,
+                    description: 'Tick “approve anyway” to override with a logged reason, or resolve the blockers first.',
+                });
+            } else {
+                toast.error("We couldn't save your decision. Please try again.", { id: t });
+                setDecisionAction(null);
+            }
         }
     };
 
@@ -797,10 +815,12 @@ export default function RequestSummary() {
                 companyName={request.company_name}
                 description={decisionAction === 'publish' ? 'This sends the approved details to the insurer.' : approveDescription}
                 reasonLabel={decisionAction === 'publish' ? 'Note (not recorded)' : undefined}
-                warning={approveWarning}
-                requireAcknowledge={approveNeedsOverride}
+                warning={decisionBlock
+                    ? <>{decisionBlock} You can override with a logged reason below.</>
+                    : approveWarning}
+                requireAcknowledge={approveNeedsOverride || !!decisionBlock}
                 acknowledgeLabel="Approve anyway — I take responsibility for this override."
-                onCancel={() => setDecisionAction(null)}
+                onCancel={() => { setDecisionAction(null); setDecisionBlock(null); }}
                 onConfirm={submitDecision}
             />
 

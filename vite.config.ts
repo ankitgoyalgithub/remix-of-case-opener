@@ -22,7 +22,17 @@ export default defineConfig(({ mode }) => ({
       }
     }
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    react(),
+    // lovable-tagger rewrites the JSX dev runtime to wrap every element's ref
+    // with a fresh inline callback each render, so React detaches/re-attaches
+    // refs on every commit. That ref churn breaks tooling that relies on stable
+    // element handles (browser automation, some ref-based libraries) and adds
+    // render jank. It's only needed for Lovable.dev's visual "click-to-edit"
+    // editor, so keep it OFF for normal local dev and opt in explicitly with
+    // `LOVABLE_TAGGER=1 npm run dev` when using the Lovable editor.
+    mode === "development" && process.env.LOVABLE_TAGGER === "1" && componentTagger(),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

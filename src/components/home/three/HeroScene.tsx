@@ -36,6 +36,8 @@ import { useThemeColors } from "./useThemeColors";
 function ParallaxGroup({ children }: { children: ReactNode }) {
   const ref = useRef<Group>(null);
   const target = useRef({ x: 0, y: 0 });
+  const cur = useRef({ x: 0, y: 0 });
+  const intro = useRef(0); // 0 → 1 smooth "assemble-in" on mount
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
@@ -49,12 +51,27 @@ function ParallaxGroup({ children }: { children: ReactNode }) {
   useFrame((_, delta) => {
     const g = ref.current;
     if (!g) return;
-    const k = 1 - Math.pow(0.0015, Math.min(delta, 0.1));
-    g.rotation.y += (target.current.x * 0.34 - g.rotation.y) * k;
-    g.rotation.x += (target.current.y * 0.2 - g.rotation.x) * k;
+    const d = Math.min(delta, 0.05); // clamp to avoid jumps after a tab stall
+
+    // Refined assemble-in: ease scale 0.86 → 1 over ~1.3s (easeOutCubic).
+    intro.current = Math.min(1, intro.current + d / 1.3);
+    const e = 1 - Math.pow(1 - intro.current, 3);
+    g.scale.setScalar(0.86 + e * 0.14);
+
+    // Gentle, frame-rate-independent pointer parallax (smaller throw + heavier
+    // damping than before, so it glides instead of swinging).
+    const k = 1 - Math.pow(0.0009, d);
+    cur.current.x += (target.current.x * 0.24 - cur.current.x) * k;
+    cur.current.y += (target.current.y * 0.14 - cur.current.y) * k;
+    g.rotation.y = cur.current.x;
+    g.rotation.x = cur.current.y;
   });
 
-  return <group ref={ref}>{children}</group>;
+  return (
+    <group ref={ref} scale={0.86}>
+      {children}
+    </group>
+  );
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -70,9 +87,9 @@ function GlowSprite({ color }: { color: Color }) {
     if (ctx) {
       const rgb = color.getStyle().slice(4, -1); // "r, g, b"
       const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-      g.addColorStop(0, `rgba(${rgb}, 0.5)`);
-      g.addColorStop(0.32, `rgba(${rgb}, 0.22)`);
-      g.addColorStop(0.7, `rgba(${rgb}, 0.05)`);
+      g.addColorStop(0, `rgba(${rgb}, 0.42)`);
+      g.addColorStop(0.3, `rgba(${rgb}, 0.16)`);
+      g.addColorStop(0.65, `rgba(${rgb}, 0.045)`);
       g.addColorStop(1, `rgba(${rgb}, 0)`);
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, size, size);
@@ -82,13 +99,13 @@ function GlowSprite({ color }: { color: Color }) {
 
   return (
     <mesh position={[0, 0, -1.2]} renderOrder={-1}>
-      <planeGeometry args={[7.5, 7.5]} />
+      <planeGeometry args={[5.2, 5.2]} />
       <meshBasicMaterial
         map={texture}
         transparent
         depthWrite={false}
         blending={AdditiveBlending}
-        opacity={0.95}
+        opacity={0.55}
         toneMapped={false}
       />
     </mesh>
@@ -109,48 +126,52 @@ function Core({
   const spin = useRef<Group>(null);
 
   useFrame((_, delta) => {
-    if (spin.current) spin.current.rotation.y += delta * 0.12;
+    if (spin.current) spin.current.rotation.y += Math.min(delta, 0.05) * 0.075;
   });
 
   return (
-    <Float speed={1.3} rotationIntensity={0.5} floatIntensity={0.85} floatingRange={[-0.08, 0.08]}>
+    <Float speed={1.0} rotationIntensity={0.3} floatIntensity={0.55} floatingRange={[-0.05, 0.05]}>
       <group ref={spin}>
-        {/* Distorted glassy core */}
-        <Icosahedron args={[1.05, 6]}>
+        {/* Translucent glass core — low roughness = ONE crisp sheen (single key
+           light), low opacity = you see through it; reads as a cut gem, not a
+           milky planet. Smaller so the faceted shell + network can breathe. */}
+        <Icosahedron args={[0.92, 6]}>
           <MeshDistortMaterial
             color={deep}
             emissive={primary}
-            emissiveIntensity={0.45}
-            metalness={0.55}
-            roughness={0.15}
-            distort={0.3}
-            speed={1.6}
+            emissiveIntensity={0.42}
+            metalness={0.35}
+            roughness={0.1}
+            distort={0.16}
+            speed={1.0}
             transparent
-            opacity={0.95}
+            opacity={0.55}
+            depthWrite={false}
           />
         </Icosahedron>
 
-        {/* Crystalline faceted shell (flat-shaded, near-transparent) */}
-        <Icosahedron args={[1.5, 1]}>
+        {/* Crystalline faceted shell (flat-shaded) — the crystal's cut facets. */}
+        <Icosahedron args={[1.28, 1]}>
           <meshStandardMaterial
             color={primary}
             emissive={primary}
-            emissiveIntensity={0.15}
+            emissiveIntensity={0.18}
             metalness={0.9}
-            roughness={0.3}
+            roughness={0.28}
             transparent
-            opacity={0.08}
+            opacity={0.12}
             flatShading
+            depthWrite={false}
           />
         </Icosahedron>
 
         {/* Crisp wireframe shield */}
-        <Icosahedron args={[1.6, 0]}>
-          <meshBasicMaterial color={primary} wireframe transparent opacity={0.55} toneMapped={false} />
+        <Icosahedron args={[1.4, 0]}>
+          <meshBasicMaterial color={primary} wireframe transparent opacity={0.5} toneMapped={false} />
         </Icosahedron>
 
         {/* Faint outer wire halo for depth */}
-        <Icosahedron args={[1.95, 1]}>
+        <Icosahedron args={[1.74, 1]}>
           <meshBasicMaterial color={primary} wireframe transparent opacity={0.12} toneMapped={false} />
         </Icosahedron>
       </group>
@@ -165,7 +186,7 @@ function NodeField({ color }: { color: Color }) {
   const ref = useRef<ThreePoints>(null);
 
   const positions = useMemo(() => {
-    const count = 900;
+    const count = 700;
     const arr = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       const r = 1.9 + Math.random() * 1.7;
@@ -181,8 +202,8 @@ function NodeField({ color }: { color: Color }) {
   useFrame((state) => {
     if (!ref.current) return;
     const t = state.clock.elapsedTime;
-    ref.current.rotation.y = t * 0.04;
-    ref.current.rotation.x = Math.sin(t * 0.1) * 0.1;
+    ref.current.rotation.y = t * 0.028;
+    ref.current.rotation.x = Math.sin(t * 0.08) * 0.08;
   });
 
   return (
@@ -190,11 +211,11 @@ function NodeField({ color }: { color: Color }) {
       <PointMaterial
         transparent
         color={color}
-        size={0.022}
+        size={0.02}
         sizeAttenuation
         depthWrite={false}
         blending={AdditiveBlending}
-        opacity={0.85}
+        opacity={0.7}
         toneMapped={false}
       />
     </Points>
@@ -239,7 +260,7 @@ function RingSystem({
     const grp = markersRef.current;
     if (grp) {
       for (let i = 0; i < grp.children.length; i++) {
-        const s = 0.8 + (Math.sin(t * 1.8 + i * 1.7) * 0.5 + 0.5) * 0.7;
+        const s = 0.9 + (Math.sin(t * 1.4 + i * 1.7) * 0.5 + 0.5) * 0.32;
         grp.children[i].scale.setScalar(s);
       }
     }
@@ -281,11 +302,11 @@ function RingSystem({
       <group ref={markersRef}>
         {markers.map((m, i) => (
           <mesh key={`node-${i}`} position={[m.x, m.y, 0]}>
-            <sphereGeometry args={[0.05, 16, 16]} />
+            <sphereGeometry args={[0.045, 16, 16]} />
             <meshStandardMaterial
               color={accent}
               emissive={color}
-              emissiveIntensity={1.4}
+              emissiveIntensity={1.05}
               roughness={0.3}
               metalness={0.1}
               toneMapped={false}
@@ -313,10 +334,12 @@ export function HeroScene() {
       {/* Depth fog blends distant nodes into the section's navy. */}
       <fog attach="fog" args={[background, 8, 18]} />
 
-      <ambientLight intensity={0.45} />
-      <pointLight position={[5, 4, 6]} intensity={2.4} decay={0} color={primary} />
-      <pointLight position={[-6, -2, -3]} intensity={1.6} decay={0} color={accent} />
-      <directionalLight position={[0, 3, 5]} intensity={0.5} color={foreground} />
+      <ambientLight intensity={0.4} />
+      {/* Single clean key light → one soft glass sheen instead of twin hotspots. */}
+      <pointLight position={[6, 5, 7]} intensity={1.8} decay={0} color={foreground} />
+      {/* Low cool rim from behind for edge definition, not a second specular. */}
+      <pointLight position={[-7, 1, -5]} intensity={0.9} decay={0} color={accent} />
+      <directionalLight position={[2, 3, 4]} intensity={0.3} color={primary} />
 
       <GlowSprite color={primary} />
 
@@ -349,7 +372,7 @@ export function HeroScene() {
           markerAngles={[0.8, 3.2]}
         />
 
-        <Sparkles count={48} scale={[8, 6.5, 5]} size={2.6} speed={0.35} opacity={0.5} color={primary} noise={1} />
+        <Sparkles count={36} scale={[8, 6.5, 5]} size={2.4} speed={0.22} opacity={0.4} color={primary} noise={1} />
       </ParallaxGroup>
     </>
   );

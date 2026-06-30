@@ -25,10 +25,10 @@ import { CheckLibraryDialog } from '@/components/studio/CheckLibraryDialog';
 type AutoCheckRule = 'manual' | 'document-present' | 'field-extracted' | 'cross-validation';
 
 const AUTO_CHECK_LABELS: Record<AutoCheckRule, string> = {
-  'manual': 'Manual Only',
-  'document-present': 'Document Present',
-  'field-extracted': 'Field Extracted',
-  'cross-validation': 'Cross-validation Auto',
+  'manual': 'Checked by a person',
+  'document-present': 'Document uploaded',
+  'field-extracted': 'Value read from document',
+  'cross-validation': 'Compared across documents',
 };
 
 interface ApiStage {
@@ -108,7 +108,7 @@ export default function ChecklistBuilder() {
         setSelectedStageId(sortedStages[0].id);
       }
     } catch {
-      toast.error('Failed to load checklist configuration');
+      toast.error("We couldn't load your checks. Please refresh to try again.");
     } finally {
       setLoading(false);
     }
@@ -129,7 +129,7 @@ export default function ChecklistBuilder() {
       await api.studio.checklists.update(String(id), patch);
     } catch {
       setItems(previous);
-      toast.error('Failed to update check');
+      toast.error("We couldn't update that check. Please try again.");
     } finally {
       setBusyId(null);
     }
@@ -143,7 +143,7 @@ export default function ChecklistBuilder() {
       setItems(prev => prev.filter(i => i.id !== item.id));
       toast.success(`"${item.name}" deleted`);
     } catch {
-      toast.error('Failed to delete check');
+      toast.error("We couldn't delete that check. Please try again.");
     } finally {
       setBusyId(null);
     }
@@ -161,12 +161,12 @@ export default function ChecklistBuilder() {
   return (
     <>
       <PageHeader
-        eyebrow="Studio · Checks"
-        title="Checklist items"
-        description="Reusable checks the workflow runs on every request. Pick a stage, then add, configure, or remove checks. Edits land on every open request automatically; closed requests are left untouched."
+        eyebrow="Configuration · Validation checks"
+        title="Validation checks"
+        description="The checks run on every request. Pick a review stage, then add, set up, or remove its checks. Changes apply to all open requests right away; requests already closed are left as they are."
         actions={
           <Button size="sm" className="gap-1.5 shrink-0" disabled={!selectedStage} onClick={() => setAddOpen(true)}>
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-3.5 w-3.5" aria-hidden />
             Add check
           </Button>
         }
@@ -253,12 +253,12 @@ export default function ChecklistBuilder() {
                                 placeholder="Check name"
                               />
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-success hover:bg-success/10"
-                                onClick={commitRename} title="Save (Enter)">
-                                <CheckIcon className="h-3.5 w-3.5" />
+                                onClick={commitRename} aria-label="Save name (Enter)">
+                                <CheckIcon className="h-3.5 w-3.5" aria-hidden />
                               </Button>
                               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:bg-muted"
-                                onClick={cancelRename} title="Cancel (Esc)">
-                                <X className="h-3.5 w-3.5" />
+                                onClick={cancelRename} aria-label="Cancel rename (Esc)">
+                                <X className="h-3.5 w-3.5" aria-hidden />
                               </Button>
                             </div>
                           ) : (
@@ -266,11 +266,11 @@ export default function ChecklistBuilder() {
                               <h4 className="font-medium text-sm">{item.name}</h4>
                               <Button
                                 variant="ghost" size="icon"
-                                className="h-5 w-5 opacity-0 group-hover:opacity-60 hover:opacity-100 hover:bg-muted transition-opacity"
+                                className="h-5 w-5 opacity-0 group-hover:opacity-60 focus-visible:opacity-100 hover:opacity-100 hover:bg-muted transition-opacity"
                                 onClick={() => startRename(item)}
-                                title="Rename"
+                                aria-label={`Rename check ${item.name}`}
                               >
-                                <Pencil className="h-3 w-3" />
+                                <Pencil className="h-3 w-3" aria-hidden />
                               </Button>
                               {item.required && (
                                 <Badge className="bg-destructive/10 text-destructive border-0 text-[10px] h-4 px-1.5">Required</Badge>
@@ -309,14 +309,14 @@ export default function ChecklistBuilder() {
                           )}
                           {item.task_details && (
                             <div className="flex items-center gap-1 text-primary">
-                              <Wand2 className="h-3 w-3" />
-                              Prompt set
+                              <Wand2 className="h-3 w-3" aria-hidden />
+                              AI guidance set
                             </div>
                           )}
                           {item.handler_name && (
                             <div className="flex items-center gap-1 text-info">
-                              <Sparkles className="h-3 w-3" />
-                              <span className="font-mono text-[10px]">{item.handler_name}</span>
+                              <Sparkles className="h-3 w-3" aria-hidden />
+                              Runs automatically
                             </div>
                           )}
                         </div>
@@ -329,6 +329,7 @@ export default function ChecklistBuilder() {
                             checked={item.required}
                             onCheckedChange={(v) => patchItem(item.id, { required: v })}
                             className="scale-90"
+                            aria-label={`Make check ${item.name} required`}
                           />
                         </div>
                         <Button
@@ -337,8 +338,8 @@ export default function ChecklistBuilder() {
                           className="h-7 gap-1.5 text-xs"
                           onClick={() => setDrawerItem(item)}
                         >
-                          <Settings className="h-3 w-3" />
-                          Configure
+                          <Settings className="h-3 w-3" aria-hidden />
+                          Set up
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -346,8 +347,9 @@ export default function ChecklistBuilder() {
                               variant="ghost"
                               size="icon"
                               className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                              aria-label={`Delete check ${item.name}`}
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>

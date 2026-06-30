@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow } from 'date-fns';
 import { INBOUND_POLL_EVENT } from '@/components/layout/AppLayout';
+import { emailOutcomeMeta, mailboxCheckMeta } from '@/components/studio/emailStatus';
 
 interface PollJobSummary {
     id: string;
@@ -49,20 +50,6 @@ interface PollJobDetail extends PollJobSummary {
         received_at: string | null;
     }>;
 }
-
-const STATUS_TONE: Record<string, string> = {
-    running: 'bg-info/10 text-info border-info/30',
-    success: 'bg-success/10 text-success border-success/30',
-    failed: 'bg-destructive/10 text-destructive border-destructive/30',
-};
-
-const EMAIL_STATUS_TONE: Record<string, string> = {
-    matched: 'bg-success/10 text-success border-success/30',
-    skipped: 'bg-muted text-muted-foreground border-border',
-    failed: 'bg-destructive/10 text-destructive border-destructive/30',
-    duplicate: 'bg-muted text-muted-foreground border-border',
-    pending: 'bg-info/10 text-info border-info/30',
-};
 
 export default function StudioInboundJobs() {
     const [jobs, setJobs] = useState<PollJobSummary[]>([]);
@@ -147,12 +134,12 @@ export default function StudioInboundJobs() {
     return (
         <>
             <PageHeader
-                eyebrow="Studio · Jobs"
-                title="Inbound poll history"
-                description="Every poll cycle is recorded — what was fetched, matched and skipped, with the per-email reasons."
+                eyebrow="Configuration · Email log"
+                title="Email log"
+                description="A record of every mailbox check — which emails came in, which became requests, and why any were skipped."
                 actions={
                     <Button size="sm" variant="outline" className="gap-1.5" onClick={fetchJobs}>
-                        <RefreshCw className="h-3.5 w-3.5" />
+                        <RefreshCw className="h-3.5 w-3.5" aria-hidden />
                         Refresh
                     </Button>
                 }
@@ -160,9 +147,9 @@ export default function StudioInboundJobs() {
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <StatCard label="Jobs" value={jobs.length} />
-                <StatCard label="Fetched" value={totals.fetched} />
-                <StatCard label="Matched" value={totals.matched} tone="success" />
+                <StatCard label="Checks" value={jobs.length} />
+                <StatCard label="Received" value={totals.fetched} />
+                <StatCard label="Imported" value={totals.matched} tone="success" />
                 <StatCard label="Skipped" value={totals.skipped} />
                 <StatCard label="Failed" value={totals.failed} tone="danger" />
             </div>
@@ -171,11 +158,11 @@ export default function StudioInboundJobs() {
             <Card>
                 <CardHeader className="pb-3 flex flex-row items-center justify-between gap-3 flex-wrap">
                     <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                        <ListChecks className="h-4 w-4 text-muted-foreground" />
-                        Recent jobs
+                        <ListChecks className="h-4 w-4 text-muted-foreground" aria-hidden />
+                        Recent checks
                         <Badge variant="outline" className="text-[10px]">{jobs.length}</Badge>
                         <span className="text-[11px] text-muted-foreground font-normal ml-1">
-                            click any row to see fetched emails
+                            select any row to see the emails it received
                         </span>
                     </CardTitle>
                     <div className="flex items-center gap-3">
@@ -216,7 +203,7 @@ export default function StudioInboundJobs() {
                                 onChange={(e) => setAutoRefresh(e.target.checked)}
                                 className="accent-primary"
                             />
-                            Auto-refresh on poll
+                            Auto-refresh after each check
                         </label>
                     </div>
                 </CardHeader>
@@ -227,7 +214,7 @@ export default function StudioInboundJobs() {
                         </div>
                     ) : jobs.length === 0 ? (
                         <div className="text-center py-12 text-sm text-muted-foreground">
-                            No poll jobs yet. The 10s auto-poller will start filling this up.
+                            No mailbox checks yet. Once a connected mailbox is checked, every check will be listed here.
                         </div>
                     ) : (
                         <div className="rounded-md border border-border overflow-hidden">
@@ -236,11 +223,11 @@ export default function StudioInboundJobs() {
                                     <TableRow>
                                         <TableHead className="w-8"></TableHead>
                                         <TableHead className="text-xs">Started</TableHead>
-                                        <TableHead className="text-xs">Account</TableHead>
-                                        <TableHead className="text-xs">Trigger</TableHead>
+                                        <TableHead className="text-xs">Mailbox</TableHead>
+                                        <TableHead className="text-xs">Started by</TableHead>
                                         <TableHead className="text-xs">Status</TableHead>
-                                        <TableHead className="text-xs text-right">Fetched</TableHead>
-                                        <TableHead className="text-xs text-right">Matched</TableHead>
+                                        <TableHead className="text-xs text-right">Received</TableHead>
+                                        <TableHead className="text-xs text-right">Imported</TableHead>
                                         <TableHead className="text-xs text-right">Skipped</TableHead>
                                         <TableHead className="text-xs text-right">Failed</TableHead>
                                         <TableHead className="text-xs text-right">Duration</TableHead>
@@ -258,8 +245,8 @@ export default function StudioInboundJobs() {
                                                 >
                                                     <TableCell className="py-2">
                                                         {isOpen
-                                                            ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                                                            : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                                            ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-label="Collapse" />
+                                                            : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-label="Expand" />}
                                                     </TableCell>
                                                     <TableCell className="py-2">
                                                         <div className="text-xs font-medium tabular-nums">
@@ -274,11 +261,11 @@ export default function StudioInboundJobs() {
                                                         <Badge variant="outline" className="text-[10px] h-4 px-1.5 uppercase">{job.triggered_by || 'manual'}</Badge>
                                                     </TableCell>
                                                     <TableCell className="py-2">
-                                                        <Badge variant="outline" className={cn('text-[10px] h-4 px-1.5 uppercase gap-1', STATUS_TONE[job.status])}>
-                                                            {job.status === 'success' && <CheckCircle2 className="h-2.5 w-2.5" />}
-                                                            {job.status === 'failed' && <AlertTriangle className="h-2.5 w-2.5" />}
-                                                            {job.status === 'running' && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
-                                                            {job.status}
+                                                        <Badge variant={mailboxCheckMeta(job.status).variant} className="text-[10px] h-4 px-1.5 gap-1">
+                                                            {job.status === 'success' && <CheckCircle2 className="h-2.5 w-2.5" aria-hidden />}
+                                                            {job.status === 'failed' && <AlertTriangle className="h-2.5 w-2.5" aria-hidden />}
+                                                            {job.status === 'running' && <Loader2 className="h-2.5 w-2.5 animate-spin" aria-hidden />}
+                                                            {mailboxCheckMeta(job.status).label}
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="py-2 text-xs text-right tabular-nums">{job.fetched}</TableCell>
@@ -310,7 +297,7 @@ export default function StudioInboundJobs() {
                                                                     </div>
                                                                 ) : detail.emails.length === 0 ? (
                                                                     <div className="text-xs text-muted-foreground italic py-2">
-                                                                        No emails fetched in this job.
+                                                                        No emails received in this check.
                                                                     </div>
                                                                 ) : (
                                                                     <JobEmailsTable emails={detail.emails} />
@@ -353,7 +340,7 @@ function JobEmailsTable({ emails }: { emails: PollJobDetail['emails'] }) {
                         <TableHead className="text-[10px] uppercase tracking-wider">Status</TableHead>
                         <TableHead className="text-[10px] uppercase tracking-wider">Subject</TableHead>
                         <TableHead className="text-[10px] uppercase tracking-wider">From</TableHead>
-                        <TableHead className="text-[10px] uppercase tracking-wider text-right">Attach.</TableHead>
+                        <TableHead className="text-[10px] uppercase tracking-wider text-right">Files</TableHead>
                         <TableHead className="text-[10px] uppercase tracking-wider">Outcome</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -363,8 +350,8 @@ function JobEmailsTable({ emails }: { emails: PollJobDetail['emails'] }) {
                         return (
                             <TableRow key={em.id}>
                                 <TableCell className="py-2">
-                                    <Badge variant="outline" className={cn('text-[10px] h-4 px-1.5', EMAIL_STATUS_TONE[em.status] || '')}>
-                                        {em.status}
+                                    <Badge variant={emailOutcomeMeta(em.status).variant} className="text-[10px] h-4 px-1.5">
+                                        {emailOutcomeMeta(em.status).label}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="py-2 text-xs max-w-[280px]">

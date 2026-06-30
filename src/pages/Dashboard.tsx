@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -7,10 +7,11 @@ import {
 import {
     Plus, SlidersHorizontal, ArrowRight, X,
     Layers, AlertTriangle, Clock3, CheckCircle2, Gauge, Timer,
-    ShieldAlert, Send, Sparkles,
+    ShieldAlert, Send, Sparkles, RefreshCw, Loader2, WifiOff,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { requestStatusMeta } from '@/lib/status';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -30,9 +31,9 @@ const C = {
 
 const FLAG_LABEL: Record<string, string> = {
     sanctions_risk: 'Sanctions match', expired_document: 'Document expired', name_mismatch: "Name doesn't match",
-    missing_document: 'Document missing', employee_count_mismatch: 'MOL roster mismatch', incomplete_extraction: 'Incomplete extraction',
+    missing_document: 'Document missing', employee_count_mismatch: "Staff numbers don't match", incomplete_extraction: 'Document not fully read',
     pep_risk: 'PEP match', offshore_entity: 'Offshore entity', high_risk_activity: 'High-risk activity',
-    data_inconsistency: 'Data inconsistency', low_confidence: 'Low-confidence extraction', manual_review_required: 'Manual review needed',
+    data_inconsistency: "Details don't match across documents", low_confidence: 'Low-confidence read', manual_review_required: 'Manual review needed',
 };
 const FLAG_TIER: Record<string, 'URGENT' | 'IMPORTANT' | 'WATCH'> = {
     sanctions_risk: 'URGENT', expired_document: 'URGENT', pep_risk: 'URGENT', offshore_entity: 'URGENT',
@@ -46,34 +47,28 @@ const TIER_STYLE: Record<string, string> = {
 const TIER_BAR: Record<string, string> = { URGENT: 'bg-destructive', IMPORTANT: 'bg-warning', WATCH: 'bg-muted-foreground/50' };
 
 const STAGE_ORDER = ['Documents Availability', 'Name matching', 'Individual Document Validation', 'Census Validation', 'MOL Validation', 'MOL Verification', 'AML', 'Compliance', 'Final Review', 'Book'];
+// Distinct, plain-language short labels for the "where requests are stuck" chart
+// (no more three identical "Census" bars). Census = employee list; MOL = the
+// government labour records the company registered.
 const STAGE_SHORT: Record<string, string> = {
     'Documents Availability': 'Documents', 'Name matching': 'Name match', 'Individual Document Validation': 'Doc review',
-    'Census Validation': 'Census', 'MOL Validation': 'Census', 'MOL Verification': 'Census',
-    'AML': 'AML', 'Compliance': 'Compliance', 'Final Review': 'Final review', 'Book': 'Book',
+    'Census Validation': 'Employees', 'MOL Validation': 'Labour list', 'MOL Verification': 'Labour check',
+    'AML': 'AML', 'Compliance': 'Compliance', 'Final Review': 'Final review', 'Book': 'To insurer',
 };
 
-const STATUS_META: Record<string, { label: string; tone: 'success' | 'info' | 'warning' | 'destructive' | 'muted' }> = {
-    submitted: { label: 'Just arrived', tone: 'info' },
-    in_review: { label: 'Under review', tone: 'info' },
-    missing_info: { label: 'Awaiting info', tone: 'warning' },
-    approved: { label: 'Approved', tone: 'success' },
-    ready_for_export: { label: 'Approved', tone: 'success' },
-    issued: { label: 'Published', tone: 'success' },
-    exported: { label: 'Published', tone: 'success' },
-    rejected: { label: 'Declined', tone: 'destructive' },
-};
-const TONE_BADGE: Record<string, string> = {
+// Decorative tone for the activity timeline dots (status badges route through the
+// shared requestStatusMeta helper instead).
+const EVENT_TONE: Record<string, string> = {
     success: 'text-success border-success/30 bg-success/10',
     info: 'text-info border-info/30 bg-info/10',
-    warning: 'text-warning border-warning/30 bg-warning/10',
     destructive: 'text-destructive border-destructive/30 bg-destructive/10',
     muted: 'text-muted-foreground border-border bg-muted/40',
 };
 const OPEN_STATUSES = ['submitted', 'in_review', 'missing_info', 'approved'];
 const STATUS_FILTERS = [
-    { value: 'submitted', label: 'Just arrived' }, { value: 'in_review', label: 'Under review' },
+    { value: 'submitted', label: 'New' }, { value: 'in_review', label: 'In review' },
     { value: 'missing_info', label: 'Awaiting info' }, { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Declined' },
+    { value: 'rejected', label: 'Rejected' },
 ];
 
 type Range = 'today' | 'week' | 'month';
@@ -111,7 +106,7 @@ function humaniseDuration(seconds: number | null): string {
 }
 
 const TAB_DEFS = [
-    { id: 'all', label: 'All' }, { id: 'arrived', label: 'Just arrived' }, { id: 'review', label: 'Under review' },
+    { id: 'all', label: 'All' }, { id: 'arrived', label: 'New' }, { id: 'review', label: 'In review' },
     { id: 'attention', label: 'Needs attention' }, { id: 'approved', label: 'Approved' },
 ] as const;
 type TabId = typeof TAB_DEFS[number]['id'];
@@ -122,6 +117,9 @@ const EMPTY_FILTERS: Filters = { statuses: new Set(), stages: new Set(), priorit
 export default function Dashboard() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [loadError, setLoadError] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [requests, setRequests] = useState<any[]>([]);
     const [firstName, setFirstName] = useState('');
     const [tab, setTab] = useState<TabId>('all');
@@ -129,14 +127,32 @@ export default function Dashboard() {
     const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
     const [filterOpen, setFilterOpen] = useState(false);
 
-    useEffect(() => {
-        (async () => {
-            const [r, u] = await Promise.allSettled([api.requests.list(), api.user.me()]);
-            if (r.status === 'fulfilled') setRequests((r.value as any[]) || []);
-            if (u.status === 'fulfilled') setFirstName((u.value as any)?.first_name || (u.value as any)?.username || '');
-            setLoading(false);
-        })();
+    // Load (and reload) the dashboard. `Promise.allSettled` means one failing
+    // call no longer silently renders a calm "empty day" — a rejected requests
+    // fetch flips `loadError` so we can show an honest banner instead.
+    const load = useCallback(async () => {
+        setRefreshing(true);
+        const [r, u] = await Promise.allSettled([api.requests.list(), api.user.me()]);
+        if (r.status === 'fulfilled') {
+            setRequests((r.value as any[]) || []);
+            setLoadError(false);
+            setLastUpdated(new Date());
+        } else {
+            console.error('Dashboard: failed to load requests', r.reason);
+            setLoadError(true);
+        }
+        if (u.status === 'fulfilled') setFirstName((u.value as any)?.first_name || (u.value as any)?.username || '');
+        setLoading(false);
+        setRefreshing(false);
     }, []);
+
+    useEffect(() => { load(); }, [load]);
+
+    // Deep-link a KPI tile into the inbox with its filter already applied.
+    const goToInbox = useCallback((params?: Record<string, string>) => {
+        const qs = params ? `?${new URLSearchParams(params).toString()}` : '';
+        navigate(`/requests${qs}`);
+    }, [navigate]);
 
     const now = Date.now();
     const greeting = (() => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; })();
@@ -175,7 +191,7 @@ export default function Dashboard() {
     // ── Snapshot metrics from the filtered set ───────────────────────────────
     const openSet = filtered.filter(r => OPEN_STATUSES.includes(r.status));
     const inFlight = openSet.length;
-    const needAttention = filtered.filter(r => r.status === 'missing_info' || isOverdue(r)).length;
+    const awaitingInfo = filtered.filter(r => r.status === 'missing_info').length;
     const underReview = filtered.filter(r => r.status === 'in_review').length;
     const pastDeadline = filtered.filter(isOverdue).length;
     const approvedInRange = filtered.filter(r => r.status === 'approved' && r.decision_at && Date.parse(r.decision_at) >= rangeWindow[0] && Date.parse(r.decision_at) < rangeWindow[1]).length;
@@ -189,9 +205,9 @@ export default function Dashboard() {
         const sc = (preds: string[]) => filtered.filter(r => preds.includes(r.status)).length;
         const data = [
             { name: 'Approved', value: sc(['approved', 'ready_for_export', 'issued', 'exported']), color: C.success },
-            { name: 'Under review', value: sc(['in_review']), color: C.info },
+            { name: 'In review', value: sc(['in_review']), color: C.info },
             { name: 'Needs attention', value: sc(['missing_info', 'rejected']), color: C.destructive },
-            { name: 'Just arrived', value: sc(['submitted']), color: C.muted },
+            { name: 'New', value: sc(['submitted']), color: C.muted },
         ].filter(d => d.value > 0);
         return { data, total: filtered.length };
     }, [filtered]);
@@ -221,11 +237,16 @@ export default function Dashboard() {
         return ev.sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, 6);
     }, [filtered]);
 
+    // Only count requests with a real owner. The backend doesn't send owners yet,
+    // so this is empty today — we hide the whole panel rather than invent a fake
+    // "Unassigned" pile.
     const workload = useMemo(() => {
         const m = new Map<string, number>();
-        for (const r of filtered) { const o = r.owner || 'Unassigned'; m.set(o, (m.get(o) || 0) + 1); }
+        for (const r of filtered) { if (r.owner) m.set(r.owner, (m.get(r.owner) || 0) + 1); }
         const max = Math.max(1, ...Array.from(m.values()));
-        return Array.from(m.entries()).map(([name, n]) => ({ name, n, pct: Math.round((n / max) * 100) }));
+        return Array.from(m.entries())
+            .map(([name, n]) => ({ name, n, pct: Math.round((n / max) * 100) }))
+            .sort((a, b) => b.n - a.n);
     }, [filtered]);
 
     const tableRows = useMemo(() => {
@@ -237,8 +258,7 @@ export default function Dashboard() {
             const docTotal = docStage?.checklists?.length || 0;
             const docDone = docStage?.checklists?.filter((c: any) => c.checked).length || 0;
             const overdue = isOverdue(r);
-            const meta = overdue ? { label: 'Needs attention', tone: 'destructive' as const } : (STATUS_META[r.status] || { label: r.status, tone: 'muted' as const });
-            return { r, progress, issues: r.open_risk_count || 0, docDone, docTotal, overdue, meta };
+            return { r, progress, issues: r.open_risk_count || 0, docDone, docTotal, overdue };
         });
         const f = (id: TabId) => {
             if (id === 'arrived') return rows.filter(x => x.r.status === 'submitted');
@@ -274,12 +294,27 @@ export default function Dashboard() {
                     <p className="text-[10.5px] font-semibold uppercase tracking-widest text-muted-foreground">Operations dashboard</p>
                     <h1 className="text-[28px] font-semibold tracking-tight text-foreground font-display leading-tight mt-1">{greeting}{firstName ? `, ${firstName}` : ''}</h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        {inFlight} requests in flight · <span className={pastDeadline ? 'text-destructive font-medium' : ''}>{pastDeadline} past deadline</span> · {needAttention} waiting on you
+                        {inFlight} in flight · <span className={pastDeadline ? 'text-destructive font-medium' : ''}>{pastDeadline} past deadline</span> · {awaitingInfo} awaiting info
                         {activeFilterCount > 0 && <span className="text-primary"> · filtered</span>}
                     </p>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="inline-flex items-center p-0.5 rounded-lg bg-muted/60 border border-border/60">
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 gap-1.5 text-muted-foreground"
+                        onClick={load}
+                        disabled={refreshing}
+                        aria-label="Refresh dashboard"
+                        title={lastUpdated ? `Last updated ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Refresh'}
+                    >
+                        {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        <span className="hidden sm:inline">{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Refresh'}</span>
+                    </Button>
+                    <div
+                        className="inline-flex items-center p-0.5 rounded-lg bg-muted/60 border border-border/60"
+                        title="Sets the window for trends and the 'Approved' count"
+                    >
                         {(['today', 'week', 'month'] as Range[]).map(rg => (
                             <button key={rg} onClick={() => setRange(rg)} className={cn('focus-ring h-7 px-2.5 rounded-md text-xs font-medium transition-colors', range === rg ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{rg === 'today' ? 'Today' : rg === 'week' ? 'This week' : 'This month'}</button>
                         ))}
@@ -323,6 +358,20 @@ export default function Dashboard() {
                 </div>
             </div>
 
+            {/* Outage banner — an honest "system down" instead of a calm empty day */}
+            {loadError && (
+                <div role="alert" className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm refined-in">
+                    <WifiOff className="h-4 w-4 text-destructive shrink-0" aria-hidden />
+                    <span className="text-foreground">
+                        We couldn't load the latest numbers. Some figures may be out of date — your work is safe.
+                    </span>
+                    <Button size="sm" variant="outline" className="ml-auto gap-1.5" onClick={load} disabled={refreshing}>
+                        {refreshing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                        Retry
+                    </Button>
+                </div>
+            )}
+
             {/* Active filter chips */}
             {activeFilterCount > 0 && (
                 <div className="flex items-center gap-1.5 flex-wrap -mt-2">
@@ -337,12 +386,12 @@ export default function Dashboard() {
 
             {/* KPI strip */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 stagger">
-                <Kpi icon={Layers} label="Requests in flight" value={inFlight} sub={`${filtered.length} total`} series={sparkIn} seriesColor={C.info} onClick={() => navigate('/requests')} />
-                <Kpi icon={AlertTriangle} label="Need attention" value={needAttention} sub="stalled or missing info" tone={needAttention ? 'warning' : 'muted'} series={sparkStuck} seriesColor={C.warning} onClick={() => navigate('/requests')} />
-                <Kpi icon={Clock3} label="Waiting on us" value={underReview} sub="under review" tone="info" onClick={() => navigate('/requests')} />
-                <Kpi icon={CheckCircle2} label={`Approved ${RANGE_LABEL[range]}`} value={approvedInRange} sub={`decided ${RANGE_LABEL[range]}`} tone={approvedInRange ? 'success' : 'muted'} series={sparkOut} seriesColor={C.success} onClick={() => navigate('/requests')} />
-                <Kpi icon={Timer} label="Avg turnaround" value={humaniseDuration(avgTurnaround)} sub="intake → decision" onClick={() => navigate('/requests')} />
-                <Kpi icon={Gauge} label="Past deadline" value={pastDeadline} sub="open & overdue" tone={pastDeadline ? 'destructive' : 'muted'} series={sparkStuck} seriesColor={C.destructive} onClick={() => navigate('/requests')} />
+                <Kpi icon={Layers} label="Requests in flight" value={inFlight} sub={`${filtered.length} total`} series={sparkIn} seriesColor={C.info} onClick={() => goToInbox()} />
+                <Kpi icon={AlertTriangle} label="Awaiting info" value={awaitingInfo} sub="waiting on the broker" tone={awaitingInfo ? 'warning' : 'muted'} series={sparkStuck} seriesColor={C.warning} onClick={() => goToInbox({ status: 'Awaiting info' })} />
+                <Kpi icon={Clock3} label="In review" value={underReview} sub="being worked now" tone="info" onClick={() => goToInbox({ status: 'In review' })} />
+                <Kpi icon={CheckCircle2} label={`Approved ${RANGE_LABEL[range]}`} value={approvedInRange} sub={`decided ${RANGE_LABEL[range]}`} tone={approvedInRange ? 'success' : 'muted'} series={sparkOut} seriesColor={C.success} onClick={() => goToInbox({ status: 'Approved' })} />
+                <Kpi icon={Timer} label="Avg turnaround" value={humaniseDuration(avgTurnaround)} sub="intake → decision" onClick={() => goToInbox()} />
+                <Kpi icon={Gauge} label="Past deadline" value={pastDeadline} sub="open & overdue" tone={pastDeadline ? 'destructive' : 'muted'} series={sparkStuck} seriesColor={C.destructive} onClick={() => goToInbox({ sla: 'red' })} />
             </div>
 
             {/* Flow + status */}
@@ -413,9 +462,11 @@ export default function Dashboard() {
                                 </button>
                             ))}
                         </div>
-                        <div className="overflow-x-auto -mx-1">
-                            <table className="w-full text-sm min-w-[640px]">
-                                <thead>
+                        {/* Reflows from a table (md+) to stacked cards on mobile,
+                            so it never forces horizontal scroll on a phone. */}
+                        <div className="md:overflow-x-auto md:-mx-1">
+                            <table className="w-full text-sm md:min-w-[640px]">
+                                <thead className="hidden md:table-header-group">
                                     <tr className="text-[10px] uppercase tracking-wider text-muted-foreground border-b border-border">
                                         <th className="text-left font-semibold px-2 py-2">Company</th>
                                         <th className="text-left font-semibold px-2 py-2">Where it is</th>
@@ -427,21 +478,47 @@ export default function Dashboard() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {tableRows.current.map(({ r, progress, issues, docDone, docTotal, meta }) => {
+                                    {tableRows.current.map(({ r, progress, issues, docDone, docTotal }) => {
                                         const hrs = r.sla_deadline ? Math.round((new Date(r.sla_deadline).getTime() - now) / 3600000) : null;
+                                        const sm = requestStatusMeta(r.status);
                                         return (
-                                            <tr key={r.id} className="border-b border-border/60 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/request/${r.id}`)}>
-                                                <td className="px-2 py-2.5"><p className="font-medium text-foreground truncate max-w-[200px]">{r.company_name}</p><p className="text-[10px] font-mono text-muted-foreground">{r.smart_id}</p></td>
-                                                <td className="px-2 py-2.5 text-muted-foreground text-xs">{r.current_stage_name || '—'}</td>
-                                                <td className="px-2 py-2.5"><div className="flex items-center gap-2"><div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary" style={{ width: `${progress}%` }} /></div><span className="text-[10px] tabular-nums text-muted-foreground w-7">{progress}%</span></div></td>
-                                                <td className="px-2 py-2.5 text-center">{issues > 0 ? <span className="inline-flex items-center gap-1 text-destructive text-xs font-medium"><ShieldAlert className="h-3 w-3" />{issues}</span> : <span className="text-muted-foreground/50">—</span>}</td>
-                                                <td className="px-2 py-2.5 text-center text-xs tabular-nums text-muted-foreground">{docTotal ? `${docDone}/${docTotal}` : '—'}</td>
-                                                <td className="px-2 py-2.5 text-xs"><span className={cn('inline-flex items-center gap-1', hrs !== null && hrs < 0 ? 'text-destructive font-medium' : 'text-muted-foreground')}><Clock3 className="h-3 w-3" />{hrs === null ? '—' : hrs >= 0 ? `${hrs}h left` : `${Math.abs(hrs)}h late`}</span></td>
-                                                <td className="px-2 py-2.5 text-right"><Badge variant="outline" className={cn('text-[10px] uppercase font-semibold', TONE_BADGE[meta.tone])}>{meta.label}</Badge></td>
+                                            <tr
+                                                key={r.id}
+                                                className="block md:table-row border border-border md:border-0 md:border-b md:border-border/60 rounded-lg md:rounded-none mb-2 md:mb-0 p-3 md:p-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                                                onClick={() => navigate(`/request/${r.id}`)}
+                                            >
+                                                <td className="flex items-center justify-between gap-3 md:table-cell md:px-2 md:py-2.5 pb-2 md:pb-2.5 border-b border-border/60 md:border-0 mb-2 md:mb-0">
+                                                    <div className="min-w-0">
+                                                        <p className="font-medium text-foreground truncate max-w-[220px]">{r.company_name}</p>
+                                                        <p className="text-[10px] font-mono text-muted-foreground">{r.smart_id}</p>
+                                                    </div>
+                                                    <Badge variant={sm.variant} className="md:hidden shrink-0">{sm.label}</Badge>
+                                                </td>
+                                                <td className="flex items-center justify-between gap-3 md:table-cell md:px-2 md:py-2.5 py-1 text-muted-foreground text-xs">
+                                                    <span className="md:hidden text-[10px] uppercase tracking-wider text-muted-foreground/70">Where it is</span>
+                                                    <span>{r.current_stage_name || '—'}</span>
+                                                </td>
+                                                <td className="flex items-center justify-between gap-3 md:table-cell md:px-2 md:py-2.5 py-1">
+                                                    <span className="md:hidden text-[10px] uppercase tracking-wider text-muted-foreground/70">Progress</span>
+                                                    <div className="flex items-center gap-2 w-32 md:w-auto"><div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary" style={{ width: `${progress}%` }} /></div><span className="text-[10px] tabular-nums text-muted-foreground w-7">{progress}%</span></div>
+                                                </td>
+                                                <td className="flex items-center justify-between gap-3 md:table-cell md:text-center md:px-2 md:py-2.5 py-1">
+                                                    <span className="md:hidden text-[10px] uppercase tracking-wider text-muted-foreground/70">Issues</span>
+                                                    {issues > 0 ? <span className="inline-flex items-center gap-1 text-destructive text-xs font-medium"><ShieldAlert className="h-3 w-3" aria-hidden />{issues} open</span> : <span className="text-muted-foreground/50">—</span>}
+                                                </td>
+                                                <td className="flex items-center justify-between gap-3 md:table-cell md:text-center md:px-2 md:py-2.5 py-1 text-xs tabular-nums text-muted-foreground">
+                                                    <span className="md:hidden text-[10px] uppercase tracking-wider text-muted-foreground/70">Docs</span>
+                                                    <span>{docTotal ? `${docDone}/${docTotal}` : '—'}</span>
+                                                </td>
+                                                <td className="flex items-center justify-between gap-3 md:table-cell md:px-2 md:py-2.5 py-1 text-xs">
+                                                    <span className="md:hidden text-[10px] uppercase tracking-wider text-muted-foreground/70">Deadline</span>
+                                                    <span className={cn('inline-flex items-center gap-1', hrs !== null && hrs < 0 ? 'text-destructive font-medium' : 'text-muted-foreground')}><Clock3 className="h-3 w-3" aria-hidden />{hrs === null ? 'No deadline' : hrs >= 0 ? `${hrs}h left` : `${Math.abs(hrs)}h late`}</span>
+                                                </td>
+                                                <td className="hidden md:table-cell md:px-2 md:py-2.5 text-right"><Badge variant={sm.variant}>{sm.label}</Badge></td>
                                             </tr>
                                         );
                                     })}
-                                    {tableRows.current.length === 0 && <tr><td colSpan={7} className="text-center text-sm text-muted-foreground py-8">No requests match these filters.</td></tr>}
+                                    {tableRows.current.length === 0 && <tr className="block md:table-row"><td colSpan={7} className="block md:table-cell text-center text-sm text-muted-foreground py-8">No requests match these filters.</td></tr>}
                                 </tbody>
                             </table>
                         </div>
@@ -478,18 +555,19 @@ export default function Dashboard() {
                         </div>
                     </Panel>
 
-                    <Panel title="Who's handling what" headerRight={<span className="text-[11px] text-muted-foreground">{filtered.length} open</span>} refined>
-                        <div className="space-y-3">
-                            {workload.map(w => (
-                                <div key={w.name}>
-                                    <div className="flex items-center justify-between gap-2 mb-1"><span className="text-[13px] text-foreground truncate">{w.name}</span><span className="text-[11px] text-muted-foreground tabular-nums">{w.n} open</span></div>
-                                    <div className="h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary/70" style={{ width: `${w.pct}%` }} /></div>
-                                </div>
-                            ))}
-                            {workload.length === 0 && <p className="text-xs text-muted-foreground">No matching requests.</p>}
-                        </div>
-                        {workload.length === 1 && workload[0].name === 'Unassigned' && <p className="text-[10px] text-muted-foreground/70 mt-3 italic">Assignee tracking isn't enabled yet — open work shows as unassigned.</p>}
-                    </Panel>
+                    {/* Hidden entirely until real owner data exists — no fake "Unassigned". */}
+                    {workload.length > 0 && (
+                        <Panel title="Who's handling what" headerRight={<span className="text-[11px] text-muted-foreground">{filtered.length} open</span>} refined>
+                            <div className="space-y-3">
+                                {workload.map(w => (
+                                    <div key={w.name}>
+                                        <div className="flex items-center justify-between gap-2 mb-1"><span className="text-[13px] text-foreground truncate">{w.name}</span><span className="text-[11px] text-muted-foreground tabular-nums">{w.n} open</span></div>
+                                        <div className="h-1.5 bg-muted rounded-full overflow-hidden"><div className="h-full bg-primary/70" style={{ width: `${w.pct}%` }} /></div>
+                                    </div>
+                                ))}
+                            </div>
+                        </Panel>
+                    )}
 
                     <Panel title="What just happened" headerRight={<Link to="/requests" className="text-xs font-medium text-primary hover:underline">See all</Link>} refined>
                         {activity.length === 0 ? <p className="text-xs text-muted-foreground">No recent activity.</p> : (
@@ -498,7 +576,7 @@ export default function Dashboard() {
                                     const Icon = e.icon;
                                     return (
                                         <div key={e.id} className="flex gap-3">
-                                            <div className="flex flex-col items-center"><span className={cn('flex items-center justify-center w-6 h-6 rounded-full border shrink-0 bg-card', TONE_BADGE[e.tone])}><Icon className="h-3 w-3" /></span>{i < activity.length - 1 && <span className="w-px flex-1 bg-border my-1" />}</div>
+                                            <div className="flex flex-col items-center"><span className={cn('flex items-center justify-center w-6 h-6 rounded-full border shrink-0 bg-card', EVENT_TONE[e.tone])}><Icon className="h-3 w-3" aria-hidden /></span>{i < activity.length - 1 && <span className="w-px flex-1 bg-border my-1" />}</div>
                                             <div className="pb-3 min-w-0"><p className="text-[13px] text-foreground truncate">{e.title}</p><p className="text-[11px] text-muted-foreground">{e.actor} · {format(e.at, 'dd MMM · HH:mm')}</p></div>
                                         </div>
                                     );

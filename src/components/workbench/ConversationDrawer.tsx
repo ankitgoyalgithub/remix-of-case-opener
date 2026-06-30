@@ -69,7 +69,7 @@ export function ConversationDrawer({ open, onOpenChange, requestId, onCompose }:
         <SheetFooter className="px-5 py-3 border-t border-border">
           <Button className="w-full gap-1.5" onClick={onCompose}>
             <Mail className="h-3.5 w-3.5" />
-            Compose request
+            Email broker
           </Button>
         </SheetFooter>
       </SheetContent>

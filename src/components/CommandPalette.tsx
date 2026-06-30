@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
     CommandDialog,
     CommandEmpty,
@@ -8,15 +9,12 @@ import {
     CommandItem,
     CommandList,
     CommandSeparator,
-    CommandShortcut,
 } from '@/components/ui/command';
-import {
-    LayoutDashboard, Inbox as InboxIcon, FileStack, Workflow, ClipboardCheck,
-    Plug, Mail, Settings, Sparkles, Wand2, FileCheck, ListChecks,
-    Building2, ArrowRight,
-} from 'lucide-react';
+import { Building2, ArrowRight, Wand2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { isAuthenticated } from '@/lib/auth';
 import { mapBackendRequestToListItem } from '@/lib/mappers';
+import { getNavGroups, canSeeConfiguration, type Role } from './layout/navItems';
 
 interface RequestHit {
     id: string;
@@ -32,6 +30,13 @@ export function CommandPalette() {
     const [loaded, setLoaded] = useState(false);
     const navigate = useNavigate();
     const fetchedAtRef = useRef<number>(0);
+
+    // Mounted globally (outside <Routes>), so this renders on /login too — guard
+    // the fetch behind auth so it never hits /user/me/ while logged out.
+    const { data: user } = useQuery({ queryKey: ['userMe'], queryFn: () => api.user.me(), staleTime: 5 * 60_000, enabled: isAuthenticated() });
+    const role = (user as any)?.role as Role | undefined;
+    // Same vocabulary + role-gating as the sidebar (Work · Configuration · Account).
+    const navGroups = getNavGroups(role);
 
     // Cmd+K / Ctrl+K to open
     useEffect(() => {
@@ -86,7 +91,7 @@ export function CommandPalette() {
     return (
         <CommandDialog open={open} onOpenChange={setOpen}>
             <CommandInput
-                placeholder="Type a command, search a request, or navigate…"
+                placeholder="Search a request, or jump to a page…"
                 value={query}
                 onValueChange={setQuery}
             />
@@ -103,12 +108,12 @@ export function CommandPalette() {
                                     onSelect={() => go(`/request/${r.id}`)}
                                     className="gap-2"
                                 >
-                                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                                    <Building2 className="h-4 w-4 text-muted-foreground" aria-hidden />
                                     <span className="flex-1 truncate" title={r.companyName}>{r.companyName}</span>
                                     <span className="text-[11px] text-muted-foreground font-mono">
                                         {r.smartId || r.id.slice(0, 8)}
                                     </span>
-                                    <ArrowRight className="h-3 w-3 text-muted-foreground/60" />
+                                    <ArrowRight className="h-3 w-3 text-muted-foreground/60" aria-hidden />
                                 </CommandItem>
                             ))}
                         </CommandGroup>
@@ -116,39 +121,40 @@ export function CommandPalette() {
                     </>
                 )}
 
-                <CommandGroup heading="Navigate">
-                    <NavItem icon={LayoutDashboard} label="Dashboard" onSelect={() => go('/dashboard')} shortcut="G D" />
-                    <NavItem icon={InboxIcon} label="Requests" onSelect={() => go('/requests')} shortcut="G R" />
-                    <NavItem icon={Sparkles} label="AI Studio — Overview" onSelect={() => go('/studio')} shortcut="G S" />
-                    <NavItem icon={Workflow} label="Workflows" onSelect={() => go('/studio/workflows')} />
-                    <NavItem icon={FileStack} label="Documents" onSelect={() => go('/studio/documents')} />
-                    <NavItem icon={ClipboardCheck} label="Checks" onSelect={() => go('/studio/checks')} />
-                    <NavItem icon={Plug} label="Integrations" onSelect={() => go('/studio/integrations')} />
-                    <NavItem icon={InboxIcon} label="Inbound email" onSelect={() => go('/studio/inbound')} />
-                    <NavItem icon={ListChecks} label="Polling jobs" onSelect={() => go('/studio/jobs')} />
-                    <NavItem icon={Mail} label="Messages" onSelect={() => go('/studio/messages')} />
-                    <NavItem icon={Settings} label="Studio Settings" onSelect={() => go('/studio/settings')} />
-                </CommandGroup>
+                {navGroups.map((group, gi) => (
+                    <div key={group.id}>
+                        <CommandGroup heading={group.label}>
+                            {group.items.map(item => {
+                                const Icon = item.icon;
+                                return (
+                                    <CommandItem
+                                        key={item.to}
+                                        value={`${item.label} ${item.description}`}
+                                        onSelect={() => go(item.to)}
+                                        className="gap-2"
+                                    >
+                                        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
+                                        <span className="flex-1">{item.label}</span>
+                                    </CommandItem>
+                                );
+                            })}
+                        </CommandGroup>
+                        {gi < navGroups.length - 1 && <CommandSeparator />}
+                    </div>
+                ))}
 
-                <CommandSeparator />
-
-                <CommandGroup heading="Actions">
-                    <NavItem icon={Wand2} label="Run setup wizard" onSelect={() => go('/studio/setup')} />
-                    <NavItem icon={FileCheck} label="Settings (account)" onSelect={() => go('/settings')} />
-                </CommandGroup>
+                {canSeeConfiguration(role) && (
+                    <>
+                        <CommandSeparator />
+                        <CommandGroup heading="Actions">
+                            <CommandItem value="run setup wizard" onSelect={() => go('/studio/setup')} className="gap-2">
+                                <Wand2 className="h-4 w-4 text-muted-foreground" aria-hidden />
+                                <span className="flex-1">Run setup</span>
+                            </CommandItem>
+                        </CommandGroup>
+                    </>
+                )}
             </CommandList>
         </CommandDialog>
-    );
-}
-
-function NavItem({
-    icon: Icon, label, onSelect, shortcut,
-}: { icon: any; label: string; onSelect: () => void; shortcut?: string }) {
-    return (
-        <CommandItem onSelect={onSelect} className="gap-2">
-            <Icon className="h-4 w-4 text-muted-foreground" />
-            <span className="flex-1">{label}</span>
-            {shortcut && <CommandShortcut>{shortcut}</CommandShortcut>}
-        </CommandItem>
     );
 }

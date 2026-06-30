@@ -55,7 +55,7 @@ export function AINextActionBanner({ action, onCompose, onBrowse, onPrimary }: A
             {onCompose && (
               <Button size="sm" className="h-8 gap-1.5" onClick={onCompose}>
                 <Mail className="h-3.5 w-3.5" />
-                Compose request
+                Email broker
               </Button>
             )}
           </>
@@ -63,7 +63,7 @@ export function AINextActionBanner({ action, onCompose, onBrowse, onPrimary }: A
         {action.kind === 'publish' && onPrimary && (
           <Button size="sm" className="h-8 gap-1.5" onClick={onPrimary}>
             <Send className="h-3.5 w-3.5" />
-            Publish to insurer
+            Send to insurer
           </Button>
         )}
         {(action.kind === 'adjudicate' || action.kind === 'triage') && onPrimary && (

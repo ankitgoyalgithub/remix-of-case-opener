@@ -76,7 +76,7 @@ export function NotifyBrokerDialog({ open, onOpenChange, requestId, onSent }: Pr
         <DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
           <DialogTitle className="text-left text-base">Notify broker</DialogTitle>
           <p className="text-[11px] text-muted-foreground">
-            Sends from the connected Gmail mailbox{draft?.account_email ? ` (${draft.account_email})` : ''}.
+            Sends from the connected mailbox{draft?.account_email ? ` (${draft.account_email})` : ''}.
             Review and edit before sending.
           </p>
         </DialogHeader>
@@ -93,10 +93,10 @@ export function NotifyBrokerDialog({ open, onOpenChange, requestId, onSent }: Pr
             <div className="rounded-md border border-warning/40 bg-warning/5 p-3 flex gap-2.5">
               <AlertCircle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
               <div className="text-xs leading-relaxed">
-                <p className="font-medium text-foreground">No connected mailbox</p>
+                <p className="font-medium text-foreground">No mailbox connected yet</p>
                 <p className="text-muted-foreground mt-1">
-                  Connect a Gmail account in <strong>Studio → Integrations</strong> first.
-                  The dialog will let you draft, but Send will fail until then.
+                  Connect a mailbox in <strong>Settings → Connected services</strong> first.
+                  You can still draft the email here, but sending won’t work until a mailbox is connected.
                 </p>
               </div>
             </div>
@@ -106,17 +106,16 @@ export function NotifyBrokerDialog({ open, onOpenChange, requestId, onSent }: Pr
             <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 flex gap-2.5">
               <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
               <div className="text-xs leading-relaxed flex-1">
-                <p className="font-medium text-foreground">Mailbox needs to be reconnected</p>
+                <p className="font-medium text-foreground">This mailbox needs to be reconnected</p>
                 <p className="text-muted-foreground mt-1">
-                  <strong>{draft.account_email}</strong> was connected before send-email support was
-                  added, so the OAuth grant is missing the <code className="text-[10px] px-1 rounded bg-muted">gmail.send</code> scope.
-                  Reconnect once to allow outbound mail — Send will fail until then.
+                  <strong>{draft.account_email}</strong> needs to be reconnected once before it can
+                  send email. Until then, you can draft the email but sending won’t work.
                 </p>
                 <a
                   href="/studio/integrations"
                   className="inline-flex items-center mt-1.5 text-destructive hover:underline font-medium"
                 >
-                  Open Studio → Integrations →
+                  Open Settings → Connected services →
                 </a>
               </div>
             </div>
@@ -172,7 +171,7 @@ export function NotifyBrokerDialog({ open, onOpenChange, requestId, onSent }: Pr
             onClick={handleSend}
             disabled={loading || sending || !to.trim() || !subject.trim() || !body.trim() || !!draft?.needs_reconnect || (draft ? !draft.has_account : false)}
             className="gap-1.5"
-            title={draft?.needs_reconnect ? 'Reconnect the mailbox to grant the gmail.send scope' : undefined}
+            title={draft?.needs_reconnect ? 'Reconnect the mailbox before you can send email' : undefined}
           >
             {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
             Send email

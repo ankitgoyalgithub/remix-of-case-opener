@@ -40,6 +40,7 @@ export default function RequestDetail() {
   const { requestId } = useParams();
   const [loading, setLoading] = useState(true);
   const [requestData, setRequestData] = useState<CaseData | null>(null);
+  const [brokerName, setBrokerName] = useState('');
   const [readinessKey, setReadinessKey] = useState(0);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [activeTab, setActiveTab] = useState('tasks');
@@ -153,6 +154,8 @@ export default function RequestDetail() {
       };
 
       setRequestData(fullData);
+      // Only use a real broker name when the backend supplies one; never fabricate.
+      setBrokerName(listItem.brokerName || '');
       setReadinessKey(k => k + 1);
     } catch (error) {
       console.error('Failed to fetch request details:', error);
@@ -250,7 +253,7 @@ export default function RequestDetail() {
   }, [requestData?.status, requestData?.isIssued, allStagesComplete, allMissingDocs, requestData?.missingInfoRequested]);
 
   const headerData = {
-    brokerName: 'Gulf Insurance Brokers',
+    brokerName,
     currentStageName: requestData?.stages?.find(s => s.id === currentStage)?.name || 'Unknown',
   };
 
@@ -323,9 +326,9 @@ export default function RequestDetail() {
       toast.success('Document uploaded successfully');
       fetchRequestDetails();
     } catch (err: any) {
+      // Storage/credential errors are engineering detail — log them, don't show them.
       console.error('Failed to upload', err);
-      const errorMessage = err?.message || 'Failed to upload document';
-      toast.error(errorMessage, { description: 'Ensure your S3 credentials and bucket are correctly configured.' });
+      toast.error("We couldn't upload your document. Please try again — if it keeps happening, contact support.");
     } finally {
       setIsUploading(false);
     }
@@ -381,36 +384,42 @@ export default function RequestDetail() {
 
   const [bypassItem, setBypassItem] = useState<{ id: string; label: string } | null>(null);
   const [decisionAction, setDecisionAction] = useState<DecisionAction | null>(null);
+  // Server-reported readiness block (set when the backend 409s): forces the
+  // override-acknowledge path even if the client didn't predict the block.
+  const [decisionBlock, setDecisionBlock] = useState<string | null>(null);
 
-  const submitDecision = async (comment: string) => {
+  const submitDecision = async (reason: string) => {
     if (!requestData || !decisionAction) return;
+    // Override when the user acknowledged a blocker (open risks, or a server 409).
+    const override = decisionAction !== 'reject'
+      && ((decisionAction === 'approve' && openRiskCount > 0) || !!decisionBlock);
     try {
       if (decisionAction === 'approve') {
-        await api.requests.approve(requestData.id, comment);
+        await api.requests.approve(requestData.id, reason, override);
         toast.success('Request approved.');
-      } else {
-        await api.requests.reject(requestData.id, comment);
+      } else if (decisionAction === 'reject') {
+        await api.requests.reject(requestData.id, reason);
         toast.success('Request rejected.');
+      } else {
+        await api.requests.publish(requestData.id, override);
+        toast.success('Sent to insurer.');
       }
+      setDecisionAction(null);
+      setDecisionBlock(null);
       await fetchRequestDetails();
     } catch (err: any) {
+      // Keep the technical detail in the console only; show a calm, plain message.
       console.error('Decision failed', err);
-      toast.error(err?.message || 'Could not record decision.');
-    } finally {
-      setDecisionAction(null);
-    }
-  };
-
-  const submitPublish = async () => {
-    if (!requestData) return;
-    if (!window.confirm('Publish this request to the core system?')) return;
-    try {
-      await api.requests.publish(requestData.id);
-      toast.success('Request published.');
-      fetchRequestDetails();
-    } catch (err: any) {
-      console.error('Publish failed', err);
-      toast.error(err?.message || 'Could not publish request.');
+      if (err?.code === 'readiness_blocked') {
+        // Surface the server reason and keep the modal open for an acknowledged override.
+        setDecisionBlock(err.message || "This request isn't ready yet.");
+        toast.error(err.message || "This request isn't ready yet.", {
+          description: 'Tick “approve anyway” to override with a logged reason, or resolve the blockers first.',
+        });
+      } else {
+        toast.error("We couldn't save your decision. Please try again — if it keeps happening, contact support.");
+        setDecisionAction(null);
+      }
     }
   };
 
@@ -524,7 +533,7 @@ export default function RequestDetail() {
     }));
   };
 
-  const handleAssignOwner = (owner: string, queue: 'Senior Ops Queue' | 'Standard Ops Queue') => {
+  const handleAssignOwner = async (owner: string, queue: 'Senior Ops Queue' | 'Standard Ops Queue') => {
     const newTimeline: TimelineEvent = {
       id: `t${Date.now()}`,
       timestamp: new Date(),
@@ -532,12 +541,25 @@ export default function RequestDetail() {
       user: 'System',
       details: `Request assigned to ${owner} (${queue})`,
     };
+    // Optimistic local update so the change shows immediately.
     setRequestData(prev => ({
       ...prev,
       owner,
       queue,
       timeline: [...prev.timeline, newTimeline],
     }));
+    if (!requestData?.id) return;
+    try {
+      // Persisted + audited server-side (POST /requests/:id/assign/); refetch to
+      // reconcile with the saved owner and pick up the audit-log timeline entry.
+      // (queue stays local for now — there is no backend queue field yet.)
+      await api.requests.assign(requestData.id, owner);
+      toast.success(`Assigned to ${owner}.`);
+      fetchRequestDetails({ silent: true });
+    } catch (err) {
+      console.error('Failed to persist owner assignment', err);
+      toast.error("We couldn't save the assignment. Please try again — if it keeps happening, contact support.");
+    }
   };
 
   const handleMissingInfoSent = () => {
@@ -560,20 +582,15 @@ export default function RequestDetail() {
 
   const handleReextract = async (docId: string, additionalPrompt?: string) => {
     try {
-      toast.loading('AI is re-processing document...', { id: 'reextract' });
+      toast.loading('Re-reading the document…', { id: 'reextract' });
       await api.documents.extract(docId, additionalPrompt);
-      toast.success('Re-extraction complete', { id: 'reextract' });
+      toast.success('Finished re-reading the document.', { id: 'reextract' });
       fetchRequestDetails();
     } catch (err: any) {
+      // AI/storage errors are engineering detail — log them, don't show them.
       console.error('Failed to re-extract', err);
-      // Try to get a more descriptive error from the backend Response if possible
-      const errorMessage = err?.message || 'Failed to re-extract document';
-      toast.error(errorMessage, { id: 'reextract', description: 'Check your AI and Storage configuration.' });
+      toast.error("We couldn't re-read this document. Please try again — if it keeps happening, contact support.", { id: 'reextract' });
     }
-  };
-
-  const handleEscalate = () => {
-    toast.info('Escalation dialog would open here');
   };
 
   const handleApprove = () => {
@@ -672,11 +689,10 @@ export default function RequestDetail() {
         hasMissingDocuments={allMissingDocs.length > 0}
         onAssignOwner={() => setShowAssignOwnerModal(true)}
         onRequestMissingInfo={() => setShowMissingInfoModal(true)}
-        onEscalate={handleEscalate}
         onDelete={handleDeleteRequest}
         onApprove={() => setDecisionAction('approve')}
         onReject={() => setDecisionAction('reject')}
-        onPublish={submitPublish}
+        onPublish={() => setDecisionAction('publish')}
         timelineDrawer={<TimelineDrawer events={requestData.timeline} />}
         openRiskCount={openRiskCount}
         onOpenConversation={() => setConvoOpen(true)}
@@ -689,7 +705,7 @@ export default function RequestDetail() {
             action={nextAction}
             onCompose={() => setShowMissingInfoModal(true)}
             onBrowse={handleBrowseMissing}
-            onPrimary={nextAction?.kind === 'publish' ? submitPublish : () => setDecisionAction('approve')}
+            onPrimary={() => setDecisionAction(nextAction?.kind === 'publish' ? 'publish' : 'approve')}
           />
           <RiskFlagsStrip riskFlags={requestData.riskFlags || []} onJumpToFlag={handleJumpToFlag} />
         </div>
@@ -788,7 +804,14 @@ export default function RequestDetail() {
         open={decisionAction !== null}
         action={decisionAction || 'approve'}
         companyName={requestData.companyName}
-        onCancel={() => setDecisionAction(null)}
+        warning={decisionBlock
+          ? <>{decisionBlock} You can override with a logged reason below.</>
+          : decisionAction === 'approve' && openRiskCount > 0
+          ? <>This request has <b>{openRiskCount}</b> open risk{openRiskCount === 1 ? '' : 's'} that normally need to be cleared before approval.</>
+          : undefined}
+        requireAcknowledge={(decisionAction === 'approve' && openRiskCount > 0) || !!decisionBlock}
+        acknowledgeLabel="Approve anyway — I take responsibility for this override."
+        onCancel={() => { setDecisionAction(null); setDecisionBlock(null); }}
         onConfirm={submitDecision}
       />
     </div>

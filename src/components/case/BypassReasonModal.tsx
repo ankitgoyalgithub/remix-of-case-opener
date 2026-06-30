@@ -43,10 +43,10 @@ export function BypassReasonModal({ item, onCancel, onConfirm }: BypassReasonMod
         <DialogHeader>
           <div className="flex items-center gap-2 mb-1">
             <AlertTriangle className="h-4 w-4 text-warning" />
-            <DialogTitle>Bypass failed check</DialogTitle>
+            <DialogTitle>Mark this check done anyway</DialogTitle>
           </div>
           <DialogDescription className="text-sm">
-            This check failed automated validation. To mark it as done anyway, enter a short reason. The reason is logged against the request for audit.
+            This check didn’t pass the automatic test. To mark it done anyway, add a short reason. Your reason is saved to the audit trail.
           </DialogDescription>
         </DialogHeader>
         {item && (
@@ -70,7 +70,7 @@ export function BypassReasonModal({ item, onCancel, onConfirm }: BypassReasonMod
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={submitting}>Cancel</Button>
           <Button onClick={handleConfirm} disabled={!reason.trim() || submitting}>
-            {submitting ? 'Saving…' : 'Override & mark done'}
+            {submitting ? 'Saving…' : 'Mark done with reason'}
           </Button>
         </DialogFooter>
       </DialogContent>

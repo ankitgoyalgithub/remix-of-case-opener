@@ -15,5 +15,11 @@ export const isAuthenticated = () => !!getToken();
 
 export const logout = () => {
     clearTokens();
-    window.location.href = '/login';
+    // Only hard-redirect when we're not already on the login page. Otherwise a
+    // 401 raised by a query that runs on /login (e.g. the globally-mounted
+    // CommandPalette's ['userMe'] fetch) would reload → refetch → 401 → reload,
+    // an infinite loop. On /login we just drop the bad token and stay put.
+    if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+    }
 };

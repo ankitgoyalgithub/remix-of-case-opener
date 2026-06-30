@@ -153,9 +153,9 @@ export function WizardStepDocuments({ onConfigureDocument }: WizardStepDocuments
   return (
     <div className="space-y-6 animate-in fade-in duration-500 h-full flex flex-col">
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold text-foreground">Evidence Library</h2>
+        <h2 className="text-xl font-semibold text-foreground">Documents</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Map required document types to specific operational stages.
+          Choose which document types are needed at each review stage.
         </p>
       </div>
 

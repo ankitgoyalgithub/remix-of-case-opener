@@ -99,7 +99,7 @@ export function ExtractionDiffDialog({ open, onOpenChange, previous, current }: 
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Compare versions</DialogTitle>
-                        <DialogDescription>Need two versions of the same document type to diff.</DialogDescription>
+                        <DialogDescription>You need two versions of the same document to compare them.</DialogDescription>
                     </DialogHeader>
                 </DialogContent>
             </Dialog>
@@ -117,7 +117,7 @@ export function ExtractionDiffDialog({ open, onOpenChange, previous, current }: 
                         Compare versions — {docTypeLabel}
                     </DialogTitle>
                     <DialogDescription>
-                        Field-level diff between the two uploaded copies. Previous → current.
+                        Field-by-field comparison of the two uploaded copies. Previous → current.
                     </DialogDescription>
                 </DialogHeader>
 

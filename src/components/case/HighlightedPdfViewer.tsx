@@ -158,6 +158,12 @@ export function HighlightedPdfViewer({ url, externalUrl, highlightText, fileName
     const [scale, setScale] = useState(1.2);
     const [pageCount, setPageCount] = useState(0);
     const [rendered, setRendered] = useState<RenderedPage[]>([]);
+    // Tracks whether we've already auto-fit this document to the viewport width,
+    // so we only shrink-to-fit once per document and never fight a manual zoom.
+    const autoFittedRef = useRef(false);
+
+    // Re-enable fit-to-width whenever a different document loads.
+    useEffect(() => { autoFittedRef.current = false; }, [url]);
 
     // Render the PDF whenever url or scale changes
     useEffect(() => {
@@ -175,6 +181,28 @@ export function HighlightedPdfViewer({ url, externalUrl, highlightText, fileName
                 const pdf = await pdfjs.getDocument({ url }).promise;
                 if (cancelled) return;
                 setPageCount(pdf.numPages);
+
+                // Fit-to-width on first load: if the page would overflow the
+                // available width (typical on tablet/phone), shrink to fit before
+                // rendering. Re-runs the effect once at the fitted scale.
+                if (!autoFittedRef.current) {
+                    autoFittedRef.current = true;
+                    try {
+                        const firstPage = await pdf.getPage(1);
+                        const natural = firstPage.getViewport({ scale: 1 });
+                        const avail = (container.clientWidth || 0) - 24; // p-3 padding
+                        if (avail > 0 && natural.width > 0) {
+                            const fit = Math.max(0.5, Math.min(3, avail / natural.width));
+                            if (fit < scale - 0.02) {
+                                if (!cancelled) setScale(fit);
+                                return; // effect re-runs with the fitted scale
+                            }
+                        }
+                    } catch {
+                        /* fall through to a normal render at the current scale */
+                    }
+                    if (cancelled) return;
+                }
 
                 const pages: RenderedPage[] = [];
 
@@ -296,21 +324,23 @@ export function HighlightedPdfViewer({ url, externalUrl, highlightText, fileName
                         className="h-7 w-7"
                         onClick={() => setScale(s => Math.max(0.6, s - 0.2))}
                         title="Zoom out"
+                        aria-label="Zoom out"
                     >
                         <Minus className="h-3.5 w-3.5" />
                     </Button>
-                    <span className="text-xs text-muted-foreground w-10 text-center">{Math.round(scale * 100)}%</span>
+                    <span className="text-xs text-muted-foreground w-10 text-center" aria-hidden="true">{Math.round(scale * 100)}%</span>
                     <Button
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7"
                         onClick={() => setScale(s => Math.min(3, s + 0.2))}
                         title="Zoom in"
+                        aria-label="Zoom in"
                     >
                         <Plus className="h-3.5 w-3.5" />
                     </Button>
-                    <a href={externalUrl || url} target="_blank" rel="noreferrer">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Open in new tab">
+                    <a href={externalUrl || url} target="_blank" rel="noreferrer" aria-label="Open document in a new tab">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" title="Open in new tab" aria-label="Open document in a new tab">
                             <ExternalLink className="h-3.5 w-3.5" />
                         </Button>
                     </a>
@@ -330,7 +360,7 @@ export function HighlightedPdfViewer({ url, externalUrl, highlightText, fileName
                     // available in this mode.
                     <div className="h-full flex flex-col">
                         <div className="mb-2 text-[11px] text-muted-foreground bg-warning/10 text-warning border border-warning/30 rounded px-2 py-1">
-                            Showing fallback preview — highlights are unavailable because the file stream returned an error.
+                            Showing a simple preview. Highlighting isn’t available for this file — you can still open it in a new tab.
                         </div>
                         {(externalUrl || url) && (
                             <iframe

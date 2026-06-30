@@ -48,6 +48,14 @@ export function CheckForm({ fixedTemplateId, initial, onChange, onValidityChange
   }, []);
   const docLabel = (slug: string) => docs.find(d => d.doc_type === slug)?.name || slug;
 
+  // Census rulebooks — feeds the 'census-rulebook' slot's live dropdown.
+  const [rulebooks, setRulebooks] = useState<Array<{ slug: string; name: string }>>([]);
+  useEffect(() => {
+    api.workflow.census.rulebooks.list()
+      .then((r: any[]) => setRulebooks((r || []).map(x => ({ slug: x.slug, name: x.name }))))
+      .catch(() => setRulebooks([]));
+  }, []);
+
   const [template, setTemplate] = useState<CheckTemplate>(
     initial?.template
     || CHECK_TEMPLATES.find(t => t.id === fixedTemplateId)
@@ -139,6 +147,7 @@ export function CheckForm({ fixedTemplateId, initial, onChange, onValidityChange
           onChange={(v) => setSlots(prev => ({ ...prev, [slot.key]: v }))}
           docs={docs}
           groupedDocs={groupedDocs}
+          rulebooks={rulebooks}
         />
       ))}
 
@@ -174,13 +183,14 @@ function isVisible(slot: SlotDef, slots: Record<string, any>): boolean {
 
 
 function SlotInput({
-  slot, value, onChange, docs, groupedDocs,
+  slot, value, onChange, docs, groupedDocs, rulebooks,
 }: {
   slot: SlotDef;
   value: any;
   onChange: (v: any) => void;
   docs: DocOption[];
   groupedDocs: Record<string, DocOption[]>;
+  rulebooks: Array<{ slug: string; name: string }>;
 }) {
   const requiredMark = slot.required ? <span className="text-destructive ml-1">*</span> : null;
 
@@ -233,6 +243,17 @@ function SlotInput({
           <Checkbox checked={!!value} onCheckedChange={(c) => onChange(c === true)} />
           <span className="text-xs text-muted-foreground">{slot.placeholder || 'Enabled'}</span>
         </label>
+      )}
+      {slot.type === 'census-rulebook' && (
+        <Select value={value || '__auto'} onValueChange={(v) => onChange(v === '__auto' ? '' : v)}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__auto"><span className="font-medium">Auto-select (best fit)</span></SelectItem>
+            {rulebooks.map(rb => (
+              <SelectItem key={rb.slug} value={rb.slug}>{rb.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
       {slot.type === 'doc-type' && (
         <Select value={value ?? ''} onValueChange={(v) => onChange(v)}>

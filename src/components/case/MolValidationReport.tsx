@@ -5,11 +5,13 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import {
   Users, CheckCircle2, XCircle, AlertTriangle, Clock, ShieldCheck, Eye,
-  Settings2, Check, X as XIcon, Send, ChevronRight, Download,
+  Settings2, Check, X as XIcon, Send, ChevronRight, Download, Info,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { confidenceTier } from '@/lib/status';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { useUiPref } from '@/hooks/useUiPref';
+import { api } from '@/lib/api';
 import { exportMolCsv, type MolExportRow } from '@/lib/molExport';
 
 interface MolValidationReportProps {
@@ -177,10 +179,10 @@ type FilterKey = 'all' | 'matched' | 'review' | 'missing' | 'failed' | 'manual';
 const FILTER_LABEL: Record<FilterKey, string> = {
   all: 'All',
   matched: 'Matched',
-  review: 'Needs Review',
-  missing: 'Missing',
-  failed: 'Failed',
-  manual: 'Manually Reviewed',
+  review: 'Flagged for review',
+  missing: 'Not in records',
+  failed: 'Rejected',
+  manual: 'Manually confirmed',
 };
 
 const STATUS_BADGE: Record<RowStatus, { label: string; cls: string; icon: React.ReactNode }> = {
@@ -190,27 +192,27 @@ const STATUS_BADGE: Record<RowStatus, { label: string; cls: string; icon: React.
     icon: <CheckCircle2 className="h-3 w-3" />,
   },
   review: {
-    label: 'Needs review',
+    label: 'Flagged for review',
     cls: 'bg-warning/10 text-warning border border-warning/25',
     icon: <Eye className="h-3 w-3" />,
   },
   missing: {
-    label: 'Missing in MOL',
+    label: 'Not in government records',
     cls: 'bg-destructive/10 text-destructive border border-destructive/25',
     icon: <XCircle className="h-3 w-3" />,
   },
   warning: {
-    label: 'Warning',
+    label: 'Needs attention',
     cls: 'bg-muted text-muted-foreground border border-border',
     icon: <AlertTriangle className="h-3 w-3" />,
   },
   manual: {
-    label: 'Manually reviewed',
-    cls: 'bg-violet-500/10 text-violet-600 border border-violet-500/25',
+    label: 'Confirmed (manually overridden)',
+    cls: 'bg-info/10 text-info border border-info/25',
     icon: <ShieldCheck className="h-3 w-3" />,
   },
   failed: {
-    label: 'Failed',
+    label: 'Rejected',
     cls: 'bg-destructive/10 text-destructive border border-destructive/25',
     icon: <XCircle className="h-3 w-3" />,
   },
@@ -255,25 +257,50 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
     return employeeRows.map(buildParsedRow);
   }, [employeeRows]);
 
-  // Manual overrides — keyed by the census name (rule), value is the new
-  // status. Persisted per-request in localStorage so confirmations survive
-  // navigation between checklist items / tab switches / reloads. Swap the
-  // storage hook for an API call when the backend grows a "confirm MOL match"
-  // endpoint. Keying by name is a small gamble on uniqueness — fine for
-  // typical cases, fix server-side when API lands.
-  const [overrides, setOverrides] = useUiPref<Record<string, RowStatus>>(
-    `mol.overrides.${requestId || 'unknown'}`,
-    {},
-  );
-  const overrideKey = (r: ParsedRow) => r.source.rule || r.census.name || '';
+  // Reviewer decisions — durable + AUDITED, persisted server-side (replaces the
+  // old per-browser localStorage). Keyed by the backend's stable employee_key so
+  // a decision survives re-runs, other devices, and lands in the evidence pack.
+  type Action = 'confirm' | 'override' | 'reject' | 'missing' | 'review';
+  const [decisionByKey, setDecisionByKey] = useState<Record<string, Action>>({});
+  const decisionKey = (r: ParsedRow) =>
+    r.source.employee_key || r.source.rule || r.census.name || '';
 
-  // Apply overrides on top of the parsed rows.
+  const ACTION_TO_STATUS: Record<Action, RowStatus> = {
+    confirm:  'auto',
+    override: 'auto',
+    reject:   'failed',
+    missing:  'missing',
+    review:   'review',
+  };
+  // Confirming a 'Needs Review' row promotes it to 'Manually Reviewed', not 'Auto confirmed'.
+  const getNewStatus = (action: Action, currentStatus: RowStatus): RowStatus => {
+    if ((action === 'confirm' || action === 'override') && currentStatus === 'review') return 'manual';
+    return ACTION_TO_STATUS[action];
+  };
+
+  // Load persisted decisions for this request once, and overlay them on the rows.
+  useEffect(() => {
+    if (!requestId) return;
+    let cancelled = false;
+    api.requests.molDecisions(requestId)
+      .then((list: Array<{ employee_key: string; decision: Action }>) => {
+        if (cancelled) return;
+        const map: Record<string, Action> = {};
+        for (const d of list || []) if (d.employee_key) map[d.employee_key] = d.decision;
+        setDecisionByKey(map);
+      })
+      .catch(() => { /* non-fatal — rows just show their computed status */ });
+    return () => { cancelled = true; };
+  }, [requestId]);
+
+  // Apply decisions on top of the parsed rows.
   const parsedRows: ParsedRow[] = useMemo(() => {
     return baseRows.map(r => {
-      const ov = overrides[overrideKey(r)];
-      return ov ? { ...r, status: ov } : r;
+      const act = decisionByKey[decisionKey(r)];
+      return act ? { ...r, status: getNewStatus(act, r.status) } : r;
     });
-  }, [baseRows, overrides]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseRows, decisionByKey]);
 
   const [filter, setFilter] = useState<FilterKey>('all');
   const counts = useMemo(() => {
@@ -325,58 +352,63 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
   // ─── Review drawer state ──────────────────────────────────────────
   const [reviewingIdx, setReviewingIdx] = useState<number | null>(null);
 
-  // Apply an override to a set of row keys (census names). Local-only for now;
-  // when the backend exposes a confirm-MOL-match endpoint, call it from here
-  // and reconcile from the server response.
-  type Action = 'confirm' | 'override' | 'reject' | 'missing' | 'review';
-  const ACTION_TO_STATUS: Record<Action, RowStatus> = {
-    confirm:  'auto',
-    override: 'auto',
-    reject:   'failed',
-    missing:  'missing',
-    review:   'review',
-  };
   const ACTION_LABEL: Record<Action, string> = {
     confirm:  'Confirmed',
-    override: 'Confirmed (override)',
+    override: 'Confirmed (manually overridden)',
     reject:   'Rejected',
-    missing:  'Marked missing in MOL',
-    review:   'Sent for review',
+    missing:  'Marked as not in government records',
+    review:   'Flagged for review',
   };
 
-  // Confirming a 'Needs Review' row promotes it to 'Manually Reviewed', not 'Auto confirmed'.
-  const getNewStatus = (action: Action, currentStatus: RowStatus): RowStatus => {
-    if ((action === 'confirm' || action === 'override') && currentStatus === 'review') {
-      return 'manual';
-    }
-    return ACTION_TO_STATUS[action];
-  };
+  type DecisionEntry = { key: string; censusName: string; molName: string };
 
-  const applyAction = (action: Action, entries: Array<{ key: string; currentStatus: RowStatus }>) => {
-    if (entries.length === 0) return;
-    setOverrides(prev => {
+  // Record a decision for a set of rows: optimistic local update, then persist +
+  // audit server-side. On failure we re-sync from the server.
+  const applyAction = async (action: Action, entries: DecisionEntry[], note?: string) => {
+    if (entries.length === 0 || !requestId) return;
+    setDecisionByKey(prev => {
       const next = { ...prev };
-      for (const { key, currentStatus } of entries) next[key] = getNewStatus(action, currentStatus);
+      for (const e of entries) next[e.key] = action;
       return next;
     });
-    toast.success(`${ACTION_LABEL[action]} · ${entries.length} record${entries.length === 1 ? '' : 's'}`);
     setSelectedIdx(new Set());
     setReviewingIdx(null);
+    try {
+      await Promise.all(entries.map(e => api.requests.molDecide(requestId, {
+        employee_key: e.key,
+        decision: action,
+        census_name: e.censusName,
+        mol_name: e.molName,
+        note: note || '',
+      })));
+      toast.success(`${ACTION_LABEL[action]} · ${entries.length} record${entries.length === 1 ? '' : 's'}`);
+    } catch (err) {
+      console.error('Failed to save member-list review', err);
+      toast.error("We couldn't save that review. Please try again — if it keeps happening, contact support.");
+      // Re-sync the authoritative state from the server.
+      api.requests.molDecisions(requestId)
+        .then((list: Array<{ employee_key: string; decision: Action }>) => {
+          const map: Record<string, Action> = {};
+          for (const d of list || []) if (d.employee_key) map[d.employee_key] = d.decision;
+          setDecisionByKey(map);
+        })
+        .catch(() => {});
+    }
   };
+
+  const toEntry = (r: ParsedRow): DecisionEntry =>
+    ({ key: decisionKey(r), censusName: r.census.name, molName: r.mol.name || '' });
 
   // Bulk action — rows from the current selection.
   const handleBulk = (action: Action) => {
-    const entries = Array.from(selectedIdx)
-      .map(i => visibleRows[i])
-      .filter(Boolean)
-      .map(r => ({ key: overrideKey(r), currentStatus: r.status }));
+    const entries = Array.from(selectedIdx).map(i => visibleRows[i]).filter(Boolean).map(toEntry);
     applyAction(action, entries);
   };
 
-  // Single-row action — from the review dialog.
-  const handleSingle = (action: Action, row: ParsedRow | null) => {
+  // Single-row action — from the review dialog (with the reviewer's note).
+  const handleSingle = (action: Action, row: ParsedRow | null, note?: string) => {
     if (!row) return;
-    applyAction(action, [{ key: overrideKey(row), currentStatus: row.status }]);
+    applyAction(action, [toEntry(row)], note);
   };
 
   // ─── Export ───────────────────────────────────────────────────────
@@ -407,6 +439,7 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
   };
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="space-y-4">
       {/* Verdict header */}
       <div className={cn('rounded-md border p-4 flex items-start gap-3', verdictBg)}>
@@ -415,15 +448,18 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="text-sm font-semibold text-foreground">Census Validation</h4>
+            <h4 className="text-sm font-semibold text-foreground">Employee-list check</h4>
             <Badge variant={overallPassed ? 'success' : summary.missing > 0 ? 'critical' : 'warning'}>
               {overallPassed
-                ? 'All employees validated'
+                ? 'All employees matched'
                 : summary.missing > 0
-                  ? `${summary.missing} missing in MOL`
-                  : `${summary.needsReview} need review`}
+                  ? `${summary.missing} not in government records`
+                  : `${summary.needsReview} flagged for review`}
             </Badge>
           </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            We compare the company’s employee list against the government labour records (MOL/MOHRE).
+          </p>
           {runAt && (
             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
               <Clock className="h-3 w-3" />
@@ -449,10 +485,10 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
 
       {/* KPI tiles — clicking a tile filters to that bucket */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-        <KpiTile label="Total census" value={summary.total} onClick={() => setFilter('all')} active={filter === 'all'} />
+        <KpiTile label="Total employees" value={summary.total} onClick={() => setFilter('all')} active={filter === 'all'} />
         <KpiTile label="Auto confirmed" value={summary.autoValidated} tone="success" onClick={() => setFilter('matched')} active={filter === 'matched'} />
-        <KpiTile label="Needs review" value={summary.needsReview} tone={summary.needsReview > 0 ? 'warning' : 'default'} onClick={() => setFilter('review')} active={filter === 'review'} />
-        <KpiTile label="Missing in MOL" value={summary.missing} tone={summary.missing > 0 ? 'danger' : 'default'} onClick={() => setFilter('missing')} active={filter === 'missing'} />
+        <KpiTile label="Flagged for review" value={summary.needsReview} tone={summary.needsReview > 0 ? 'warning' : 'default'} onClick={() => setFilter('review')} active={filter === 'review'} />
+        <KpiTile label="Not in records" value={summary.missing} tone={summary.missing > 0 ? 'danger' : 'default'} onClick={() => setFilter('missing')} active={filter === 'missing'} />
         <KpiTile label="Match rate" value={`${matchRate}%`} tone={matchRate >= 80 ? 'success' : matchRate >= 50 ? 'warning' : 'danger'} />
       </div>
 
@@ -462,10 +498,10 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
           <div className="flex items-center gap-1 flex-wrap">
             <FilterPill active={filter === 'all'} onClick={() => setFilter('all')} label="All" count={counts.all} />
             <FilterPill active={filter === 'matched'} onClick={() => setFilter('matched')} label="Matched" count={counts.matched} tone="success" />
-            <FilterPill active={filter === 'failed'} onClick={() => setFilter('failed')} label="Failed" count={counts.failed} tone="danger" />
-            <FilterPill active={filter === 'review'} onClick={() => setFilter('review')} label="Needs Review" count={counts.review} tone="warning" />
-            <FilterPill active={filter === 'missing'} onClick={() => setFilter('missing')} label="Missing" count={counts.missing} tone="danger" />
-            <FilterPill active={filter === 'manual'} onClick={() => setFilter('manual')} label="Manually Reviewed" count={counts.manual} tone="manual" />
+            <FilterPill active={filter === 'failed'} onClick={() => setFilter('failed')} label="Rejected" count={counts.failed} tone="danger" />
+            <FilterPill active={filter === 'review'} onClick={() => setFilter('review')} label="Flagged for review" count={counts.review} tone="warning" />
+            <FilterPill active={filter === 'missing'} onClick={() => setFilter('missing')} label="Not in records" count={counts.missing} tone="danger" />
+            <FilterPill active={filter === 'manual'} onClick={() => setFilter('manual')} label="Manually confirmed" count={counts.manual} tone="manual" />
 
             <span className="ml-auto text-xs text-muted-foreground tabular-nums">
               {visibleRows.length} {visibleRows.length === 1 ? 'record' : 'records'}
@@ -488,10 +524,10 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
               </Button>
               <div className="flex-1" />
               <BulkBtn icon={Check} label="Confirm all" onClick={() => handleBulk('confirm')} />
-              <BulkBtn icon={Check} label="Confirm (override)" onClick={() => handleBulk('override')} variant="ghost" />
+              <BulkBtn icon={Check} label="Confirm anyway" onClick={() => handleBulk('override')} variant="ghost" />
               <BulkBtn icon={XIcon} label="Reject all" onClick={() => handleBulk('reject')} variant="ghost" />
-              <BulkBtn icon={XCircle} label="Mark missing" onClick={() => handleBulk('missing')} variant="ghost" />
-              <BulkBtn icon={Send} label="Send for review" onClick={() => handleBulk('review')} variant="ghost" />
+              <BulkBtn icon={XCircle} label="Mark not in records" onClick={() => handleBulk('missing')} variant="ghost" />
+              <BulkBtn icon={Send} label="Flag for review" onClick={() => handleBulk('review')} variant="ghost" />
             </div>
           )}
 
@@ -499,7 +535,7 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
           <div className="rounded-md border border-border overflow-x-auto">
             <div className="min-w-[980px]">
               {/* Top header band: spans CENSUS over 3 cols, MOL over 3 cols */}
-              <div className="grid grid-cols-[36px_minmax(180px,1.2fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_minmax(180px,1.2fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_72px_120px] text-[10px] font-semibold uppercase tracking-[0.14em] border-b border-border">
+              <div className="grid grid-cols-[36px_minmax(180px,1.2fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_minmax(180px,1.2fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_96px_120px] text-[10px] font-semibold uppercase tracking-[0.14em] border-b border-border">
                 <div className="px-3 py-2 flex items-center">
                   <Checkbox
                     checked={allSelected ? true : selectedIdx.size > 0 ? 'indeterminate' : false}
@@ -507,14 +543,28 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
                     aria-label="Select all visible"
                   />
                 </div>
-                <div className="bg-info/8 text-info col-span-3 px-3 py-2 border-l border-r border-border text-center">Census</div>
-                <div className="bg-primary/8 text-primary col-span-3 px-3 py-2 border-r border-border text-center">MOL</div>
-                <div className="px-3 py-2 border-r border-border text-muted-foreground text-right">Conf.</div>
+                <div className="bg-info/8 text-info col-span-3 px-3 py-2 border-l border-r border-border text-center">Employee list</div>
+                <div className="bg-primary/8 text-primary col-span-3 px-3 py-2 border-r border-border text-center inline-flex items-center justify-center gap-1">
+                  Government records (MOL)
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button type="button" className="inline-flex" aria-label="What are government labour records?">
+                        <Info className="h-3 w-3 opacity-70" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[240px]">
+                      <p className="text-xs normal-case tracking-normal font-normal">
+                        MOL/MOHRE — the staff a company registered with the UAE labour ministry.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="px-3 py-2 border-r border-border text-muted-foreground text-right">Confidence</div>
                 <div className="px-3 py-2 text-muted-foreground">Status</div>
               </div>
 
               {/* Sub-header: Name / Passport / Nationality per side */}
-              <div className="grid grid-cols-[36px_minmax(180px,1.2fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_minmax(180px,1.2fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_72px_120px] text-[9.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground border-b border-border bg-muted/30">
+              <div className="grid grid-cols-[36px_minmax(180px,1.2fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_minmax(180px,1.2fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_96px_120px] text-[9.5px] font-medium uppercase tracking-[0.12em] text-muted-foreground border-b border-border bg-muted/30">
                 <div />
                 <div className="px-3 py-1.5 border-l border-border">Name</div>
                 <div className="px-3 py-1.5">Passport</div>
@@ -533,17 +583,16 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
                   const badge = STATUS_BADGE[row.status];
                   const isSelected = selectedIdx.has(idx);
 
+                  // One confidence threshold set for the whole app.
                   const confTone = row.conf == null
                     ? 'text-muted-foreground/60'
-                    : row.conf >= 85 ? 'text-success'
-                    : row.conf >= 60 ? 'text-warning'
-                    : 'text-destructive';
+                    : confidenceTier(row.conf).textClass;
 
                   return (
                     <div
                       key={idx}
                       className={cn(
-                        'grid grid-cols-[36px_minmax(180px,1.2fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_minmax(180px,1.2fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_72px_120px] hover:bg-muted/40 transition-colors cursor-pointer',
+                        'grid grid-cols-[36px_minmax(180px,1.2fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_minmax(180px,1.2fr)_minmax(110px,0.8fr)_minmax(90px,0.7fr)_96px_120px] hover:bg-muted/40 transition-colors cursor-pointer',
                         isSelected && 'bg-primary/[0.04]',
                       )}
                       onClick={() => setReviewingIdx(idx)}
@@ -656,9 +705,9 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
         <div className="rounded-md border border-success/25 bg-success/5 p-4 flex items-start gap-3">
           <Users className="h-5 w-5 text-success shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-foreground">All {summary.total} employees validated</p>
+            <p className="text-sm font-medium text-foreground">All {summary.total} employees matched</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Every census employee matched against the MOL list with sufficient confidence.
+              Every employee on the list matched a government labour record (MOL/MOHRE) with enough confidence.
             </p>
           </div>
         </div>
@@ -668,7 +717,7 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
       {warningRows.length > 0 && (
         <div className="rounded-md border border-warning/25 bg-warning/5 p-3 space-y-1">
           <p className="text-[11px] font-semibold text-warning uppercase tracking-wider flex items-center gap-1.5">
-            <AlertTriangle className="h-3.5 w-3.5" /> Extraction warnings
+            <AlertTriangle className="h-3.5 w-3.5" /> Couldn’t read some rows
           </p>
           {warningRows.map((w, idx) => (
             <p key={idx} className="text-xs text-muted-foreground">{w.note}</p>
@@ -680,9 +729,10 @@ export function MolValidationReport({ result }: MolValidationReportProps) {
       <ReviewDialog
         row={reviewingIdx != null ? visibleRows[reviewingIdx] : null}
         onClose={() => setReviewingIdx(null)}
-        onAction={(action) => handleSingle(action, reviewingIdx != null ? visibleRows[reviewingIdx] : null)}
+        onAction={(action, note) => handleSingle(action, reviewingIdx != null ? visibleRows[reviewingIdx] : null, note)}
       />
     </div>
+    </TooltipProvider>
   );
 }
 
@@ -766,7 +816,7 @@ function FilterPill({
         success: 'bg-success/15 text-success',
         warning: 'bg-warning/15 text-warning',
         danger:  'bg-destructive/15 text-destructive',
-        manual:  'bg-violet-500/15 text-violet-600',
+        manual:  'bg-info/15 text-info',
       } as const)[tone];
 
   return (
@@ -818,7 +868,7 @@ function ReviewDialog({
 }: {
   row: ParsedRow | null;
   onClose: () => void;
-  onAction: (action: 'confirm' | 'override' | 'reject' | 'missing' | 'review') => void;
+  onAction: (action: 'confirm' | 'override' | 'reject' | 'missing' | 'review', note?: string) => void;
 }) {
   const [note, setNote] = useState('');
 
@@ -845,15 +895,16 @@ function ReviewDialog({
             </span>
           </DialogTitle>
           <DialogDescription>
-            Compare the census record against the MOL match. Confirm if correct,
-            override if the rule was too strict, or reject / mark missing if no match.
+            Compare the employee record against the government record (MOL/MOHRE). Confirm
+            if it’s a match, confirm anyway if the rule was too strict, or reject / mark as
+            not in records if there’s no match.
           </DialogDescription>
         </DialogHeader>
 
         {/* Side-by-side detail */}
         <div className="grid grid-cols-2 gap-3 mt-1">
           <CompareCard
-            title="Census"
+            title="Employee list"
             tint="info"
             fields={[
               { label: 'Name', value: row.census.name },
@@ -862,7 +913,7 @@ function ReviewDialog({
             ]}
           />
           <CompareCard
-            title="MOL"
+            title="Government records (MOL)"
             tint="primary"
             empty={!row.mol.name}
             fields={[
@@ -877,7 +928,7 @@ function ReviewDialog({
         {/* Confidence + rule reasoning */}
         {row.source.note && (
           <div className="rounded-md border border-border bg-muted/30 px-3 py-2.5 mt-1">
-            <p className="page-eyebrow mb-1">Rule reasoning</p>
+            <p className="page-eyebrow mb-1">Why this result</p>
             <p className="text-[12.5px] text-foreground leading-relaxed">{row.source.note}</p>
           </div>
         )}
@@ -889,7 +940,7 @@ function ReviewDialog({
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Add context for the audit trail…"
+            placeholder="Add context for this decision…"
             className="resize-none text-sm"
           />
         </div>
@@ -897,21 +948,21 @@ function ReviewDialog({
         <DialogFooter className="flex flex-wrap gap-2 pt-2">
           <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
           <div className="flex-1" />
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onAction('review')}>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onAction('review', note)}>
             <Send className="h-3.5 w-3.5" />
-            Send for review
+            Flag for review
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => onAction('missing')}>
+          <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => onAction('missing', note)}>
             <XCircle className="h-3.5 w-3.5" />
-            Mark missing
+            Mark not in records
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => onAction('reject')}>
+          <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => onAction('reject', note)}>
             <XIcon className="h-3.5 w-3.5" />
             Reject
           </Button>
-          <Button size="sm" variant="success" className="gap-1.5" onClick={() => onAction(row.status === 'review' ? 'override' : 'confirm')}>
+          <Button size="sm" variant="success" className="gap-1.5" onClick={() => onAction(row.status === 'review' ? 'override' : 'confirm', note)}>
             <Check className="h-3.5 w-3.5" />
-            {row.status === 'review' ? 'Confirm (override)' : 'Confirm'}
+            {row.status === 'review' ? 'Confirm anyway' : 'Confirm'}
           </Button>
         </DialogFooter>
       </DialogContent>

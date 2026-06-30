@@ -34,10 +34,10 @@ function buildSections(document: Document | null, docDef?: DocDef): ExtractedDat
   if (!document) return [];
   if (document.status === 'failed') {
     return [{
-      title: `Extraction Failed: ${document.name}`,
+      title: `Couldn’t read: ${document.name}`,
       fields: [{
-        label: 'Error',
-        value: 'The AI agent could not process this document. Check your S3 credentials and bucket configuration.',
+        label: 'What happened',
+        value: "We couldn’t read this document. Try “Re-read” with a specific pointer, or open it in a new tab to check it.",
         confidence: 0, status: 'pending', documentId: document.id,
       }],
     }];
@@ -103,13 +103,13 @@ export function DocumentDrawer({ open, onOpenChange, document, docDef, priorVers
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs">
                     <BrainCircuit className="h-3 w-3" />
-                    Re-extract
+                    Re-read
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[460px]">
                   <DialogHeader>
-                    <DialogTitle>Refine AI extraction</DialogTitle>
-                    <DialogDescription>Give the AI specific pointers to help it locate missing values.</DialogDescription>
+                    <DialogTitle>Help the AI read this document</DialogTitle>
+                    <DialogDescription>Give a specific pointer to help the AI find values it missed.</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-2">
                     <div className="space-y-2">
@@ -149,7 +149,7 @@ export function DocumentDrawer({ open, onOpenChange, document, docDef, priorVers
                       className="gap-1.5"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
-                      Run extraction
+                      Re-read document
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -177,9 +177,9 @@ export function DocumentDrawer({ open, onOpenChange, document, docDef, priorVers
               <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
                 <AlertCircle className="h-6 w-6 text-destructive" />
               </div>
-              <h4 className="text-sm font-semibold text-foreground">Extraction failed</h4>
+              <h4 className="text-sm font-semibold text-foreground">Couldn’t read this document</h4>
               <p className="text-xs text-muted-foreground mt-1 max-w-[320px]">
-                The AI could not confidently extract data from this document. Try Re-extract with specific pointers.
+                The AI couldn’t read this document. Try “Re-read” with a specific pointer, or open it in a new tab.
               </p>
             </div>
           ) : showSplit ? (

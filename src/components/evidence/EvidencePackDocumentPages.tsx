@@ -58,7 +58,7 @@ export function EvidencePackDocumentPages({ documents }: EvidencePackDocumentPag
             const out: RenderedDoc[] = [];
             for (const doc of documents) {
                 if (!doc.url && !doc.proxyUrl) {
-                    out.push({ doc, pageImages: [], kind: 'other', error: 'No file available' });
+                    out.push({ doc, pageImages: [], kind: 'other', error: 'No file was uploaded for this document.' });
                     continue;
                 }
                 const kind = classifyDoc(doc);
@@ -83,11 +83,11 @@ export function EvidencePackDocumentPages({ documents }: EvidencePackDocumentPag
                     } else if (kind === 'image') {
                         out.push({ doc, pageImages: [doc.url || fetchUrl], kind });
                     } else {
-                        out.push({ doc, pageImages: [], kind, error: 'Preview not supported for this file type.' });
+                        out.push({ doc, pageImages: [], kind, error: "This file type can't be shown as pages." });
                     }
                 } catch (err: any) {
                     console.error('Failed to render doc for evidence pack:', doc.name, err);
-                    out.push({ doc, pageImages: [], kind, error: err?.message || 'Render failed' });
+                    out.push({ doc, pageImages: [], kind, error: "We couldn't display this file's pages." });
                 }
                 if (cancelled) return;
             }
@@ -134,7 +134,7 @@ export function EvidencePackDocumentPages({ documents }: EvidencePackDocumentPag
                         )}
 
                         {!error && pageImages.length === 0 && !loading && (
-                            <p className="text-[11px] text-muted-foreground italic">No renderable pages.</p>
+                            <p className="text-[11px] text-muted-foreground italic">No pages to show.</p>
                         )}
 
                         {pageImages.map((src, pageIdx) => (

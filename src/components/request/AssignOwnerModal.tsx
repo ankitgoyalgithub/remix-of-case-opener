@@ -53,15 +53,15 @@ export function AssignOwnerModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
-            Assign Owner
+            Assign owner
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>Assign To</Label>
+            <Label htmlFor="assign-owner">Assign to</Label>
             <Select value={selectedOwner} onValueChange={handleOwnerChange}>
-              <SelectTrigger>
+              <SelectTrigger id="assign-owner" aria-label="Assign to a team member">
                 <SelectValue placeholder="Select team member" />
               </SelectTrigger>
               <SelectContent>
@@ -81,13 +81,13 @@ export function AssignOwnerModal({
           </div>
 
           <div className="space-y-2">
-            <Label>Queue</Label>
+            <Label>Team</Label>
             <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
               <Users className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">{selectedQueue}</span>
             </div>
             <p className="text-xs text-muted-foreground">
-              Queue is automatically set based on owner assignment.
+              The team is set automatically based on who you assign.
             </p>
           </div>
         </div>

@@ -27,12 +27,27 @@ export function mapBackendRequestToListItem(backendReq: any): RequestListItem {
         'exported': 'Published',
     };
 
+    // Broker + owner are not in the backend payload yet. We map from the real
+    // fields *if/when* they appear, and otherwise return an EMPTY STRING (never a
+    // fabricated "Broker X" / "broker@example.com" / "Unassigned"). Empty is
+    // falsy, so every consumer already hides the broker/owner column, filter and
+    // meta when there's no real value (`req.owner && …`, `{owner || 'Unassigned'}`).
+    // If the backend later starts sending these, this picks them up automatically.
+    const brokerName = backendReq.broker_name ?? backendReq.broker?.name ?? '';
+    const brokerEmail = backendReq.broker_email ?? backendReq.broker?.email ?? '';
+    const owner =
+        backendReq.owner ??
+        backendReq.assigned_to ??
+        backendReq.owner_username ??
+        backendReq.assigned_to_username ??
+        '';
+
     return {
         id: backendReq.id.toString(),
         smartId: backendReq.smart_id,
         companyName: backendReq.company_name,
-        brokerName: 'Broker X', // Not in backend yet
-        brokerEmail: 'broker@example.com', // Not in backend yet
+        brokerName,
+        brokerEmail,
         age,
         slaRemaining,
         slaStatus,
@@ -40,7 +55,7 @@ export function mapBackendRequestToListItem(backendReq: any): RequestListItem {
         currentStage: backendReq.current_stage_name || 'Intake',
         currentStageId: backendReq.current_stage || 1,
         status: statusMap[backendReq.status] || 'New',
-        owner: 'Unassigned', // Not in backend yet
+        owner,
         priority,
         queue: getAutoAssignedQueue(priority),
         createdAt,

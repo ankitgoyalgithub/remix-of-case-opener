@@ -27,26 +27,27 @@ export async function fetchApi(path: string, options: RequestInit = {}) {
     }
 
     if (!response.ok) {
-        // Try to surface the server's structured error so callers can show
-        // something more useful than "API Error: 502". DRF puts the message
-        // in `error`, `detail`, or `message`. Fall back to status text only
-        // when we can't parse a body.
-        let serverMsg = '';
+        // Surface the server's structured error so callers can show something
+        // useful — and attach `status`/`code` to the thrown Error so call sites
+        // can branch programmatically (e.g. readiness_blocked, portal_link_expired)
+        // instead of regex-matching the message. DRF puts a machine code in
+        // `code` or `error`, and a human message in `detail`/`message`.
+        let body: any = null;
         try {
             const ct = response.headers.get('content-type') || '';
-            if (ct.includes('application/json')) {
-                const body = await response.json();
-                serverMsg = body?.error || body?.detail || body?.message
-                    || (typeof body === 'string' ? body : '');
-            } else {
-                const text = await response.text();
-                if (text && text.length < 500) serverMsg = text;
-            }
-        } catch { /* ignore parse errors — fall through to generic message */ }
-        const msg = serverMsg
-            ? serverMsg
-            : `API Error: ${response.status} ${response.statusText}`;
-        throw new Error(msg);
+            body = ct.includes('application/json') ? await response.json() : await response.text();
+        } catch { /* ignore parse errors */ }
+        const codeRaw = (body && typeof body === 'object') ? (body.code || body.error || '') : '';
+        const detailMsg = (body && typeof body === 'object') ? (body.detail || body.message || '') : '';
+        const textBody = (typeof body === 'string' && body.length < 500) ? body : '';
+        const msg = detailMsg || textBody || codeRaw || `API Error: ${response.status} ${response.statusText}`;
+        const err = new Error(msg) as Error & { status?: number; code?: string; detail?: string; body?: unknown };
+        err.status = response.status;
+        // Treat a single-token `error`/`code` as a machine code; leave human sentences out of `code`.
+        err.code = (typeof codeRaw === 'string' && codeRaw && !/\s/.test(codeRaw)) ? codeRaw : '';
+        err.detail = detailMsg;
+        err.body = body;
+        throw err;
     }
 
     if (response.status === 204) {
@@ -76,17 +77,32 @@ export const api = {
             method: 'POST',
             body: JSON.stringify(docType ? { doc_type: docType } : {}),
         }),
-        approve: (id: string, comment: string) => fetchApi(`/requests/${id}/approve/`, {
+        // override=true approves despite a readiness block (the comment is the
+        // logged override reason). The server returns 409 readiness_blocked otherwise.
+        approve: (id: string, comment: string, override = false) => fetchApi(`/requests/${id}/approve/`, {
             method: 'POST',
-            body: JSON.stringify({ comment }),
+            body: JSON.stringify({ comment, override }),
         }),
         reject: (id: string, comment: string) => fetchApi(`/requests/${id}/reject/`, {
             method: 'POST',
             body: JSON.stringify({ comment }),
         }),
-        publish: (id: string) => fetchApi(`/requests/${id}/publish/`, {
+        publish: (id: string, override = false) => fetchApi(`/requests/${id}/publish/`, {
             method: 'POST',
-            body: JSON.stringify({}),
+            body: JSON.stringify({ override }),
+        }),
+        // Assign (or clear, with owner='') the ops owner. Persisted + audited server-side.
+        assign: (id: string, owner: string) => fetchApi(`/requests/${id}/assign/`, {
+            method: 'POST',
+            body: JSON.stringify({ owner }),
+        }),
+        // Durable + audited MOL / member-list reviewer decisions (replaces localStorage).
+        molDecisions: (id: string) => fetchApi(`/requests/${id}/mol_decisions/`),
+        molDecide: (id: string, payload: {
+            employee_key: string; decision: string; census_name?: string; mol_name?: string; note?: string;
+        }) => fetchApi(`/requests/${id}/mol_decisions/`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
         }),
         nlFilter: (query: string) => fetchApi('/requests/nl_filter/', {
             method: 'POST',
@@ -133,6 +149,30 @@ export const api = {
             method: 'POST',
             body: JSON.stringify({ resolution_note: resolutionNote }),
         }),
+        // Dynamic Census Rulebook (member-register validation config).
+        census: {
+            rulebooks: {
+                list: () => fetchApi('/workflow/census-rulebooks/'),
+                get: (id: string | number) => fetchApi(`/workflow/census-rulebooks/${id}/`),
+                create: (data: any) => fetchApi('/workflow/census-rulebooks/', { method: 'POST', body: JSON.stringify(data) }),
+                update: (id: string | number, data: any) => fetchApi(`/workflow/census-rulebooks/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+                delete: (id: string | number) => fetchApi(`/workflow/census-rulebooks/${id}/`, { method: 'DELETE' }),
+                resetToDefaults: (id: string | number) => fetchApi(`/workflow/census-rulebooks/${id}/reset-to-code-defaults/`, { method: 'POST' }),
+                // Upload a census file → draft a rulebook (created inactive for review). data: FormData(file[, name, slug, description]).
+                createFromFile: (data: FormData) => fetchApi('/workflow/census-rulebooks/create-from-file/', { method: 'POST', body: data }),
+            },
+            fieldRules: {
+                list: (rulebookId: string | number, actionType?: string) =>
+                    fetchApi(`/workflow/census-field-rules/?rulebook=${rulebookId}${actionType ? `&action_type=${actionType}` : ''}`),
+                create: (data: any) => fetchApi('/workflow/census-field-rules/', { method: 'POST', body: JSON.stringify(data) }),
+                update: (id: string | number, data: any) => fetchApi(`/workflow/census-field-rules/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+                delete: (id: string | number) => fetchApi(`/workflow/census-field-rules/${id}/`, { method: 'DELETE' }),
+            },
+            conditionalRules: {
+                update: (id: string | number, data: any) => fetchApi(`/workflow/census-conditional-rules/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+            },
+            metadata: () => fetchApi('/workflow/census-rulebook-metadata/'),
+        },
     },
     documents: {
         list: (opts: { requestId?: string } = {}) => {
@@ -193,6 +233,15 @@ export const api = {
     },
     notifications: {
         list: () => fetchApi('/notifications/'),
+        markRead: (id: number | string) => fetchApi(`/notifications/${id}/mark_read/`, { method: 'POST', body: '{}' }),
+        markAllRead: () => fetchApi('/notifications/mark_all_read/', { method: 'POST', body: '{}' }),
+    },
+    interest: {
+        // Public lead capture from the marketing home page.
+        submit: (data: {
+            name: string; email: string; company?: string; role?: string;
+            interest?: string; message?: string; source?: string;
+        }) => fetchApi('/interest/', { method: 'POST', body: JSON.stringify(data) }),
     },
     dashboard: {
         metrics: () => fetchApi('/dashboard/metrics/'),

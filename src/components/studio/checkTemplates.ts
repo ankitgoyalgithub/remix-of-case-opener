@@ -5,7 +5,7 @@
  * no new tabs.
  */
 import {
-  FileCheck, Link2, Search, ShieldCheck, GitCompare, CheckSquare, Users,
+  FileCheck, Link2, Search, ShieldCheck, GitCompare, CheckSquare, Users, ClipboardCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -14,6 +14,7 @@ export type Severity = 'block' | 'warn' | 'note';
 export type SlotType =
   | 'string' | 'multiline' | 'number' | 'boolean'
   | 'doc-type' | 'doc-types' | 'select'
+  | 'census-rulebook'      // live dropdown of Census Rulebooks (api.workflow.census)
   | 'field-pairs';        // custom widget for the field-match template
 
 export interface SlotDef {
@@ -374,6 +375,50 @@ export const CHECK_TEMPLATES: CheckTemplate[] = [
     }),
     suggestName: () => 'Signed Quote vs Census — member comparison',
   },
+
+  // ── 8. Census completeness (member-register validation) ──────────
+  {
+    id: 'census_completeness',
+    icon: ClipboardCheck,
+    title: 'Census completeness (member register)',
+    description: 'Validate the uploaded census / member register against a rulebook — required columns, dropdown values, EID/DOB/GDRFA formats, and cross-field rules — before MOL matching.',
+    slots: [
+      { key: 'rulebook_slug', label: 'Rulebook', type: 'census-rulebook', default: '',
+        hint: 'Blank = auto-select the best-fit rulebook for the uploaded file' },
+      { key: 'auto_select_rulebook', label: 'Auto-select best-fit rulebook', type: 'boolean', default: true,
+        placeholder: 'When no rulebook is pinned, route a NAS export to the NAS rulebook and a QIC register to the default' },
+      { key: 'block_on_missing', label: 'Block on missing required data', type: 'boolean', default: true,
+        placeholder: 'Fail if any required field/column is missing or a strict dropdown value is invalid' },
+      { key: 'flag_format_as_review', label: 'Review flags for format / cross-field issues', type: 'boolean', default: true,
+        placeholder: 'Raise non-blocking review flags for date/EID/GDRFA format and cross-field issues' },
+      { key: 'min_completeness_score', label: 'Minimum completeness score (%)', type: 'number', default: 0,
+        hint: '0 = off; otherwise fail if completeness falls below this' },
+      { key: 'max_detail_rows', label: 'Max detail rows', type: 'number', default: 25,
+        hint: 'Cap on per-issue detail rows returned (full set is in the trace)' },
+    ],
+    toPayload: (s, sev) => ({
+      item_type: 'verification',
+      auto_check_rule: 'manual',
+      handler_name: 'census_completeness',
+      config_payload: {
+        verifications: [{
+          type: 'census_completeness',
+          handler: 'census_completeness',
+          config: {
+            rulebook_slug: s.rulebook_slug || '',
+            auto_select_rulebook: s.auto_select_rulebook !== false,
+            block_on_missing: s.block_on_missing !== false,
+            flag_format_as_review: s.flag_format_as_review !== false,
+            min_completeness_score: Number.isFinite(Number(s.min_completeness_score)) ? Number(s.min_completeness_score) : 0,
+            max_detail_rows: Number(s.max_detail_rows) > 0 ? Number(s.max_detail_rows) : 25,
+          },
+        }],
+      },
+      linked_documents: ['finalized-census', 'census', 'initial-census'],
+      ...sevFlags(sev),
+    }),
+    suggestName: () => 'Census Completeness (Member Register)',
+  },
 ];
 
 
@@ -475,6 +520,26 @@ export function detectTemplate(item: ExistingCheckShape): DetectedTemplate | nul
           passport_required: pass.required ?? true,
           block_on_missing: c.block_on_missing ?? true,
           block_on_needs_review: c.block_on_needs_review ?? false,
+        },
+        severity,
+      };
+    }
+  }
+
+  // 4c. census_completeness — member-register completeness validation
+  if (v?.handler === 'census_completeness') {
+    const tpl = T('census_completeness');
+    if (tpl) {
+      const c = v.config || {};
+      return {
+        template: tpl,
+        slots: {
+          rulebook_slug: c.rulebook_slug ?? '',
+          auto_select_rulebook: c.auto_select_rulebook ?? true,
+          block_on_missing: c.block_on_missing ?? true,
+          flag_format_as_review: c.flag_format_as_review ?? true,
+          min_completeness_score: c.min_completeness_score ?? 0,
+          max_detail_rows: c.max_detail_rows ?? 25,
         },
         severity,
       };

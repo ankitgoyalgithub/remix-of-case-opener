@@ -85,13 +85,13 @@ export default function WorkflowBuilder() {
   return (
     <>
       <PageHeader
-        eyebrow="Studio · Workflows"
-        title="Workflow builder"
-        description="Configure request types and processing stages."
+        eyebrow="Configuration · Review stages"
+        title="Review stages"
+        description="Set the steps every request moves through, in order, and how long each step should take."
         actions={
           <Button onClick={handleSaveWorkflow} disabled={!hasChanges} size="sm" className="gap-1.5">
-            <Save className="h-3.5 w-3.5" />
-            Save workflow
+            <Save className="h-3.5 w-3.5" aria-hidden />
+            Save changes
           </Button>
         }
       />
@@ -99,15 +99,15 @@ export default function WorkflowBuilder() {
       {/* Workflow Info */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-foreground">Active Workflow</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground">Active review process</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-semibold">SME Health Policy Issuance</h3>
-              <p className="text-sm text-muted-foreground">{stages.length} stages configured</p>
+              <p className="text-sm text-muted-foreground">{stages.length} stages set up</p>
             </div>
-            <Badge className="bg-success/20 text-success border-0">Active</Badge>
+            <Badge variant="success">Active</Badge>
           </div>
         </CardContent>
       </Card>
@@ -116,10 +116,10 @@ export default function WorkflowBuilder() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-semibold text-foreground">Processing Stages</CardTitle>
+            <CardTitle className="text-sm font-semibold text-foreground">Stages, in order</CardTitle>
             <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setAddDialogOpen(true)}>
-              <Plus className="h-4 w-4" />
-              Add Stage
+              <Plus className="h-4 w-4" aria-hidden />
+              Add stage
             </Button>
           </div>
         </CardHeader>
@@ -164,7 +164,7 @@ export default function WorkflowBuilder() {
                         />
                       </div>
                       <div>
-                        <Label className="text-xs">SLA (hours)</Label>
+                        <Label className="text-xs">Time limit (hours)</Label>
                         <Input
                           type="number"
                           value={editForm.slaHours || ''}
@@ -207,14 +207,15 @@ export default function WorkflowBuilder() {
                 {editingId !== stage.id && (
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground">Mandatory</Label>
+                      <Label className="text-xs text-muted-foreground">Required</Label>
                       <Switch
                         checked={stage.mandatory}
                         onCheckedChange={() => handleToggleMandatory(stage.id, stage.mandatory)}
+                        aria-label={`Make stage ${stage.name} required`}
                       />
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(stage)} title="Edit stage">
-                      <Edit2 className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(stage)} aria-label={`Edit stage ${stage.name}`}>
+                      <Edit2 className="h-4 w-4" aria-hidden />
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -222,9 +223,9 @@ export default function WorkflowBuilder() {
                           variant="ghost"
                           size="icon"
                           className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          title="Delete stage"
+                          aria-label={`Delete stage ${stage.name}`}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" aria-hidden />
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -263,10 +264,10 @@ export default function WorkflowBuilder() {
             ))}
           </div>
 
-          {/* Drag hint */}
+          {/* Order hint */}
           <p className="text-xs text-muted-foreground mt-4 flex items-center gap-1.5">
-            <GripVertical className="h-3 w-3" />
-            Drag stages to reorder (mock - reordering simulated)
+            <GripVertical className="h-3 w-3" aria-hidden />
+            Stages run in the order numbered above. Drag-to-reorder is coming soon.
           </p>
         </CardContent>
       </Card>

@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import {
     ArrowLeft, UserPlus, Mail, Trash2, MoreHorizontal,
     AlertTriangle, Check, X, Send, ArrowRight, MessageSquare, ShieldAlert,
+    Clock3, CheckCircle2, CircleDot,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -14,7 +15,24 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { requestStatusMeta, slaMeta, type StatusIconName } from '@/lib/status';
 import { NotifyBrokerDialog } from './NotifyBrokerDialog';
+
+// Non-colour cue icons for the SLA badge, looked up by the name `slaMeta` returns.
+const SLA_ICONS: Record<StatusIconName, typeof AlertTriangle> = {
+  AlertTriangle, Clock3, CheckCircle2, CircleDot,
+  AlertCircle: AlertTriangle, ShieldAlert,
+};
 
 interface RequestDetailHeaderProps {
   requestId: string;
@@ -31,7 +49,6 @@ interface RequestDetailHeaderProps {
   hasMissingDocuments: boolean;
   onAssignOwner?: () => void;
   onRequestMissingInfo?: () => void;
-  onEscalate?: () => void;
   onDelete?: () => void;
   onApprove?: () => void;
   onReject?: () => void;
@@ -39,17 +56,6 @@ interface RequestDetailHeaderProps {
   timelineDrawer?: ReactNode;
   openRiskCount?: number;
   onOpenConversation?: () => void;
-}
-
-// Map raw status string → semantic Badge variant. One badge system everywhere.
-function badgeVariantForStatus(status: string): 'neutral' | 'info' | 'success' | 'warning' | 'critical' {
-  const s = status.toLowerCase();
-  if (s === 'approved' || s === 'ready for export') return 'success';
-  if (s === 'rejected') return 'critical';
-  if (s === 'missing info') return 'warning';
-  if (s === 'in review') return 'info';
-  if (s === 'published' || s === 'issued') return 'info';
-  return 'neutral';
 }
 
 export function RequestDetailHeader({
@@ -77,6 +83,7 @@ export function RequestDetailHeader({
   const navigate = useNavigate();
   const { requestId: routeRequestId } = useParams();
   const [notifyOpen, setNotifyOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const slaText = slaRemaining > 0
     ? `${slaRemaining}h left`
@@ -84,10 +91,15 @@ export function RequestDetailHeader({
     ? 'Due now'
     : `${Math.abs(slaRemaining)}h overdue`;
 
-  const slaDotColor =
-    slaStatus === 'red' ? 'bg-destructive' : slaStatus === 'amber' ? 'bg-warning' : 'bg-success';
+  // Route deadline presentation through the shared helper so the icon (a non-colour
+  // cue) and colour agree with the rest of the app.
+  const sla = slaMeta(slaStatus);
+  const SlaIcon = SLA_ICONS[sla.icon];
   const slaTextColor =
     slaStatus === 'red' ? 'text-destructive font-medium' : slaStatus === 'amber' ? 'text-warning' : 'text-muted-foreground';
+
+  // One canonical, plain-language status label + variant everywhere.
+  const statusMeta = requestStatusMeta(status);
 
   const shortId = requestId?.startsWith('REQ-') ? requestId : requestId.split('-')[0];
 
@@ -98,11 +110,11 @@ export function RequestDetailHeader({
   // Stage-aware "next action" hint — surfaced as a tiny pill before the buttons,
   // so the underwriter sees what to do next without scanning a row of buttons.
   const nextActionHint: { label: string; tone: 'critical' | 'warning' | 'info' | 'success' } | null = (() => {
-    if (canPublish) return { label: 'Publish to insurer', tone: 'info' };
+    if (canPublish) return { label: 'Send to insurer', tone: 'info' };
     if (statusLc === 'rejected' || statusLc === 'published' || statusLc === 'issued') return null;
-    if (hasMissingDocuments) return { label: 'Request info from broker', tone: 'warning' };
-    if (slaStatus === 'red') return { label: 'Triage — case overdue', tone: 'critical' };
-    if (canApproveOrReject) return { label: 'Ready to adjudicate', tone: 'success' };
+    if (hasMissingDocuments) return { label: 'Ask broker for documents', tone: 'warning' };
+    if (slaStatus === 'red') return { label: 'Overdue — needs attention', tone: 'critical' };
+    if (canApproveOrReject) return { label: 'Ready to decide', tone: 'success' };
     return null;
   })();
 
@@ -129,7 +141,7 @@ export function RequestDetailHeader({
                 Urgent
               </Badge>
             )}
-            <Badge variant={badgeVariantForStatus(status)}>{status}</Badge>
+            <Badge variant={statusMeta.variant}>{statusMeta.label}</Badge>
             {openRiskCount > 0 && (
               <Badge variant="critical" className="gap-1">
                 <ShieldAlert className="h-2.5 w-2.5" />
@@ -139,16 +151,22 @@ export function RequestDetailHeader({
           </div>
           <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap mt-1 text-xs text-muted-foreground">
             <span className="font-mono">{shortId}</span>
-            <span className="text-border">·</span>
-            <span className="truncate max-w-[180px]" title={brokerName}>{brokerName}</span>
+            {/* Broker name only renders when the backend actually supplies one. */}
+            {brokerName && (
+              <>
+                <span className="text-border">·</span>
+                <span className="truncate max-w-[180px]" title={brokerName}>{brokerName}</span>
+              </>
+            )}
             <span className="text-border">·</span>
             <span className="truncate" title={queue}>{queue}</span>
             <span className="text-border">·</span>
-            <span className={owner === 'Unassigned' ? 'italic' : ''}>{owner || 'Unassigned'}</span>
+            <span className={owner ? '' : 'italic'}>{owner || 'Unassigned'}</span>
             <span className="text-border">·</span>
             <span className="inline-flex items-center gap-1.5">
-              <span className={cn('inline-block w-1.5 h-1.5 rounded-full', slaDotColor)} />
+              <SlaIcon className={cn('h-3 w-3 shrink-0', slaTextColor)} aria-hidden="true" />
               <span className={slaTextColor}>{slaText}</span>
+              <span className="sr-only">({sla.label})</span>
             </span>
             <span className="text-border">·</span>
             <span>{currentStage}</span>
@@ -209,7 +227,7 @@ export function RequestDetailHeader({
           {canPublish && (
             <Button size="sm" className="gap-1.5" onClick={onPublish}>
               <Send className="h-3.5 w-3.5" />
-              Publish data
+              Send to insurer
               <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -229,11 +247,7 @@ export function RequestDetailHeader({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive cursor-pointer text-sm"
-                onClick={() => {
-                  if (window.confirm('Delete this request? This cannot be undone.')) {
-                    onDelete?.();
-                  }
-                }}
+                onSelect={(e) => { e.preventDefault(); setDeleteOpen(true); }}
               >
                 <Trash2 className="h-3.5 w-3.5 mr-2" />
                 Delete request
@@ -248,6 +262,27 @@ export function RequestDetailHeader({
         onOpenChange={setNotifyOpen}
         requestId={routeRequestId || requestId || ''}
       />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes <span className="font-medium text-foreground">{companyName}</span> and its
+              documents, checks and decision history. This can’t be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep request</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => onDelete?.()}
+            >
+              Delete request
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

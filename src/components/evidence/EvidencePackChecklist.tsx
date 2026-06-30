@@ -1,4 +1,5 @@
 import { Check, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Stage, ChecklistItem } from '@/types/case';
 import { cn } from '@/lib/utils';
 
@@ -36,9 +37,9 @@ export function EvidencePackChecklist({ stages, checklist }: EvidencePackCheckli
                   {completed}/{items.length}
                 </span>
                 {requiredPending > 0 && (
-                  <span className="inline-flex items-center px-1.5 h-4 rounded bg-destructive/12 text-destructive text-[10px] font-semibold">
-                    {requiredPending} required pending
-                  </span>
+                  <Badge variant="critical" className="h-4 text-[10px] font-semibold">
+                    {requiredPending} required, still to do
+                  </Badge>
                 )}
               </div>
             </div>
@@ -46,15 +47,23 @@ export function EvidencePackChecklist({ stages, checklist }: EvidencePackCheckli
               {items.map(item => (
                 <div key={item.id} className="flex items-center gap-2 px-3 py-1.5 text-[13px]">
                   {item.checked ? (
-                    <Check className="h-3.5 w-3.5 text-success shrink-0" />
+                    <>
+                      <Check className="h-3.5 w-3.5 text-success shrink-0" aria-hidden />
+                      <span className="sr-only">Done:</span>
+                    </>
                   ) : (
-                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <>
+                      <AlertCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-hidden />
+                      <span className="sr-only">Still to do:</span>
+                    </>
                   )}
                   <span className={cn('flex-1', item.checked && 'text-muted-foreground')}>
                     {item.label}
                   </span>
                   {item.required && (
-                    <span className="text-[10px] font-mono font-semibold text-destructive">REQ</span>
+                    <span className="text-[10px] font-mono font-semibold text-destructive" title="Required item">
+                      REQ
+                    </span>
                   )}
                 </div>
               ))}

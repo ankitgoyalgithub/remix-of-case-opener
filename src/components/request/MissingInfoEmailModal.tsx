@@ -74,7 +74,7 @@ SME Health Policy Issuance`;
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5 text-primary" />
-            Request Missing Information
+            Ask broker for documents
           </DialogTitle>
         </DialogHeader>
 
@@ -99,7 +99,7 @@ SME Health Policy Issuance`;
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="body">Email Body</Label>
+            <Label htmlFor="body">Email body</Label>
             <Textarea
               id="body"
               value={body}
@@ -111,7 +111,7 @@ SME Health Policy Issuance`;
 
           <div className="bg-muted/50 rounded-lg p-3">
             <p className="text-xs text-muted-foreground">
-              <strong>Missing Documents:</strong>{' '}
+              <strong>Documents we’re asking for:</strong>{' '}
               {missingDocuments.map(doc => DOCUMENT_TYPE_LABELS[doc]).join(', ')}
             </p>
           </div>

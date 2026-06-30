@@ -64,7 +64,7 @@ export default function StudioOverview() {
             setState({ stages, documents, checklists, cvRules });
             setLoadErrors(errs);
             if (Object.keys(errs).length > 0) {
-                toast.error('Some configuration could not be loaded — gaps below may be inaccurate.');
+                toast.error("We couldn't load all of your settings, so the summary below may be incomplete. Please refresh to try again.");
             }
             setLoading(false);
         })();
@@ -94,35 +94,35 @@ export default function StudioOverview() {
         if (state.stages.length === 0) {
             gaps.push({
                 severity: 'warning',
-                message: 'No workflow stages configured. Requests won\'t have a pipeline.',
-                action: { label: 'Run setup wizard', to: '/studio/setup' },
+                message: "No review stages set up yet, so requests have no steps to move through.",
+                action: { label: 'Open setup', to: '/studio/setup' },
             });
         }
         if (state.documents.length === 0) {
             gaps.push({
                 severity: 'warning',
-                message: 'No document types defined. Operators can\'t upload anything meaningful.',
+                message: "No document types defined yet, so there's nothing for brokers and ops to upload.",
                 action: { label: 'Add documents', to: '/studio/documents' },
             });
         }
         if (state.documents.length > 0 && docsWithoutExtraction.length > 0) {
             gaps.push({
                 severity: 'info',
-                message: `${docsWithoutExtraction.length} document type${docsWithoutExtraction.length > 1 ? 's' : ''} have no extraction schema — they'll be extracted free-form.`,
-                action: { label: 'Configure extraction', to: '/studio/documents' },
+                message: `${docsWithoutExtraction.length} document type${docsWithoutExtraction.length > 1 ? 's' : ''} don't list the values to read, so they'll be read free-form.`,
+                action: { label: 'Set up reading', to: '/studio/documents' },
             });
         }
         if (checklistsWithoutHandler.length > 0) {
             gaps.push({
                 severity: 'warning',
-                message: `${checklistsWithoutHandler.length} automated check${checklistsWithoutHandler.length > 1 ? 's' : ''} have no handler wired — they'll never run.`,
+                message: `${checklistsWithoutHandler.length} automatic check${checklistsWithoutHandler.length > 1 ? 's are' : ' is'} not finished being set up, so ${checklistsWithoutHandler.length > 1 ? 'they' : 'it'} won't run.`,
                 action: { label: 'Review checks', to: '/studio/checks' },
             });
         }
         if (state.cvRules.length === 0 && state.documents.length > 1) {
             gaps.push({
                 severity: 'info',
-                message: 'No cross-validation rules configured — document-to-document field matching is off.',
+                message: "No comparison rules set up, so values aren't checked across documents.",
                 action: { label: 'Add rules', to: '/studio/documents' },
             });
         }
@@ -140,24 +140,24 @@ export default function StudioOverview() {
                 <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
                 <div className="relative">
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary/80">
-                        <Sparkles className="h-3 w-3" />
-                        AI Studio
+                        <Sparkles className="h-3 w-3" aria-hidden />
+                        Configuration
                     </div>
                     <h1 className="text-3xl font-semibold text-foreground mt-2 tracking-tight">
                         Configuration overview
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1.5 max-w-2xl">
-                        One place to shape how the platform ingests submissions, verifies documents, runs checks, and talks to your team.
+                        One place to set up how the platform takes in submissions, reads documents, runs checks, and emails your team and brokers.
                     </p>
                     {!hasAnyConfig && !loading && (
                         <div className="mt-4 flex items-center gap-2">
                             <Link to="/studio/setup">
                                 <Button size="sm" className="gap-1.5 shadow-md shadow-primary/20">
-                                    <Wand2 className="h-3.5 w-3.5" />
-                                    Run setup wizard
+                                    <Wand2 className="h-3.5 w-3.5" aria-hidden />
+                                    Start guided setup
                                 </Button>
                             </Link>
-                            <span className="text-xs text-muted-foreground">First time here? Let the wizard walk you through it.</span>
+                            <span className="text-xs text-muted-foreground">First time here? We'll walk you through it step by step.</span>
                         </div>
                     )}
                 </div>
@@ -168,16 +168,16 @@ export default function StudioOverview() {
                 <StatCard
                     icon={Workflow}
                     tone="primary"
-                    label="Stages"
+                    label="Review stages"
                     value={state.stages.length}
                     to="/studio/workflows"
                 />
                 <StatCard
                     icon={FileStack}
                     tone="info"
-                    label="Document types"
+                    label="Documents"
                     value={state.documents.length}
-                    hint={docsWithoutExtraction.length > 0 ? `${docsWithoutExtraction.length} free-form` : undefined}
+                    hint={docsWithoutExtraction.length > 0 ? `${docsWithoutExtraction.length} not set up` : undefined}
                     to="/studio/documents"
                 />
                 <StatCard
@@ -185,21 +185,20 @@ export default function StudioOverview() {
                     tone="success"
                     label="Checks"
                     value={state.checklists.length}
-                    hint={checklistsWithoutHandler.length > 0 ? `${checklistsWithoutHandler.length} unwired` : undefined}
+                    hint={checklistsWithoutHandler.length > 0 ? `${checklistsWithoutHandler.length} won't run` : undefined}
                     to="/studio/checks"
                 />
                 <StatCard
                     icon={Plug}
                     tone="warning"
-                    label="Integrations"
+                    label="Connected services"
                     value="—"
-                    hint="Coming soon"
                     to="/studio/integrations"
                 />
                 <StatCard
                     icon={Mail}
                     tone="neutral"
-                    label="Messages"
+                    label="Email templates"
                     value="—"
                     to="/studio/messages"
                 />
@@ -272,20 +271,20 @@ export default function StudioOverview() {
                         <QuickLink
                             to="/studio/setup"
                             icon={Wand2}
-                            title="Setup wizard"
-                            description="Step-by-step initial configuration"
+                            title="Guided setup"
+                            description="Set everything up, step by step"
                         />
                         <QuickLink
                             to="/studio/documents"
                             icon={FileStack}
                             title="Add a document"
-                            description="Define a new document type + AI config"
+                            description="Define a new document type and what to read from it"
                         />
                         <QuickLink
                             to="/studio/workflows"
                             icon={Workflow}
-                            title="Edit workflow"
-                            description="Rearrange stages, change gates"
+                            title="Edit review stages"
+                            description="Reorder stages and choose which are required"
                         />
                     </div>
                 </CardContent>
